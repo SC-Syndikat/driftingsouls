@@ -1,0 +1,35 @@
+<div class="gfxbox" style="width:(100%-38px)">
+<table width="100%" class="noBorderX" cellpadding="3" cellspacing="3">
+<tr>
+	<td valign="top" class="noBorderX">Sprungantrieb</td>
+</tr>
+<tr>
+	<td class="noBorderX">
+		{if schiff.jumpdrive.jumping}
+			Das Schiff springt gerade - Ziel: {schiff.jumpdrive.jumping}:{schiff.jumpdrive.jumpingx}/{schiff.jumpdrive.jumpingy} {!image_link_to interface/delete.gif, plugin, css_style:vertical-align:middle, plugin:$global.pluginid, ship:$ship.id, jumpdrive_ops[subaction]:cancel}<br /><br />
+			<form action="./ds" method="post">
+				Ziel: <input name="jumpdrive_ops[system]" type="text" size="2" value="{schiff.jumpdrive.jumping}" />
+				<input name="jumpdrive_ops[x]" type="text" size="3" value="{schiff.jumpdrive.jumpingx}" />/<input name="jumpdrive_ops[y]" type="text" size="3" value="{schiff.jumpdrive.jumpingy}" />
+
+				<input type="hidden" id="jumpdrive_subaction" name="jumpdrive_ops[subaction]" value="newtarget" />
+				<input type="submit" name="newtarget" value="Neues Ziel" />
+				{!form_create_hidden plugin, plugin:$global.pluginid, ship:$ship.id }
+			</form>
+		{else}
+			<form action="./ds" method="post">
+				Ziel: <input name="jumpdrive_ops[system]" type="text" size="2" value="0" />:
+				<input name="jumpdrive_ops[x]" type="text" size="3" value="0" />/
+				<input name="jumpdrive_ops[y]" type="text" size="3" value="0" />
+				{if user.npc}
+					<input id="jumpdrive_shivan_instant" name="jumpdrive_ops[instant]" type="checkbox" value="1" />
+					<label for="jumpdrive_shivan_instant">sofort springen</label>
+				{/endif}
+				<input type="hidden" name="jumpdrive_ops[subaction]" value="set" />
+				{!form_create_hidden plugin, plugin:$global.pluginid, ship:$ship.id }
+				<input type="submit" name="jump" value="ok" /><br />
+			</form>
+		{/endif}
+	</td>
+</tr>
+</table>
+</div>

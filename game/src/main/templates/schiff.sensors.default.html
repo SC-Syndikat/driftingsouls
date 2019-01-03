@@ -1,0 +1,436 @@
+{if has.srs}
+	<table width="100%" class="show" cellpadding="3" cellspacing="3" align="center">
+	<tr>
+		<td class="schiff" valign="middle">Sensoren</td>
+	</tr>
+	<tr><td class="Border">
+	{if global.goodscan}
+		<span style="font-weight:bold; color:#ff0505">Scan von <a style="color:inherit" href="./client#/map/{ship.location.url}">{ship.sensors.location}</a></span><br />
+	{/endif}
+	{if global.badscan}
+		<span style="font-weight:bold; color:#ff0505">Basen in <a style="color:inherit" href="./client#/map/{ship.location.url}">{ship.sensors.location}</a></span><br />
+	{/endif}
+
+	{if global.scan}
+		<table class="show">
+		<tr class="show">
+		<td class="show" style="width:30px"><a class="forschinfo" href="./ds?module=schiff&amp;ship={global.ship}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops[order]=id">ID</a></td>
+		<td class="show" style="width:150px"><a class="forschinfo" href="./ds?module=schiff&amp;ship={global.ship}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops[order]=owner">Besitzer</a></td>
+		<td class="show" style="width:150px"><a class="forschinfo" href="./ds?module=schiff&amp;ship={global.ship}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops[order]=name">Name</a></td>
+		<td class="show" style="width:100px"><a class="forschinfo" href="./ds?module=schiff&amp;ship={global.ship}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops[order]=shiptype">Klasse</a></td>
+		<td class="show"><span class="smallfont">Zustand</span></td>
+		{if global.awac}<td class="show"><span class="smallfont">Info</span></td>{/endif}
+		<td class="show"><span class="smallfont">Aktionen</span></td></tr>
+
+		<!-- BEGIN bases.listitem -->
+			<tr><td class="show2"><span class="smallfont">
+			{if base.ownbase}
+				<a class="schiff" href="./ds?module=base&amp;col={base.id}">{base.id}</a>
+			{else}
+				{base.id}
+			{/endif}
+			</span></td>
+			<td class="show2" style="width:150px"><span class="smallfont">
+			{if base.pm}
+				<a class="profile" href="./ds?module=userprofile&amp;user={base.owner.id}">{base.owner.name}</a>
+			{else}
+				{base.owner.name}
+			{/endif}
+			</span></td>
+			<td class="show2"><span class="smallfont">{base.name}</span>
+			{if base.size}
+				<br /><span class="verysmallfont">Gr&ouml;&szlig;e: {base.size}</span>
+			{/endif}
+			</td>
+			<td class="show2"><img src="{base.image}" alt="Kolonie" /></td>
+			<td class="show2">&nbsp;</td>
+			{if global.awac}<td class="show2">&nbsp;</td>{/endif}
+			<td class="show2" align="left">
+			{if base.colonize}
+				<a class="greenborder tooltip" href="./ds?module=colonize&amp;col={base.id}&amp;ship={global.ship}">
+					<img src="data/interface/schiffe/schiff_kolonisieren.gif" alt="" />
+					<span class="ttcontent">
+						{base.name} kolonisieren
+					</span>
+				</a>
+			{/endif}{if base.transfer}
+				<a class="greenborder tooltip" href="./ds?module=transport&amp;to={base.id}&amp;from={global.ship}&amp;way=stob">
+					<img src="data/interface/schiffe/schiff_transport.gif" alt="" />
+					<span class="ttcontent">
+						mit {base.name} Waren austauschen
+					</span>
+				</a>
+			{/endif}{if base.ownbase}
+				<a class="greenborder tooltip" href="./ds?module=crewtausch&amp;ship={global.ship}&amp;tar={base.id}&amp;mode=sb">
+					<img src="data/interface/schiffe/schiff_bemannen.gif" alt="" />
+					<span class="ttcontent">
+						Crew mit {base.name} austauschen
+					</span>
+				</a>
+			{/endif}{if base.unittausch}
+				<a class="greenborder tooltip" href="./ds?module=unittausch&amp;to={base.id}&amp;from={global.ship}&amp;way=stob">
+					<img src="data/interface/schiffe/schiff_unittransfer.gif" alt="" />
+					<span class="ttcontent">mit {base.name} Einheiten austauschen</span>
+				</a>
+			{/endif}{if base.offiziere.transfer}
+				<a class="greenborder tooltip" href="./ds?module=tc&amp;action=shipToBase&amp;ship={global.ship}&amp;target={base.id}">
+					<img src="data/interface/schiffe/schiff_captain_transfer.gif" alt="" />
+					<span class="ttcontent">Offizier nach {base.name} transferieren</span>
+				</a>
+			{/endif}{if base.offiziere.set}
+				<a class="greenborder tooltip" href="./ds?module=tc&amp;action=baseToShip&amp;ship={global.ship}&amp;target={base.id}">
+					<img src="data/interface/schiffe/schiff_captain_zuweisen.gif" alt="" />
+					<span class="ttcontent">Offizier von {base.name} transferieren</span>
+				</a>
+			{/endif}{if base.action.repair}
+				<a class="greenborder tooltip" href="./ds?module=building&amp;ws={global.ship}&amp;col={base.id}&amp;field={base.werft.field}">
+					<img src="data/interface/schiffe/schiff_repair.gif" alt="" />
+					<span class="ttcontent">auf {base.name} in die Werkstatt fliegen</span>
+				</a>
+			{/endif}
+			</td></tr>
+		<!-- END bases.listitem -->
+	{else}
+		<span class="smallfont" style="color:red">Scan nicht m&ouml;glich (Sensoren defekt)</span>
+	{/endif}
+
+	{if global.goodscan}
+		{if nebel}
+			<tr>
+				<td class="show2"></td>
+				<td class="show2" style="width:150px">&nbsp;</td>
+				<td class="show2">&nbsp;</td>
+				<td class="show2"><img src="data/objects/nebel{nebel.type}.png" alt="Nebel" /></td>
+				<td class="show2">&nbsp;</td>
+				{if global.awac}<td class="show2">&nbsp;</td>{/endif}
+				<td class="show2">
+					{if global.ship.deutfactor}
+						<a class="greenborder tooltip" href="./ds?module=deutsammeln&amp;ship={global.ship}">
+							<img src="data/interface/schiffe/schiff_deutsammeln.gif" alt="" />
+							<span class="ttcontent">Deuterium sammeln</span>
+						</a>
+					{/endif}
+					{if nebel.flotteSammeln}
+						<a class="greenborder tooltip" href="./ds?module=deutsammeln&amp;fleet={ship.fleet}">
+							<img src="data/interface/schiffe/schiff_deutsammeln_flotte.gif" alt="" />
+							<span class="ttcontent">Die Flotte Deuterium sammeln lassen</span>
+						</a>
+					{/endif}
+				</td>
+			</tr>
+		{/endif}
+
+		<!-- BEGIN nodes.listitem -->
+			<tr>
+				<td class="show2"><span class="smallfont">{node.id}</span></td>
+				<td class="show2" style="width:150px">&nbsp;</td>
+				<td class="show2"><span class="smallfont">{node.name}{if node.blocked}<br />-Blockiert-{/endif}</span></td>
+				<td class="show2"><img src="data/objects/node.png" alt="Sprungpunkt" /></td>
+				<td class="show2">&nbsp;</td>
+				{if global.awac}<td class="show2">&nbsp;</td>{/endif}
+				<td class="show2">
+					<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=jump&amp;node={node.id}&amp;ship={global.ship}">
+						<img src="data/interface/schiffe/schiff_springen.gif" alt="" />
+						<span class="ttcontent">nach {node.name} springen</span>
+					</a>
+				</td>
+			</tr>
+		<!-- END nodes.listitem -->
+
+		<!-- BEGIN battles.listitem -->
+			<tr>
+				<td class="show2"><span class="smallfont">{battle.id}</span></td>
+				<td class="show2" style="width:150px; text-align:center">
+					<span class="smallfont">
+						Schlacht
+					</span>
+				</td>
+				<td class="show2" align="center">
+					<span class="smallfont">{battle.party1}<br />vs<br />{battle.party2}</span>
+				</td>
+				<td class="show2"><img height="30" src="data/interface/battle.svg" alt="Schlacht" /></td>
+				<td class="show2"><span class="smallfont">{battle.shipcount} Schiffe</span></td>
+				{if global.awac}<td class="show2">&nbsp;</td>{/endif}
+				<td class="show2">
+					{if battle.joinable}
+						{if battle.fixedjoin}
+							<a class="redborder" href="./ds?module=angriff&amp;battle={battle.id}&amp;addship={global.ship}"><img src="data/interface/schiffe/schiff_battle.gif" alt="teilnehmen" /></a>
+						{else}
+							<a class="redborder" href="javascript:DS.ask('Wollen sie wirklich auf Seiten der {battle.side1} angreifen?',DS.getUrl()+'?module=angriff&amp;battle={battle.id}&amp;addship={global.ship}&amp;forcejoin=1')"><img src="data/interface/schiffe/schiff_battle_side1.gif" alt="teilnehmen auf Seite 2" /></a>
+							<a class="redborder" href="javascript:DS.ask('Wollen sie wirklich auf Seiten der {battle.side2} angreifen?',DS.getUrl()+'?module=angriff&amp;battle={battle.id}&amp;addship={global.ship}&amp;forcejoin=2')"><img src="data/interface/schiffe/schiff_battle_side2.gif" alt="teilnehmen auf Seite 2" /></a>
+						{/endif}
+					{/endif}
+					{if battle.viewable}
+						<a class="greenborder" href="./ds?module=angriff&amp;battle={battle.id}"><img src="data/interface/schiffe/schiff_battle_view.gif" alt="ansehen" /></a>
+					{/endif}
+				</td>
+			</tr>
+		<!-- END battles.listitem -->
+
+		{if global.jumps}
+			<tr>
+				<td class="show2"><span class="smallfont">-</span></td>
+				<td class="show2" style="width:150px">&nbsp;</td>
+				<td class="show2">
+					<span class="smallfont">{global.jumps} {global.jumps.name}</span>
+				</td>
+				<td class="show2"><img src="data/objects/subraumspalt.gif" alt="" /></td>
+				<td class="show2">&nbsp;</td>
+				{if global.awac}<td class="show2">&nbsp;</td>{/endif}
+				<td class="show2">&nbsp;</td>
+			</tr>
+		{/endif}
+		<script type="text/javascript">
+		<!--
+			function createFleetFromSRSGroup(type,maxcount,fleetlesscount)
+			{
+				var count = prompt('Aus wievielen Schiffen soll die Flotte bestehen? (maximal: '+maxcount+')\nWenn sie mehr als '+fleetlesscount+' Schiff(e) auswaehlen, muessen Schiffe aus bestehenden Flotten entfernt werden',fleetlesscount);
+				if( count && (count <= maxcount) ) {
+					PopupWnd('&action=createFromSRSGroup&sector={global.ship}&type='+type+'&count='+count);
+				}
+			}
+
+			function addToFleetFromSRSGroup(type,maxcount,fleetlesscount)
+			{
+				var count = prompt('Wievielen Schiffen sollen der Flotte hinzugefuegt werden? (maximal: '+maxcount+')\nWenn sie mehr als '+fleetlesscount+' Schiff(e) auswählen, m&uuml;ssen Schiffe aus bestehenden Flotten entfernt werden',fleetlesscount);
+				if( count && (count <= maxcount) ) {
+					PopupWnd('&action=addFromSRSGroup&fleet={ship.fleet}&sector={global.ship}&type='+type+'&count='+count);
+				}
+			}
+		// -->
+		</script>
+		<!-- BEGIN sshipgroup.listitem -->
+			<tr>
+				<td class="show2"><span class="smallfont">-</span></td>
+				{if sshipgroup.ownship}
+					<td class="show2" style="width:150px">
+						<span class="smallfont">{sshipgroup.owner.name}</span>
+					</td>
+				{else}
+					<td class="show2" style="width:150px">
+						<span class="smallfont"><a class="profile" href="./ds?module=userprofile&amp;user={sshipgroup.owner.id}">{sshipgroup.owner.name}</a></span>
+					</td>
+				{/endif}
+				<td class="show2"><span class="smallfont">{sshipgroup.name}</span></td>
+				<td class="show2">
+					<a class="tooltip" onclick="ShiptypeBox.show({sshipgroup.type.id});return false;"
+						href="./ds?module=schiffinfo&amp;ship={sshipgroup.type.id}">
+						<img src="{sshipgroup.type.image}" alt="" />
+						<span class="ttcontent">
+							{sshipgroup.type.name}
+						</span>
+					</a>
+				</td>
+				<td class="show2"><span class="smallfont">-</span></td>
+				<td class="show2" align="left">
+					{if sshipgroup.sublist}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;ship={global.ship}&amp;action=plugin&amp;plugin={global.pluginid}">
+							<img src="data/interface/schiffe/schiff_zoom_in.gif" alt="rauszoomen" />
+							<span class="ttcontent">Zur&uuml;ck</span>
+						</a>
+					{else}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;ship={global.ship}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops[showonly]={sshipgroup.type.id}&amp;{global.pluginid}_ops[showid]={sshipgroup.owner.id}">
+							<img src="data/interface/schiffe/schiff_zoom_out.gif" alt="" />
+							<span class="ttcontent">Anzeigen</span>
+						</a>
+					{/endif}
+					{if sshipgroup.own}
+						{if sshipgroup.count}
+							{if ship.fleet}
+								<a class="greenborder tooltip" href="javascript:addToFleetFromSRSGroup({sshipgroup.type.id},{sshipgroup.count},{sshipgroup.fleetlesscount})">
+									<img src="data/interface/schiffe/schiff_anschliessen.gif" alt="zur Flotte hinzufügen" />
+									<span class="ttcontent">X Schiffe der Flotte hinzuf&uuml;gen</span>
+								</a>
+							{else}
+								<a class="greenborder tooltip" href="javascript:createFleetFromSRSGroup({sshipgroup.type.id},{sshipgroup.count},{sshipgroup.fleetlesscount})">
+									<img src="data/interface/schiffe/schiff_anschliessen.gif" alt="Flotte bilden" />
+									<span class="ttcontent">Eine neue Flotte aus x Schiffen erstellen</span>
+								</a>
+							{/endif}
+						{/endif}
+					{/endif}
+				</td>
+			</tr>
+		<!-- END sshipgroup.listitem -->
+
+		<!-- BEGIN sships.listitem -->
+			<tr>
+				<td class="show2">
+					<span class="smallfont">
+						{if sships.ownship}
+							<a class="schiff" href="./ds?module=schiff&amp;ship={sships.id}">{sships.id}</a>
+						{else}
+							{sships.id}
+						{/endif}
+					</span>
+				</td>
+				{if sships.ownship}
+					<td class="show2" style="width:150px"><span class="smallfont">{sships.owner.name}</span></td>
+				{else}
+					{if sships.disableiff}
+						<td class="show2" style="width:150px"><span class="smallfont">{sships.owner.name}</span></td>
+					{else}
+						<td class="show2" style="width:150px"><span class="smallfont"><a class="profile" href="./ds?module=userprofile&amp;user={sships.owner.id}">{sships.owner.name}</a></span></td>
+					{/endif}
+				{/endif}
+				<td class="show2">
+					<span class="smallfont">
+						{if sships.battle}<img src="battle_small.gif" alt="Schlacht" />&nbsp;{/endif}
+						{sships.name}
+						{if sships.fleet.id}
+							<br /><span style="font-style:italic"><a class="forschinfo" href="javascript:PopupWnd('&amp;fleet={sships.fleet.id}&amp;act=show')">{sships.fleet.name}</a></span>
+						{/endif}
+						{if sships.docked.id}
+							<br /><span style="font-style:italic">An <a class="forschinfo" href="./ds?module=schiff&amp;ship={sships.docked.id}">{sships.docked.name}</a></span>
+						{/endif}
+					</span>
+				</td>
+				<td class="show2">
+					<a class="tooltip" onclick="ShiptypeBox.show({sships.type.id});return false;"
+						href="./ds?module=schiffinfo&amp;ship={sships.type.id}">
+						<img src="{sships.type.image}" alt="" />
+						<span class="ttcontent">
+							{sships.type.name}
+						</span>
+					</a>
+				</td>
+				<td class="show2">
+					<span class="smallfont">
+						{sships.hull}<br />{if sships.ablativearmor}<span style="color:#808080">{sships.ablativearmor}</span>{/endif}<br />{if sships.shields}<span style="color:orange">{sships.shields}</span>{/endif}
+					</span>
+				</td>
+				{if global.awac}
+					<td class="show2" align="left">
+						<span class="smallfont">
+							{if global.standartawac}
+								{if sships.heat.high}Heat:<br /><span style="color:red"> high</span>{/endif}
+								{if sships.heat.medium}Heat:<br /><span style="color:orange"> medium</span>{/endif}
+								{if sships.heat.low}Heat:<br /><span style="color:green"> low</span>{/endif}
+								{if sships.heat.none}Heat:<br /> -{/endif}
+							{else}
+								{if sships.heat.none}h:<span style="color:green"> {sships.heat}</span>{/endif}
+								{if sships.heat.medium}h:<span style="color:orange"> {sships.heat}</span>{/endif}
+								{if sships.heat.high}h:<span style="color:red"> {sships.heat}</span>{/endif}
+
+								{if sships.nocrew}<br />c:<span style="color:red"> 0</span>{/endif}
+								{if sships.crew}<br />c:<span style="color:green"> {sships.crew}</span>{/endif}
+
+								{if sships.noe}<br />e:<span style="color:red"> 0</span>{/endif}
+								{if sships.e}<br />e:<span style="color:green"> {sships.e}</span>{/endif}
+							{/endif}
+						</span>
+					</td>
+				{/endif}
+				<td class="show2" align="left">
+					{if sships.action.angriff}
+						<a class="redborder tooltip" href="javascript:DS.ask('Wollen sie die {sships.type.name} wirklich angreifen?',DS.getUrl()+'?module=angriff&amp;ship={global.ship}&amp;attack={sships.id}')">
+							<img src="data/interface/schiffe/schiff_angriff.gif" alt="" />
+							<span class="ttcontent">{sships.type.name} angreifen</span>
+						</a>
+					{/endif}{if sships.action.communicate}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;communicate={sships.id}&amp;ship={global.ship}">
+							<img src="data/interface/schiffe/schiff_com.gif" alt="" />
+							<span class="ttcontent">Mit {sships.type.name} kontakt aufnehmen</span>
+						</a>
+					{/endif}{if sships.action.jump}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=kjump&amp;knode={sships.id}&amp;ship={global.ship}">
+							<img src="data/interface/schiffe/schiff_springen.gif" alt="" />
+							<span class="ttcontent">springen</span>
+						</a>
+					{/endif}{if sships.action.trade}
+						<a class="greenborder tooltip" href="./ds?module=trade&amp;ship={global.ship}&amp;tradepost={sships.id}">
+							<img src="data/interface/schiffe/schiff_handel.gif" alt="" />
+							<span class="ttcontent">mit {sships.type.name} handeln</span>
+						</a>
+					{/endif}{if sships.action.transfer}
+						<a class="greenborder tooltip" href="./ds?module=transport&amp;to={sships.id}&amp;from={global.ship}&amp;way=stos">
+							<img src="data/interface/schiffe/schiff_transport.gif" alt="" />
+							<span class="ttcontent">mit {sships.type.name} Waren austauschen</span>
+						</a>
+					{/endif}{if sships.action.transferpluender}
+						<a class="greenborder tooltip" href="./ds?module=pluendern&amp;to={sships.id}&amp;from={global.ship}">
+							<img src="data/interface/schiffe/schiff_transport.gif" alt="" />
+							<span class="ttcontent">von {sships.type.name} Waren pl&uuml;ndern</span>
+						</a>
+					{/endif}{if sships.action.kapern}
+						<a class="orangeborder tooltip" href="./ds?module=kapern&amp;ship={global.ship}&amp;tar={sships.id}">
+							<img src="data/interface/schiffe/schiff_kapern.gif" alt="" />
+							<span class="ttcontent">{sships.type.name} kapern</span>
+						</a>
+					{/endif}{if sships.action.pluendern}
+						<a class="greenborder tooltip" href="./ds?module=pluendern&amp;to={sships.id}&amp;from={global.ship}">
+							<img src="data/interface/schiffe/schiff_kapern.gif" alt="" />
+							<span class="ttcontent">von {sships.type.name} Waren pl&uuml;ndern</span>
+						</a>
+					{/endif}{if sships.action.crewtausch}
+						<a class="greenborder tooltip" href="./ds?module=crewtausch&amp;ship={global.ship}&amp;tar={sships.id}&amp;mode=ss">
+							<img src="data/interface/schiffe/schiff_bemannen.gif" alt="" />
+							<span class="ttcontent">{sships.type.name} bemannen</span>
+						</a>
+					{/endif}{if sships.action.unittausch}
+						<a class="greenborder tooltip" href="./ds?module=unittausch&amp;to={sships.id}&amp;from={global.ship}&amp;way=stos">
+							<img src="data/interface/schiffe/schiff_unittransfer.gif" alt="" />
+							<span class="ttcontent">Mit {sships.type.name} Einheiten austauschen</span>
+						</a>
+					{/endif}{if sships.action.tcaptain}
+						<a class="greenborder tooltip" href="./ds?module=tc&amp;action=shipToShip&amp;ship={global.ship}&amp;target={sships.id}">
+							<img src="data/interface/schiffe/schiff_captain_transfer.gif" alt="" />
+							<span class="ttcontent">Offizier zu {sships.type.name} transferieren</span>
+						</a>
+					{/endif}{if sships.action.aufladen}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;ship={global.ship}&amp;action=aufladen&amp;tar={sships.id}">
+							<img src="data/interface/schiffe/schiff_aufladen.gif" alt="" />
+							<span class="ttcontent">{sships.type.name} andocken</span>
+						</a>
+					{/endif}{if sships.action.repair}
+						<a class="greenborder tooltip" href="./ds?module=werft&amp;ws={global.ship}&amp;ship={sships.id}">
+							<img src="data/interface/schiffe/schiff_repair.gif" alt="" />
+							<span class="ttcontent">auf {sships.name} in die Werkstatt fliegen</span>
+						</a>
+					{/endif}{if sships.action.land}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=land&amp;land={sships.id}&amp;ship={sships.id}&amp;shiplist={global.ship}">
+							<img src="data/interface/schiffe/schiff_landen.gif" alt="" />
+							<span class="ttcontent">auf {sships.type.name} landen</span>
+						</a>
+					{/endif}{if sships.action.landfleet}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=land&amp;land={sships.id}&amp;ship={sships.id}&amp;shiplist={global.shiplist}">
+							<img src="data/interface/schiffe/schiff_flottelanden.gif" alt="" />
+							<span class="ttcontent">auf {sships.type.name} landen</span>
+						</a>
+					{/endif}{if sships.action.landthis}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=land&amp;land={global.ship}&amp;ship={global.ship}&amp;shiplist={sships.id}">
+							<img src="data/interface/schiffe/schiff_landen.gif" alt="" />
+							<span class="ttcontent">{sships.type.name} landen lassen</span>
+						</a>
+					{/endif}{if sships.action.landthisfleet}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=land&amp;land={global.ship}&amp;ship={global.ship}&amp;shiplist={sships.shiplist}">
+							<img src="data/interface/schiffe/schiff_flottelanden.gif" alt="" />
+							<span class="ttcontent">{sships.type.name}\'s Flotte landen lassen</span>
+						</a>
+					{/endif}{if sships.action.joinfleet}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=join&amp;join={sships.id}&amp;ship={global.ship}">
+							<img src="data/interface/schiffe/schiff_anschliessen.gif" alt="" />
+							<span class="ttcontent">an {sships.type.name}s Flotte anschliessen</span>
+						</a>
+					{/endif}{if sships.action.add2fleet}
+						<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=join&amp;join={global.ship}&amp;ship={sships.id}">
+							<img src="data/interface/schiffe/schiff_anschliessen.gif" alt="" />
+							<span class="ttcontent">{sships.type.name} in Flotte aufnehmen</span>
+						</a>
+					{/endif}{if sships.action.createfleet}
+						<a class="greenborder tooltip" href="javascript:PopupWnd('&amp;shiplist={global.ship}|{sships.id}&amp;action=create')">
+							<img src="data/interface/schiffe/schiff_anschliessen.gif" alt="" />
+							<span class="ttcontent">mit {sships.type.name} Flotte bilden</span>
+						</a>
+					{/endif}
+				</td>
+			</tr>
+		<!-- END sships.listitem -->
+	{/endif}
+
+	{if global.scan}
+		</table>
+	{/endif}
+
+	</td></tr></table>
+{/endif}
