@@ -103,7 +103,8 @@ public class BuildingsController extends Controller
 			t.setVar("building.name", Common._plaintitle(building.getName()),
 					"building.picture", building.getPictureForRace(user.getRace()),
 					"building.arbeiter", building.getArbeiter(),
-					"building.bewohner", building.getBewohner());
+					"building.bewohner", building.getBewohner(),
+					"user.vasudan", (user.getRace()==2));
 
 			ResourceList reslist = building.getBuildCosts().getResourceList();
 			Resources.echoResList(t, reslist, "building.buildcosts.list");
@@ -203,7 +204,8 @@ public class BuildingsController extends Controller
 					"core.basetype.name", baseType.getName(),
 					"core.name", Common._plaintitle(core.getName()),
 					"core.arbeiter", core.getArbeiter(),
-					"core.bewohner", core.getBewohner());
+					"core.bewohner", core.getBewohner(),
+					"user.vasudan", (user.getRace()==2));
 
 			ResourceList reslist = core.getBuildCosts().getResourceList();
 			Resources.echoResList(t, reslist, "core.buildcosts.list");

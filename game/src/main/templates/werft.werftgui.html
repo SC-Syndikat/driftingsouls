@@ -299,7 +299,11 @@
 				</td>
 				<td class="noBorderX" width="50"></td>
 				<td class="noBorderX" style="vertical-align:top">
-					Freies Personal: <img style="vertical-align:middle" src="data/interface/arbeitslos.gif" alt="" /> {werftgui.crew}<br />
+					{if user.vasudan}
+						Freies Personal: <img style="vertical-align:middle" src="data/interface/arbeitslos_v.gif" alt="" /> {werftgui.crew}<br />
+					{else}
+						Freies Personal: <img style="vertical-align:middle" src="data/interface/arbeitslos.gif" alt="" /> {werftgui.crew}<br />
+					{/endif}
 					Werftkapazit&auml;t: <img style="vertical-align:middle" src="data/interface/schiffinfo/werftslots.png" alt="" /> {werftgui.werftslots}
 				</td>
 			    <td class="noBorderX" width="50"></td>

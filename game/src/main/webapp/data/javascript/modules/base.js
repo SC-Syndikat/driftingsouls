@@ -82,10 +82,17 @@ function BaseView() {
 			'Bevölkerung: {{bewohner}}<br />'+
 			'Arbeiter benötigt: {{arbeiterErforderlich}}<br />'+
 			'Wohnraum: {{wohnraum}}<br />'+
+			'{{if user.vasudan}}'+
+			'<div class="arbeiteranzeige_v" style="width:{{arbeiterProzent}}%"></div>'+
+			'<div class="arbeitslosenanzeige_v" style="width:{{arbeitslosProzent}}%"></div>'+
+			'<div class="wohnraumfreianzeige_v" style="width:{{wohnraumFreiProzent}}%"></div>'+
+			'<div class="wohnraumfehltanzeige_v" style="width:{{wohnraumFehltProzent}}%"></div>'+
+			'{{else}}'+
 			'<div class="arbeiteranzeige" style="width:{{arbeiterProzent}}%"></div>'+
 			'<div class="arbeitslosenanzeige" style="width:{{arbeitslosProzent}}%"></div>'+
 			'<div class="wohnraumfreianzeige" style="width:{{wohnraumFreiProzent}}%"></div>'+
 			'<div class="wohnraumfehltanzeige" style="width:{{wohnraumFehltProzent}}%"></div>'+
+			'{{/endif}}'
 			'<br /><br />'+
 			'</div>';
 

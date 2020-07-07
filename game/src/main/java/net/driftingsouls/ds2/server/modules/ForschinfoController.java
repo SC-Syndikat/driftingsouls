@@ -288,7 +288,8 @@ public class ForschinfoController extends Controller
 					"tech.building.picture", building.getPictureForRace(user.getRace()),
 					"tech.building.name", Common._plaintitle(building.getName()),
 					"tech.building.arbeiter", building.getArbeiter(),
-					"tech.building.bewohner", building.getBewohner());
+					"tech.building.bewohner", building.getBewohner(),
+					"user.vasudan", (user.getRace()==2));
 
 			if (firstentry)
 			{
@@ -329,6 +330,7 @@ public class ForschinfoController extends Controller
 
 	private void coresZurForschungAnzeigen(Session db, TemplateEngine t, Forschung research)
 	{
+		User user = (User) getUser();
 		boolean firstentry;ResourceList reslist;
 		t.setBlock("_FORSCHINFO", "tech.cores.listitem", "tech.cores.list");
 		t.setBlock("tech.cores.listitem", "tech.core.buildcosts.listitem", "tech.core.buildcosts.list");
@@ -351,7 +353,8 @@ public class ForschinfoController extends Controller
 					"tech.core.name", Common._plaintitle(core.getName()),
 					"tech.core.hr", !firstentry,
 					"tech.core.arbeiter", core.getArbeiter(),
-					"tech.core.bewohner", core.getBewohner());
+					"tech.core.bewohner", core.getBewohner(),
+					"user.vasudan", (user.getRace()==2));
 
 			if (firstentry)
 			{
@@ -434,7 +437,8 @@ public class ForschinfoController extends Controller
 					"tech.ship.hr", !firstentry,
 					"tech.ship.dauer", ship.getDauer(),
 					"tech.ship.ekosten", ship.getEKosten(),
-					"tech.ship.crew", ship.getCrew());
+					"tech.ship.crew", ship.getCrew(),
+					"user.vasudan", (user.getRace()==2));
 
 			if (firstentry)
 			{

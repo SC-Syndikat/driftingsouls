@@ -137,14 +137,22 @@
 					</td>
 					<td class="noBorderX">
 						{if core.arbeiter}
-							<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{core.arbeiter}
+							{if user.vasudan}
+								<img src="data/interface/narbeiter_v.gif" alt="Arbeiter" />{core.arbeiter}
+							{else}
+								<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{core.arbeiter}
+							{/endif}
 						{else}
 							-
 						{/endif}
 					</td>
 					<td class="noBorderX">
 						{if core.bewohner}
-							<img src="data/interface/arbeiter.gif" alt="Bewohner" />{core.bewohner}
+							{if user.vasudan}
+								<img src="data/interface/arbeiter_v.gif" alt="Bewohner" />{core.bewohner}
+							{else}
+								<img src="data/interface/arbeiter.gif" alt="Bewohner" />{core.bewohner}
+							{/endif}
 						{else}
 							-
 						{/endif}

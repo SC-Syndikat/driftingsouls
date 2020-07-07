@@ -51,21 +51,29 @@
 			</td>
 			<td valign="top">
 				{if building.arbeiter}
-					<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{building.arbeiter}
+					{if user.vasudan}
+						<img src="data/interface/narbeiter_v.gif" alt="Arbeiter" />{building.arbeiter}
+					{else}
+						<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{building.arbeiter}
+					{/endif}
 				{else}
 					-
 				{/endif}
 			</td>
 			<td valign="top">
 				{if building.bewohner}
-					<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{building.bewohner}
+					{if user.vasudan}
+						<img src="data/interface/arbeiter_v.gif" alt="Bev&ouml;lkerung" />{building.bewohner}
+					{else}
+						<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{building.bewohner}
+					{/endif}
 				{else}
 					-
 				{/endif}
 			</td>
 		</tr>
 		{if building.addinfo}
-			<tr>	
+			<tr>
 				<td>&nbsp;</td>
 				<td colspan="7">{building.addinfo}</td>
 			</tr>
@@ -128,14 +136,22 @@
 				</td>
 				<td valign="top">
 					{if core.arbeiter}
-						<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{core.arbeiter}
+						{if user.vasudan}
+							<img src="data/interface/narbeiter_v.gif" alt="Arbeiter" />{core.arbeiter}
+						{else}
+							<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{core.arbeiter}
+						{/endif}
 					{else}
 						-
 					{/endif}
 				</td>
 				<td valign="top">
 					{if core.bewohner}
-						<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{core.bewohner}
+						{if user.vasudan}
+							<img src="data/interface/arbeiter_v.gif" alt="Bev&ouml;lkerung" />{core.bewohner}
+						{else}
+							<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{core.bewohner}
+						{/endif}
 					{else}
 						-
 					{/endif}

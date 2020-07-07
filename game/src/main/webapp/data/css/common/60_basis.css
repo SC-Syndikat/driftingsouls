@@ -117,6 +117,27 @@
 	background-image:url('../../interface/narbeiter.gif');
 }
 
+#baseContent #statsBox .arbeiteranzeige_v,
+#baseContent #statsBox .arbeitslosenanzeige_v,
+#baseContent #statsBox .wohnraumfreianzeige_v,
+#baseContent #statsBox .wohnraumfehltanzeige_v {
+	float:left;
+	height:15px;
+	background-repeat:repeat-x;
+}
+#baseContent #statsBox .arbeiteranzeige_v {
+	background-image:url('../../interface/arbeiter_v.gif');
+}
+#baseContent #statsBox .arbeitslosenanzeige_v {
+	background-image:url('../../interface/arbeitslos_v.gif');
+}
+#baseContent #statsBox .wohnraumfreianzeige_v {
+	background-image:url('../../interface/frei_v.gif');
+}
+#baseContent #statsBox .wohnraumfehltanzeige_v {
+	background-image:url('../../interface/narbeiter_v.gif');
+}
+
 #buildingBox .content {
 	width:430px;
 	height:300px;

@@ -107,6 +107,7 @@ public class WerftGUI {
 		if( action.equals("removefromkomplex") ) {
 			org.hibernate.Session db = context.getDB();
 
+
 			WerftObject obj = (WerftObject)db.get(WerftObject.class, context.getRequest().getParameterInt("entry"));
 
 			if( (obj != null) && obj.getKomplex() != null ) {
@@ -140,6 +141,7 @@ public class WerftGUI {
 			t.setVar("werftgui.main", 1);
 
 			List<WerftQueueEntry> queue = werft.getBuildQueue();
+			User user = (User)context.getActiveUser();
 			t.setVar(
 					"werftgui.name",	werft.getWerftName(),
 					"werftgui.picture",	werft.getWerftPicture(),
@@ -148,7 +150,8 @@ public class WerftGUI {
 					"werftgui.totalqueueentries",	queue.size(),
 					"werftgui.allowBuild", !werft.isEinwegWerft(),
 					"werftgui.allowRepair", !werft.isEinwegWerft(),
-					"werftgui.allowReload", !werft.isEinwegWerft()
+					"werftgui.allowReload", !werft.isEinwegWerft(),
+					"user.vasudan", (user.getRace()==2)
 					);
 
 			// Resourcenliste
@@ -550,6 +553,7 @@ public class WerftGUI {
 
 	private void out_ResourceList(WerftObject werft, Cargo showonly) {
 		t.setBlock("_WERFT.WERFTGUI", "reslist.res.listitem", "reslist.res.list");
+		User user = (User)context.getActiveUser();
 
 		Cargo cargo = werft.getCargo(false);
 		int frei = werft.getCrew();
@@ -566,7 +570,7 @@ public class WerftGUI {
 					"res.cargo",		werft.getEnergy() );
 		t.parse("reslist.res.list", "reslist.res.listitem", true);
 
-		t.setVar(	"res.image",		"./data/interface/arbeitslos.gif",
+		t.setVar(	"res.image",		"./data/interface/arbeitslos"+(user.getRace()==2?"_v":"")+".gif",
 					"res.plainname",	"Crew",
 					"res.cargo",		frei );
 		t.parse("reslist.res.list", "reslist.res.listitem", true);
@@ -1044,8 +1048,9 @@ public class WerftGUI {
 
 		// Crew
 		final int frei = werft.getCrew();
+		User user = (User)context.getActiveUser();
 
-		t.setVar(	"res.image",			"./data/interface/arbeitslos.gif",
+		t.setVar(	"res.image",			"./data/interface/arbeitslos"+(user.getRace()==2?"_v":"")+".gif",
 					"res.plainname",		"Crew",
 					"res.cargo.pertick",	"",
 					"res.cargo.available",	frei,

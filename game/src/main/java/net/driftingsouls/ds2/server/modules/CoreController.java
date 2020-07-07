@@ -306,7 +306,8 @@ public class CoreController extends Controller
 					"core.bewohner", core.getBewohner(),
 					"costs.res.list", "",
 					"consumes.res.list", "",
-					"produces.res.list", "");
+					"produces.res.list", "",
+					"user.vasudan", (user.getRace()==2));
 
 			t.setBlock("cores.listitem", "costs.res.listitem", "costs.res.list");
 

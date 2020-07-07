@@ -108,13 +108,21 @@
 				{/endif}
 				</td><td class="noBorderX" valign="top">
 				{if tech.building.arbeiter}
-					<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{tech.building.arbeiter}
+					{if user.vasudan}
+						<img src="data/interface/narbeiter_v.gif" alt="Arbeiter" />{tech.building.arbeiter}
+					{else}
+						<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{tech.building.arbeiter}
+					{/endif}
 				{else}
 					-
 				{/endif}
 				</td><td class="noBorderX" valign="top">
 				{if tech.building.bewohner}
-					<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{tech.building.bewohner}
+					{if user.vasudan}
+						<img src="data/interface/arbeiter_v.gif" alt="Bev&ouml;lkerung" />{tech.building.bewohner}
+					{else}
+						<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{tech.building.bewohner}
+					{/endif}
 				{else}
 					-
 				{/endif}
@@ -176,14 +184,22 @@
 			</td>
 			<td class="noBorderX" valign="top">
 				{if tech.core.arbeiter}
-					<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{tech.core.arbeiter}
+					{if user.vasudan}
+						<img src="data/interface/narbeiter_v.gif" alt="Arbeiter" />{tech.core.arbeiter}
+					{else}
+						<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{tech.core.arbeiter}
+					{/endif}
 				{else}
 					-
 				{/endif}
 			</td>
 			<td class="noBorderX" valign="top">
 				{if tech.core.bewohner}
-					<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{tech.core.bewohner}
+					{if user.vasudan}
+						<img src="data/interface/arbeiter_v.gif" alt="Bev&ouml;lkerung" />{tech.core.bewohner}
+					{else}
+						<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{tech.core.bewohner}
+					{/endif}
 				{else}
 					-
 				{/endif}
@@ -225,7 +241,11 @@
 						<img src="data/interface/energie.gif" alt="Energie" />{tech.ship.ekosten}
 					{/endif}
 					{if tech.ship.crew}
-						<img src="data/interface/narbeiter.gif" alt="Crew" />{tech.ship.crew}
+						{if user.vasudan}
+							<img src="data/interface/narbeiter_v.gif" alt="Crew" />{tech.ship.crew}
+						{else}
+							<img src="data/interface/narbeiter.gif" alt="Crew" />{tech.ship.crew}
+						{/endif}
 					{/endif}
 				</td>
 				<td class="noBorderX">

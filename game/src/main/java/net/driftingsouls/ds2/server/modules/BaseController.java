@@ -487,7 +487,8 @@ public class BaseController extends Controller
 					"base.estat",		Common.ln(basedata.getEnergy()),
 					"base.bewohner",	Common.ln(base.getBewohner()),
 					"base.arbeiter.needed",	Common.ln(basedata.getArbeiter()),
-					"base.wohnraum",		Common.ln(basedata.getLivingSpace()) );
+					"base.wohnraum",		Common.ln(basedata.getLivingSpace()),
+					"user.vasudan", (user.getRace()==2));
 
 		//----------------
 		// Aktionen
