@@ -430,8 +430,11 @@ public class ForschinfoController extends Controller
 			t.start_record();
 
 			ShipTypeData shiptype = ship.getType();
-
-
+			ShipBaubar shipBuildData = (ShipBaubar)db.createQuery("from ShipBaubar where type=:type")
+			.setInteger("type", ship.getType())
+			.setMaxResults(1)
+			.uniqueResult();
+			int race = shipBuildData.getRace();
 
 			t.setVar("tech.ship.id", shiptype.getTypeId(),
 					"tech.ship.name", Common._plaintitle(shiptype.getNickname()),
@@ -440,7 +443,8 @@ public class ForschinfoController extends Controller
 					"tech.ship.dauer", ship.getDauer(),
 					"tech.ship.ekosten", ship.getEKosten(),
 					"tech.ship.crew", ship.getCrew(),
-					"tech.ship.vasudan", (research.getRace()==2 || user.getRace()==2));
+					//entweder ist das Schiff nur fuer Vasus baubar oder es ist fuer alle baubar und der User ist Vasudaner
+					"tech.ship.vasudan", (race==2 || (race<=0 && user.getRace()==2)));
 
 			if (firstentry)
 			{
