@@ -108,7 +108,7 @@
 				{/endif}
 				</td><td class="noBorderX" valign="top">
 				{if tech.building.arbeiter}
-					{if user.vasudan}
+					{if tech.building.vasudan}
 						<img src="data/interface/narbeiter_v.gif" alt="Arbeiter" />{tech.building.arbeiter}
 					{else}
 						<img src="data/interface/narbeiter.gif" alt="Arbeiter" />{tech.building.arbeiter}
@@ -118,7 +118,7 @@
 				{/endif}
 				</td><td class="noBorderX" valign="top">
 				{if tech.building.bewohner}
-					{if user.vasudan}
+					{if tech.building.vasudan}
 						<img src="data/interface/arbeiter_v.gif" alt="Bev&ouml;lkerung" />{tech.building.bewohner}
 					{else}
 						<img src="data/interface/arbeiter.gif" alt="Bev&ouml;lkerung" />{tech.building.bewohner}
@@ -241,7 +241,7 @@
 						<img src="data/interface/energie.gif" alt="Energie" />{tech.ship.ekosten}
 					{/endif}
 					{if tech.ship.crew}
-						{if user.vasudan}
+						{if tech.ship.vasudan}
 							<img src="data/interface/narbeiter_v.gif" alt="Crew" />{tech.ship.crew}
 						{else}
 							<img src="data/interface/narbeiter.gif" alt="Crew" />{tech.ship.crew}

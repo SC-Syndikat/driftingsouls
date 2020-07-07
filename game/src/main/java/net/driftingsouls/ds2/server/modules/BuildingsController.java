@@ -104,7 +104,7 @@ public class BuildingsController extends Controller
 					"building.picture", building.getPictureForRace(user.getRace()),
 					"building.arbeiter", building.getArbeiter(),
 					"building.bewohner", building.getBewohner(),
-					"user.vasudan", (user.getRace()==2));
+					"building.vasudan", (building.getRace()==2));
 
 			ResourceList reslist = building.getBuildCosts().getResourceList();
 			Resources.echoResList(t, reslist, "building.buildcosts.list");

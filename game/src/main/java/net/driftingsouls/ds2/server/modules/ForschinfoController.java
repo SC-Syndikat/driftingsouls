@@ -289,7 +289,7 @@ public class ForschinfoController extends Controller
 					"tech.building.name", Common._plaintitle(building.getName()),
 					"tech.building.arbeiter", building.getArbeiter(),
 					"tech.building.bewohner", building.getBewohner(),
-					"user.vasudan", (user.getRace()==2));
+					"tech.building.vasudan", (building.getRace()==2));
 
 			if (firstentry)
 			{
@@ -431,6 +431,8 @@ public class ForschinfoController extends Controller
 
 			ShipTypeData shiptype = ship.getType();
 
+
+
 			t.setVar("tech.ship.id", shiptype.getTypeId(),
 					"tech.ship.name", Common._plaintitle(shiptype.getNickname()),
 					"tech.ship.picture", shiptype.getPicture(),
@@ -438,7 +440,7 @@ public class ForschinfoController extends Controller
 					"tech.ship.dauer", ship.getDauer(),
 					"tech.ship.ekosten", ship.getEKosten(),
 					"tech.ship.crew", ship.getCrew(),
-					"user.vasudan", (user.getRace()==2));
+					"tech.ship.vasudan", (research.getRace()==2 || user.getRace()==2));
 
 			if (firstentry)
 			{
