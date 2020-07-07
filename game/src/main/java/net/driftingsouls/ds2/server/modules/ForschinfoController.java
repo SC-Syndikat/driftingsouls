@@ -431,7 +431,7 @@ public class ForschinfoController extends Controller
 
 			ShipTypeData shiptype = ship.getType();
 			ShipBaubar shipBuildData = (ShipBaubar)db.createQuery("from ShipBaubar where type=:type")
-			.setInteger("type", ship.getType())
+			.setInteger("type", ship.getType().getId())
 			.setMaxResults(1)
 			.uniqueResult();
 			int race = shipBuildData.getRace();
