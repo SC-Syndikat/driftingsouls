@@ -28,6 +28,8 @@ import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.ships.*;
+
+import org.apache.commons.lang3.ObjectUtils.Null;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hibernate.CacheMode;
@@ -137,6 +139,25 @@ public class Battle implements Locatable
 		return this.id;
 	}
 
+	/**
+	 * Gibt eine Liste aller User einer Seite zurueck
+	 * @param side die Seite
+	 * @return die Userliste bzw null
+	 */
+	public List<User> getUserPerSide(int side)
+	{
+		List<User> user_list = new ArrayList<>();
+		for(Map.Entry<User, Integer> entry : commanders.entrySet())
+		{
+			if(entry.getValue() == side)
+				user_list.add(entry.getKey());
+		}
+		if(user_list.size() == 0)
+			return null;
+		else
+			return user_list;
+	}
+
 
 	/**
 	 * Gibt die Anzahl der Schiffe einer Seite zurueck.
@@ -148,16 +169,8 @@ public class Battle implements Locatable
 			return 0;
 		}
 		else{
-			List<User> users = new ArrayList<>();
-			for(Map.Entry<User,Integer> commander : commanders.entrySet())
-			{
-				if(commander.getValue() == side)
-				{
-					users.add(commander.getKey());
-				}
-			}
 			int count = 0;
-			for(User u : users){
+			for(User u : getUserPerSide(side)){
 				count += ships.get(u).size();
 			}
 			return count;
@@ -528,20 +541,6 @@ public boolean hasFrontRow( int side) {
 				return i;
 			}
 		}
-	/*
-		// Irgendein nicht gelandetes Schiff suchen
-		for( int i=0; i < enemyShips.size(); i++ ) {
-			BattleShip aship = enemyShips.get(i);
-			if( aship.getId() == enemyShip.getId() ) {
-				continue;
-			}
-
-			if( ((aship.getShip().getDocked().length() == 0) || (aship.getShip().getDocked().charAt(0) != 'l')) &&
-					(aship.getAction() & Battle.BS_DESTROYED) == 0 && (aship.getAction() & Battle.BS_SECONDROW) == 0 ) {
-				return i;
-			}
-		}
-		*/
 		return -1;
 	}
 
@@ -1391,6 +1390,7 @@ public boolean hasFrontRow( int side) {
 
 	/**
 	 * Gibt die Liste der Schiffe des Users zurueck.
+	 * @param User der User
 	 * @return Die Liste der gegnerischen Schiffe
 	 */
 	public List<BattleShip> getShips(User user) {
@@ -1398,6 +1398,23 @@ public boolean hasFrontRow( int side) {
 			return null;
 		else
 			return ships.get(user);
+	}
+
+	/**
+	 * Gibt die Liste der Schiffe einer Seite zurueck.
+	 * @param side die Seite
+	 * @return Die Liste der gegnerischen Schiffe
+	 */
+	public List<BattleShip> getShips(int side) {
+		List<BattleShip> ships = new ArrayList<>();
+		for(User u : getUserPerSide(side))
+		{
+			ships.addAll(getShips(u));
+		}
+		if(ships.size() == 0)
+			return null;
+		else
+			return ships;
 	}
 
 	/**
@@ -1471,15 +1488,12 @@ public boolean hasFrontRow( int side) {
 	 */
 	public Map<Integer,Integer> getShipTypeCount( int side ) {
 		Map<Integer,Integer> shipTypeCount = new HashMap<>();
-		for(Map.Entry<User,Integer> entry : commanders.entrySet())
+		for(User u: getUserPerSide(side))
 		{
-			if(entry.getValue() == side)
+			for(int shipTypeId : this.shipTypeCount.get(u).keySet())
 			{
-				for(int shipTypeId : this.shipTypeCount.get(entry.getKey()).keySet())
-				{
-					int count = shipTypeCount.containsKey(shipTypeId) ? shipTypeCount.get(shipTypeId) : 0;
-					shipTypeCount.put(shipTypeId, count + this.shipTypeCount.get(entry.getKey()).get(shipTypeId));
-				}
+				int count = shipTypeCount.containsKey(shipTypeId) ? shipTypeCount.get(shipTypeId) : 0;
+				shipTypeCount.put(shipTypeId, count + this.shipTypeCount.get(u).get(shipTypeId));
 			}
 		}
 		return shipTypeCount;
@@ -1492,29 +1506,15 @@ public boolean hasFrontRow( int side) {
 	 * @return Die Anzahl der vorkommenden Schiffe des Schifftyps
 	 */
 	public int getShipTypeCount( int side, int shiptype ) {
-		Integer count = (side == this.ownSide ? ownShipTypeCount.get(shiptype) : enemyShipTypeCount.get(shiptype));
+		Map<Integer,Integer> shipTypeCount = new HashMap<>();
+		shipTypeCount = getShipTypeCount(side);
+		if(shipTypeCount == null)
+			return 0;
+		Integer count = shipTypeCount.get(shiptype);
 		if( count == null ) {
 			return 0;
 		}
 		return count;
-	}
-
-	/**
-	 * Gibt zurueck, wie oft ein Schiffstyp auf der eigenen Seite vorkommt.
-	 * @param shiptype Die ID des Schifftyps
-	 * @return Die Anzahl der vorkommenden Schiffe des Schifftyps
-	 */
-	public int getOwnShipTypeCount(int shiptype) {
-		return getShipTypeCount(this.ownSide, shiptype);
-	}
-
-	/**
-	 * Gibt zurueck, wie oft ein Schiffstyp auf der gegnerischen Seite vorkommt.
-	 * @param shiptype Die ID des Schifftyps
-	 * @return Die Anzahl der vorkommenden Schiffe des Schifftyps
-	 */
-	public int getEnemyShipTypeCount(int shiptype) {
-		return getShipTypeCount(this.enemySide, shiptype);
 	}
 
 	@Override
@@ -1536,7 +1536,7 @@ public boolean hasFrontRow( int side) {
 	 * @param side Die Seite, deren Kampfstärke abgefragt werden soll
 	 * @return Die Kampfstärke einer Seite
 	 */
-	public int getBattleValue(Side side)
+	public int getBattleValue(int side)
 	{
 		int battleValue = 0;
 		List<BattleShip> ships = getShips(side);
@@ -1547,21 +1547,6 @@ public boolean hasFrontRow( int side) {
 		}
 
 		return battleValue;
-	}
-
-	/**
-	 * Gets the ships of one battle party.
-	 *
-	 * @param side Own side or enemy side.
-	 * @return Ships, which fight for the given side.
-	 */
-	public List<BattleShip> getShips(Side side)
-	{
-		if(side == Side.OWN)
-		{
-			return Collections.unmodifiableList(getOwnShips());
-		}
-		return Collections.unmodifiableList(getEnemyShips());
 	}
 
 	/**
@@ -1578,30 +1563,20 @@ public boolean hasFrontRow( int side) {
 			ship.getShip().destroy();
 		}
 
-		//
-		// Feststellen in welcher der beiden Listen sich das Schiff befindet und dieses daraus entfernen
-		//
+		User user = ship.getOwner();
 
-		List<BattleShip> shiplist = this.ownShips;
-
-		if( ship.getSide() != this.ownSide ) {
-			shiplist = this.enemyShips;
-		}
+		List<BattleShip> shiplist = ships.get(user);
 
 		for( int i=0; i < shiplist.size(); i++ ) {
 			BattleShip aship = shiplist.get(i);
 
-			if( aship == ship ) {
+			if( aship == ship || aship.getBaseShip() == ship ) {
 				shiplist.remove(i);
-				break;
 			}
 		}
 
-		if( (ship.getSide() == this.enemySide) && (this.activeSEnemy >= shiplist.size()) ) {
-			this.activeSEnemy = 0;
-		}
-		else if( (ship.getSide() == this.ownSide) && (this.activeSOwn >= shiplist.size()) ) {
-			this.activeSOwn = 0;
+		if( this.activeShip.get(user) >= shiplist.size())  {
+			this.activeShip.put(user,0);
 		}
 	}
 
@@ -1615,6 +1590,7 @@ public boolean hasFrontRow( int side) {
 		Context context = ContextMap.getContext();
 		org.hibernate.Session db = context.getDB();
 
+		User user = ship.getOwner();
 		Location loc = ship.getShip().getLocation();
 
 		if(relocate && !ship.getShip().isLanded() && !ship.getShip().isDocked()) {
@@ -1646,17 +1622,13 @@ public boolean hasFrontRow( int side) {
 		if( ship.getShip().isDocked() || ship.getShip().isLanded() ) {
 			int masterid = ship.getShip().getBaseShip().getId();
 
-			List<BattleShip> shiplist = this.ownShips;
-			if( ship.getSide() != this.ownSide ) {
-				shiplist = this.enemyShips;
+			List<BattleShip> shiplist = this.ships.get(user);
+			for (BattleShip aship : shiplist) {
+					if (aship.getId() == masterid) {
+							removeShip(aship, relocate);
+							return;
+					}
 			}
-
-            for (BattleShip aship : shiplist) {
-                if (aship.getId() == masterid) {
-                    removeShip(aship, relocate);
-                    return;
-                }
-            }
 		}
 
 		long dockcount = ship.getShip().getAnzahlGedockterUndGelandeterSchiffe();
@@ -1673,11 +1645,7 @@ public boolean hasFrontRow( int side) {
 		//
 
 		boolean found = false;
-		List<BattleShip> shiplist = this.ownShips;
-
-		if( ship.getSide() != this.ownSide ) {
-			shiplist = this.enemyShips;
-		}
+		List<BattleShip> shiplist = this.ships.get(user);
 
 		for( int i=0; i < shiplist.size(); i++ ) {
 			BattleShip aship = shiplist.get(i);
@@ -1710,11 +1678,8 @@ public boolean hasFrontRow( int side) {
 			}
 		}
 
-		if( (ship.getSide() == this.enemySide) && (this.activeSEnemy >= shiplist.size()) ) {
-			this.activeSEnemy = 0;
-		}
-		else if( (ship.getSide() == this.ownSide) && (this.activeSOwn >= shiplist.size()) ) {
-			this.activeSOwn = 0;
+		if( this.activeShip.get(user) >= shiplist.size()) {
+			this.activeShip.put(user,0);
 		}
 	}
 
@@ -1744,21 +1709,6 @@ public boolean hasFrontRow( int side) {
 		return balance;
 	}
 
-	/**
-	 * Setzt die mit einer Seite assoziierte Allianz.
-	 * @param side Die Seite
-	 * @param ally Die Allianz
-	 */
-	public void setAlly(int side, int ally) {
-		if (side == 0)
-		{
-			this.ally1 = ally;
-		}
-		if (side == 1)
-		{
-			this.ally2 = ally;
-		}
-	}
 
 	/**
 	 * Gibt das Log zu dieser Schlacht zurueck.
