@@ -27,6 +27,7 @@ import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
+import net.driftingsouls.ds2.server.services.AllianzService;
 import net.driftingsouls.ds2.server.ships.*;
 
 import org.apache.commons.lang3.ObjectUtils.Null;
@@ -68,8 +69,8 @@ public class Battle implements Locatable
 	private int system;
 	@Transient
 	private final Map<User,Integer> commanders = new HashMap<>();
-	private final Map<Integer,User> sides = new HashMap<>();
 	private final Map<Integer,Boolean> ready = new HashMap<>();
+	private final Map<Integer,Integer> side_flags = new HashMap<>();
 	private int blockcount = 2;
 	private long lastaction;
 	private long lastturn;
@@ -416,9 +417,48 @@ public boolean hasFrontRow( int side) {
 			this.flags ^= flag.getBit();
 		}
 	}
+		/**
+	 * Prueft, ob die Schlacht ueber das angegebene Flag verfuegt.
+	 * @param side die Seite
+	 * @param flag Das Flag
+	 * @return <code>true</code>, falls die Schlacht das Flag besitzt
+	 */
+	public boolean hasSideFlag(int side, BattleFlag flag ) {
+		if(side_flags.containsKey(side))
+			return (this.side_flags.get(side) & flag.getBit()) != 0;
+		else
+			return false;
+	}
 
+	/**
+	 * Fuegt der Schlacht das angegebene Flag hinzu.
+	 * @param side die Seite
+	 * @param flag Das Flag
+	 */
+	public void setSideFlag(int side, BattleFlag flag ) {
+		if(side_flags.containsKey(side))
+			setSideFlag(side,flag, true);
+	}
 
-
+	/**
+	 * Fuegt der Schlacht ein Flag hinzu oder entfernt eines.
+	 * @param side die Seite
+	 * @param flag Das Flag
+	 * @param status <code>true</code>, falls das Flag hinzugefuegt werden soll. Andernfalls <code>false</code>
+	 */
+	public void setSideFlag(int side, BattleFlag flag, boolean status ) {
+		if(side_flags.containsKey(side))
+		{
+			int f = side_flags.get(side);
+			if( status ) {
+				f |= flag.getBit();
+			}
+			else if( (f & flag.getBit()) != 0 ) {
+				f ^= flag.getBit();
+			}
+			this.side_flags.put(side,f);
+		}
+	}
 
 	/**
 	 * Gibt das aktuell ausgewaehlte Schiff des Users zurueck.
@@ -431,7 +471,6 @@ public boolean hasFrontRow( int side) {
 		else
 			return null;
 	}
-
 
 	/**
 	 * Prueft, ob das aktuell ausgewaehlte Schiff des Users ein gueltiges Ziel ist
@@ -573,7 +612,7 @@ public boolean hasFrontRow( int side) {
 		this.activeShip.put(user,index);
 	}
 
-	//ToDo... im Detail anschauen
+
 	/**
 	 * Laesst eines oder mehrere Schiffe (in einer Flotte) der Schlacht beitreten.
 	 * @param id Die ID des Besitzers der Schiffe
@@ -587,6 +626,7 @@ public boolean hasFrontRow( int side) {
 		org.hibernate.Session db = context.getDB();
 
 		db.flush();
+		User userobj = (User)context.getDB().get(User.class, id);
 
 		Ship shipd = (Ship)db.get(Ship.class, shipid);
 
@@ -611,7 +651,7 @@ public boolean hasFrontRow( int side) {
 			return false;
 		}
 
-		User userobj = (User)context.getDB().get(User.class, id);
+
 		if( userobj.isNoob() )
 		{
 			context.addError("Sie stehen unter GCP-Schutz und k&ouml;nnen daher keine Schiffe in diese Schlacht schicken!<br />Hinweis: der GCP-Schutz kann unter Optionen vorzeitig beendet werden");
@@ -625,57 +665,12 @@ public boolean hasFrontRow( int side) {
 			return false;
 		}
 
+		//ok, der User darf mit dem Schiff also joinen. Dann schauen wir doch mal, ob er oder seine Ally bereits eine Seite in der Schlacht hat, sonst machen wir eine neue auf
+		int side = getSideOrCreateNewSide(userobj);
+
 		Map<Integer,Integer> shipcounts = new HashMap<>();
 
-		// Beziehungen aktualisieren
-		Set<Integer> calcedallys = new HashSet<>();
-
-		List<User> ownUsers = new ArrayList<>();
-		ownUsers.add(userobj);
-		Set<User> enemyUsers = new HashSet<>();
-
-        if( userobj.getAlly() != null ) {
-			List<User> users = userobj.getAlly().getMembers();
-			for( User auser : users ) {
-				if( auser.getId() == userobj.getId() ) {
-					continue;
-				}
-				ownUsers.add(auser);
-			}
-		}
-
-		List<User> users = Common.cast(db.createQuery("select distinct bs.ship.owner " +
-                "from BattleShip bs " +
-                "where bs.battle= :battleId and bs.side= :sideId")
-                .setInteger("battleId", this.id)
-                .setInteger("sideId", this.enemySide)
-                .list());
-
-        for(User euser: users)
-        {
-            enemyUsers.add(euser);
-
-            if ((euser.getAlly() != null) && !calcedallys.contains(euser.getAlly().getId())) {
-                List<User> allyusers = euser.getAlly().getMembers();
-                for (User auser : allyusers) {
-                    if (auser.getId() == euser.getId()) {
-                        continue;
-                    }
-                    enemyUsers.add(auser);
-                }
-
-                calcedallys.add(euser.getAlly().getId());
-            }
-        }
-
-        for (User auser : ownUsers)
-        {
-            for (User euser : enemyUsers)
-            {
-                auser.setRelation(euser.getId(), User.Relation.ENEMY);
-                euser.setRelation(auser.getId(), User.Relation.ENEMY);
-            }
-        }
+		//Userrelations werden beim join nicht neu gesetzt, erst, wenn man auf eine Seite feuert
 
 		List<Integer> shiplist = new ArrayList<>();
 
@@ -699,85 +694,88 @@ public boolean hasFrontRow( int side) {
                     .list());
 		}
 
-        for(Ship aship : sid)
-        {
-            if (db.get(BattleShip.class, aship.getId()) != null) {
-                continue;
-            }
+		//gehen wir mal die joinenden Schiffe durch
+		List<BattleShip> schiffe = getShips(side);
+		for(Ship aship : sid)
+		{
+				if (db.get(BattleShip.class, aship.getId()) != null) {
+						continue;
+				}
 
-            shiptype = aship.getTypeData();
-            if (shiptype.getShipClass() == ShipClasses.GESCHUETZ) {
-                continue;
-            }
-						//gedockte/gelandete Schiffe werden ueber ihr Baseship gejoint, damit es nicht zu Fehlern mit Flotten kommt
-						if(aship.isDocked() ||aship.isLanded()){
-							continue;
-						}
+				shiptype = aship.getTypeData();
+				if (shiptype.getShipClass() == ShipClasses.GESCHUETZ) {
+						continue;
+				}
+				//gedockte/gelandete Schiffe werden ueber ihr Baseship gejoint, damit es nicht zu Fehlern mit Flotten kommt
+				if(aship.isDocked() ||aship.isLanded()){
+					continue;
+				}
 
-            shiplist.add(aship.getId());
-						BattleShip aBattleShip = new BattleShip(this, aship);
+				shiplist.add(aship.getId());
+				BattleShip aBattleShip = new BattleShip(this, aship);
 
-						// Das neue Schiff in die Liste der eigenen Schiffe eintragen
-            if (!shiptype.hasFlag(ShipTypeFlag.INSTANT_BATTLE_ENTER)) {
-                aBattleShip.addFlag(BattleShipFlag.JOIN);
-            }
+				// Das neue Schiff in die Liste der eigenen Schiffe eintragen
+				if (!shiptype.hasFlag(ShipTypeFlag.INSTANT_BATTLE_ENTER)) {
+						aBattleShip.addFlag(BattleShipFlag.JOIN);
+				}
 
-            aBattleShip.setSide(side);
+				aBattleShip.setSide(side);
 
-            getOwnShips().add(aBattleShip);
+				schiffe.add(aBattleShip);
 
-            Common.safeIntInc(shipcounts, aship.getType());
+				Common.safeIntInc(shipcounts, aship.getType());
 
-            db.persist(aBattleShip);
+				db.persist(aBattleShip);
 
-            aship.setBattle(this);
+				aship.setBattle(this);
 
-						//alle gedockten / gelandeten Schiffe mit in die Schlacht ziehen
-						for(Ship lShip : aship.getGedockteUndGelandeteSchiffe()){
+				//alle gedockten / gelandeten Schiffe mit in die Schlacht ziehen
+				for(Ship lShip : aship.getGedockteUndGelandeteSchiffe()){
 
-							//falls es schon im Kampf sein sollte. Kann eigentlich nicht, aber sicher ist sicher
-							if (db.get(BattleShip.class, lShip.getId()) != null) {
-								continue;
-							}
-							//ok, noch nicht in der Schlacht, dann legen wir los
+					//falls es schon im Kampf sein sollte. Kann eigentlich nicht, aber sicher ist sicher
+					if (db.get(BattleShip.class, lShip.getId()) != null) {
+						continue;
+					}
+					//ok, noch nicht in der Schlacht, dann legen wir los
 
-							BattleShip sid2bs = new BattleShip(this, lShip);
-							ShipTypeData stype = lShip.getTypeData();
+					BattleShip sid2bs = new BattleShip(this, lShip);
+					ShipTypeData stype = lShip.getTypeData();
 
-							//Gechuetze blockieren
-							if (stype.getShipClass() == ShipClasses.GESCHUETZ) {
-									sid2bs.addFlag(BattleShipFlag.BLOCK_WEAPONS);
-							}
+					//Gechuetze blockieren
+					if (stype.getShipClass() == ShipClasses.GESCHUETZ) {
+							sid2bs.addFlag(BattleShipFlag.BLOCK_WEAPONS);
+					}
 
-							shiplist.add(lShip.getId());
-							// Das neue Schiff in die Liste der eigenen Schiffe eintragen
-							if (!shiptype.hasFlag(ShipTypeFlag.INSTANT_BATTLE_ENTER) &&
-										!stype.hasFlag(ShipTypeFlag.INSTANT_BATTLE_ENTER)) {
-								sid2bs.addFlag(BattleShipFlag.JOIN);
-							}
+					shiplist.add(lShip.getId());
+					// Das neue Schiff in die Liste der eigenen Schiffe eintragen
+					if (!shiptype.hasFlag(ShipTypeFlag.INSTANT_BATTLE_ENTER) &&
+								!stype.hasFlag(ShipTypeFlag.INSTANT_BATTLE_ENTER)) {
+						sid2bs.addFlag(BattleShipFlag.JOIN);
+					}
 
-							sid2bs.setSide(aBattleShip.getSide());
+					sid2bs.setSide(aBattleShip.getSide());
 
-							getOwnShips().add(sid2bs);
+					schiffe.add(sid2bs);
 
-							Common.safeIntInc(shipcounts, lShip.getType());
+					Common.safeIntInc(shipcounts, lShip.getType());
 
-							db.persist(sid2bs);
+					db.persist(sid2bs);
 
-							lShip.setBattle(this);
+					lShip.setBattle(this);
 
-						}
-        }
+				}
+		}
 
 		if( shiplist.size() > 1 )
 		{
 			int addedShips = shiplist.size()-1;
-			this.log(new SchlachtLogAktion(this.ownSide, "Die " + log_shiplink(shipd) + " ist zusammen mit " + addedShips + " weiteren Schiffen der Schlacht beigetreten"));
+			this.ships.put(userobj, schiffe);
+			this.log(new SchlachtLogAktion(side, "Die " + log_shiplink(shipd) + " ist zusammen mit " + addedShips + " weiteren Schiffen der Schlacht beigetreten"));
 			this.logme( "Die "+log_shiplink(shipd)+" ist zusammen mit "+addedShips+" weiteren Schiffen der Schlacht beigetreten\n\n" );
 		}
 		else
 		{
-			this.log(new SchlachtLogAktion(this.ownSide, "Die " + log_shiplink(shipd) + " ist der Schlacht beigetreten"));
+			this.log(new SchlachtLogAktion(side, "Die " + log_shiplink(shipd) + " ist der Schlacht beigetreten"));
 			this.logme("Die "+log_shiplink(shipd)+" ist der Schlacht beigetreten\n\n");
 
 			shipd.setBattle(this);
@@ -806,12 +804,60 @@ public boolean hasFrontRow( int side) {
 	}
 
 	/**
+	 * Gibt die Seite eines Users zurueck oder legt eine neue Seite an, falls der User in keiner Seite ist
+	 * @param User der User
+	 * @return die ID der Seite, auf der der User kaempft
+	 */
+	public int getSideOrCreateNewSide(User user)
+	{
+		int side = -1;
+		if(commanders.containsKey(user))
+		{
+			side = commanders.get(user);
+		}
+		else
+		{
+			if(user.getAlly() != null)
+			//Der User ist also in ner Ally, ist von der Ally vielleicht schon jemand in der Schlacht?
+			{
+					for(User u : user.getAlly().getMembers())
+					{
+						if(commanders.containsKey(u))
+						{
+							side = commanders.get(u);
+							break;
+						}
+					}
+			}
+		}
+		if (side == -1)
+		//also nicht selbst und auch die Ally nicht in der Schlacht, dann machen wir mal ne neue Seite auf
+		{
+			//dann suchen wir mal die groesste Seitennummer raus
+			int max = -1;
+			for(Integer s : commanders.values())
+			{
+				max = Math.max(max, s);
+			}
+			//und machen eine neue Seite auf
+			side = max +1;
+			//dann legen wir mal die Hashs an
+			ships.put(user, null);
+			shipTypeCount.put(user, null);
+
+		}
+		commanders.put(user, side);
+
+		return side;
+	}
+
+	/**
 	 * Laedt weitere Schlachtdaten aus der Datenbank.
 	 * @param user Der aktive Spieler
 	 * @param enemy Der aktive gegnerische Spieler
 	 * @param ownShip Das auszuwaehlende eigene Schiff (oder <code>null</code>)
 	 * @param enemyShip Das auszuwaehlende gegnerische Schiff (oder <code>null</code>)
-	 * @param forcejoin Die ID einer Seite (1 oder 2), welche als die eigene zu waehlen ist. Falls 0 wird automatisch eine gewaehlt
+	 * @param forcejoin Die ID einer Seite, welche als die eigene zu waehlen ist. Falls 0 wird automatisch eine gewaehlt
 	 *
 	 * @return <code>true</code>, falls die Schlacht erfolgreich geladen wurde
 	 */
@@ -835,9 +881,10 @@ public boolean hasFrontRow( int side) {
 						return false;
 			}
 		}
-		else
-        {
-			forceSide = forcejoin - 1;
+		//ungueltiger Gegner
+		if(!commanders.containsKey(enemy))
+		{
+			return false;
 		}
 
 
@@ -857,41 +904,34 @@ public boolean hasFrontRow( int side) {
                 .list());
 
 								//ToDo... hier muss noch etwas Hirnschmalz reinfliessen
-        for (BattleShip ship : ships) {
-					if (!commanders.containsKey(ship.getOwner()))
-					{
-						int side = 0;
-						//Seite bestimmen;
-						commanders.put(user,side);
+		int side = -1;
+		List<BattleShip> schiffe = new ArrayList<>();
+		for (BattleShip ship : ships) {
+			if (!commanders.containsKey(ship.getOwner()))
+			{
+				side = getSideOrCreateNewSide(user);
+			}
+
+			if(commanders.get(ship.getOwner()) == side)
+			{
+				schiffe.add(ship);
+				if (!ship.getShip().isLanded()) {
+					if (shipTypeCount.get(user).containsKey(ship.getShip().getType())) {
+						Map<Integer,Integer> stc = getShipTypeCount(user);
+						stc.put(ship.getShip().getType(), stc.get(ship.getShip().getType()) + 1);
+						shipTypeCount.put(user,stc);
 					}
+					else
+					{
+						Map<Integer,Integer> stc = getShipTypeCount(user);
+						stc.put(ship.getShip().getType(), 1);
+						shipTypeCount.put(user,stc);
+					}
+				}
+			}
+		}
 
-            if (ship.getOwner() == this.ownSide) {
-                this.ownShips.add(ship);
-                if (!this.guest || !ship.getShip().isLanded()) {
-                    if (ownShipTypeCount.containsKey(ship.getShip().getType())) {
-                        ownShipTypeCount.put(ship.getShip().getType(), ownShipTypeCount.get(ship.getShip().getType()) + 1);
-                    }
-                    else
-                    {
-                        ownShipTypeCount.put(ship.getShip().getType(), 1);
-                    }
-                }
-            }
-            else if (ship.getSide() == this.enemySide) {
-                this.enemyShips.add(ship);
-                if (!ship.getShip().isLanded()) {
-                    if (enemyShipTypeCount.containsKey(ship.getShip().getType())) {
-                        enemyShipTypeCount.put(ship.getShip().getType(), enemyShipTypeCount.get(ship.getShip().getType()) + 1);
-                    }
-                    else
-                    {
-                        enemyShipTypeCount.put(ship.getShip().getType(), 1);
-                    }
-                }
-            }
-        }
-
-		if(this.ownShips.isEmpty() || this.enemyShips.isEmpty())
+		if(this.ships.get(user).isEmpty() || this.ships.get(enemy).isEmpty())
 		{
 			return false;
 		}
@@ -900,35 +940,21 @@ public boolean hasFrontRow( int side) {
 		// aktive Schiffe heraussuchen
 		//
 
-		this.activeSEnemy = 0;
-		this.activeSOwn = 0;
+		this.activeShip = null;
 
-		setFiringShip(ownShip);
-        setAttackedShip(enemyShip);
+		setFiringShip(user,ownShip);
+		setAttackedShip(enemy,enemyShip);
 
 		// Falls die gewaehlten Schiffe gelandet (oder zerstoert) sind -> neue Schiffe suchen
-		while( activeSEnemy < enemyShips.size() &&
-			  ( this.enemyShips.get(activeSEnemy).hasFlag(BattleShipFlag.DESTROYED) ||
-			 	this.enemyShips.get(activeSEnemy).getShip().isLanded() ) ) {
-			this.activeSEnemy++;
+		while( activeShip.get(enemy) < this.ships.get(enemy).size() &&
+			  ( this.ships.get(enemy).get(activeShip.get(enemy)).hasFlag(BattleShipFlag.DESTROYED) ||
+			 	this.ships.get(enemy).get(activeShip.get(enemy)).getShip().isLanded() ) ) {
+			this.activeShip.put(enemy,this.activeShip.get(enemy));
 		}
 
-		if( activeSEnemy >= enemyShips.size() )
+		if( activeShip.get(enemy) >= this.ships.get(enemy).size() )
 		{
-			activeSEnemy = 0;
-		}
-
-		if( this.guest )
-		{
-			while( activeSOwn < ownShips.size() && this.ownShips.get(activeSOwn).getShip().isLanded() )
-			{
-				this.activeSOwn++;
-			}
-
-			if( activeSOwn >= ownShips.size() )
-			{
-				activeSOwn = 0;
-			}
+			activeShip.put(enemy,0);
 		}
 
 		return true;
@@ -1478,6 +1504,22 @@ public boolean hasFrontRow( int side) {
 		{
 			this.ready.put(side,ready);
 		}
+	}
+
+	/**
+	 * Gibt eine Map fuer eine Seite zurueck, welche als Schluessel Schiffstypen und als zugeordnete
+	 * Werte die Anzahl der vorkommenden Schiffes des Typs auf der Seite hat.
+	 * @param side Die Seite
+	 * @return Eine Map, welche angibt, wie haeufig ein Schiffstyp auf einer Seite vorkommt
+	 */
+	public Map<Integer,Integer> getShipTypeCount( User user ) {
+		Map<Integer,Integer> shipTypeCount = new HashMap<>();
+		for(int shipTypeId : this.shipTypeCount.get(user).keySet())
+		{
+			int count = shipTypeCount.containsKey(shipTypeId) ? shipTypeCount.get(shipTypeId) : 0;
+			shipTypeCount.put(shipTypeId, count + this.shipTypeCount.get(user).get(shipTypeId));
+		}
+		return shipTypeCount;
 	}
 
 	/**

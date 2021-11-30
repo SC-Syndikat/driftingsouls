@@ -10,21 +10,13 @@ public enum BattleFlag
 	 */
 	FIRSTROUND(1),
 	/**
-	 * Entfernt die zweite Reihe auf Seite 0.
+	 * Seitenflag: Entfernt die zweite Reihe der Seite.
 	 */
-	DROP_SECONDROW_0(2),
+	DROP_SECONDROW(2),
 	/**
-	 * Entfernt die zweite Reihe auf Seite 1.
+	 * Seitenflag: Blockiert die zweite Reihe der Seite.
 	 */
-	DROP_SECONDROW_1(4),
-	/**
-	 * Blockiert die zweite Reihe auf Seite 0.
-	 */
-	BLOCK_SECONDROW_0(8),
-	/**
-	 * Blockiert die zweite Reihe auf Seite 1.
-	 */
-	BLOCK_SECONDROW_1(16);
+	BLOCK_SECONDROW(4);
 
 	private final int bit;
 
