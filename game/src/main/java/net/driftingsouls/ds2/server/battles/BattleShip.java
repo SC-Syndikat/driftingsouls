@@ -577,12 +577,7 @@ public class BattleShip {
 				List<BattleShip> ships;
 				Battle battle = this.getBattle();
 
-				if ( side == battle.getOwnSide()){
-					ships = battle.getOwnShips();
-				}
-				else{
-					ships = battle.getEnemyShips();
-				}
+				ships = battle.getShips(side);
 
 				for (BattleShip aship : ships) {
 						if (aship.getId() == shipid) {

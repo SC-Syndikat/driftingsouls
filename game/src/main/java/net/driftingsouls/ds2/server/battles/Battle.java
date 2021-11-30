@@ -48,7 +48,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Repraesentiert eine Schlacht in DS.
- * @author Christopher Jung
+ * @author Christopher Jung, Gregor Fuhs
  *
  */
 @Entity
