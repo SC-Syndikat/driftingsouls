@@ -1844,4 +1844,13 @@ public boolean hasFrontRow( int side) {
 	{
 		this.schlachtLog = schlachtLog;
 	}
+
+	/**
+	 * Gibt eine Map<User,Integer> der User und der Seite, fuer die sie kaempfen, zurueck
+	 * @return die Map
+	 */
+	public Map<User,Integer> getCommanders()
+	{
+		return this.commanders;
+	}
 }

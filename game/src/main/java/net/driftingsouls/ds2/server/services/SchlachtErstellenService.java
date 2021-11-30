@@ -489,28 +489,25 @@ public class SchlachtErstellenService
 	 *
 	 * @param battle Die momentan in der Erstellung befindliche Schlacht
 	 * @param secondRowShips Ships to add.
-	 * @param firstRowExists True, if side one has a first row.
-	 * @param firstRowEnemyExists True, if side two has a first row.
 	 */
-	private void addToSecondRow(Battle battle, Set<BattleShip> secondRowShips, boolean firstRowExists, boolean firstRowEnemyExists)
+	private void addToSecondRow(Battle battle, Set<BattleShip> secondRowShips)
 	{
 		Context context = ContextMap.getContext();
 		org.hibernate.Session db = context.getDB();
 		db.setFlushMode(FlushMode.COMMIT);
 
 		Map<Ship,BattleShip> battleShipMap = new HashMap<>();
-		for( BattleShip ship : battle.getOwnShips() )
+		for(User u:battle.getCommanders().keySet())
 		{
-			battleShipMap.put(ship.getShip(), ship);
-		}
-		for( BattleShip ship : battle.getEnemyShips() )
-		{
-			battleShipMap.put(ship.getShip(), ship);
+			for(BattleShip ship : battle.getShips(u))
+			{
+				battleShipMap.put(ship.getShip(), ship);
+			}
 		}
 
 		for(BattleShip ship: secondRowShips)
 		{
-			if( (ship.getSide() == 0 && firstRowExists && ship.getShip().getEinstellungen().gotoSecondrow() ) || (ship.getSide() == 1 && firstRowEnemyExists && ship.getShip().getEinstellungen().gotoSecondrow() ))
+			if( ship.getShip().getEinstellungen().gotoSecondrow() && ship.getShip().getTypeData().hasFlag(ShipTypeFlag.SECONDROW) )
 			{
 
 				ship.addFlag(BattleShipFlag.SECONDROW);
