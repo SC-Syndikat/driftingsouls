@@ -1590,6 +1590,24 @@ public boolean hasFrontRow( int side) {
 	}
 
 	/**
+	 * Setzt die Commander-Seite-Map der Schlacht
+	 * @param die Map
+	 */
+	public void setCommanders(Map<User,Integer> commanders)
+	{
+		this.commanders = commanders;
+	}
+
+	/**
+	 * setzt die User-Schiffsliste-Map
+	 * @param ships die Map
+	 */
+	public void setShips(Map<User,List<BattleShip>> ships)
+	{
+		this.ships = ships;
+	}
+
+	/**
 	 * Gibt eine Map fuer eine Seite zurueck, welche als Schluessel Schiffstypen und als zugeordnete
 	 * Werte die Anzahl der vorkommenden Schiffes des Typs auf der Seite hat.
 	 * @param side Die Seite

@@ -45,18 +45,32 @@ public class SchlachtErstellenService
 	}
 
 	/**
-	 * Erstellt eine neue Schlacht.
+	 * Erstellt eine neue Schlacht bzw. gibt die aktuell laufende Schlacht auf diesem Sektor zurueck
 	 * @param user Der Spieler, der die Schlacht beginnt
 	 * @param ownShip Das Schiff des des Spielers, der angreift
 	 * @param enemyShip Das angegriffene Schiffes
 	 * @param startOwn <code>true</code>, falls eigene gelandete Schiffe starten sollen
-	 * @return Die Schlacht, falls sie erfolgreich erstellt werden konnte
+	 * @return Die Schlacht, falls sie erfolgreich erstellt werden konnte oder bereits existierte
 	 * @throws java.lang.IllegalArgumentException Falls mit den uebergebenen Parametern keine Schlacht erstellt werden kann
 	 */
 	public Battle erstelle(@Nonnull User user, @Nonnull Ship ownShip, @Nonnull Ship enemyShip, final boolean startOwn ) throws IllegalArgumentException {
 		Context context = ContextMap.getContext();
 		org.hibernate.Session db = context.getDB();
 
+		Query battleQuery = db.createQuery("from Battle");
+		List<Battle> battlelist = Common.cast(battleQuery.list());
+
+		//Es darf nur noch eine Schlacht pro Sektor existieren, also schauen wir doch mal, ob da schon was ist
+		for(Battle b : battlelist)
+		{
+			if(b.getLocation().sameSector(0, enemyShip.getLocation(), 0))
+			{
+				//wir haben im dem Sektor schon eine Schlacht, also geben wir diese nun zurueck
+				return b;
+			}
+		}
+
+		//scheinbar haben wir hier noch keine Schlacht, dann machen wir mal eine neue auf
 		LOG.info("battle: "+user+" :: "+ownShip.getId()+" :: "+enemyShip.getId());
 
 		Ship tmpEnemyShip = enemyShip;
@@ -70,38 +84,23 @@ public class SchlachtErstellenService
 		BattleShip enemyBattleShip = null;
 		BattleShip ownBattleShip = null;
 
-		Set<User> ownUsers = new HashSet<>();
-		Set<User> enemyUsers = new HashSet<>();
+		HashMap<User,Integer> commanders = new HashMap<>();
 
-		Ally ownAlly = ownShip.getOwner().getAlly();
-		Ally enemyAlly = tmpEnemyShip.getOwner().getAlly();
-
+		//alle Schiffe auf dem Feld sammeln
 		Query shipQuery = db.createQuery("from Ship as s inner join fetch s.owner as u " +
 				"where s.id>:minid and s.x=:x and s.y=:y and " +
-				"s.system=:system and s.battle is null and (" +
-				(ownAlly == null ? "u.ally is null" : "u.ally=:ally1")+" or "+
-				(enemyAlly == null ? "u.ally is null" : "u.ally=:ally2")+
-				") and locate('disable_iff',s.status)=0 and (u.vaccount=0 or u.wait4vac > 0)")
+				"s.system=:system and s.battle is null "+
+				"and locate('disable_iff',s.status)=0 and (u.vaccount=0 or u.wait4vac > 0)")
 				.setInteger("minid", 0)
 				.setInteger("x", ownShip.getX())
 				.setInteger("y", ownShip.getY())
 				.setInteger("system", ownShip.getSystem());
-		if( ownAlly != null )
-		{
-			shipQuery.setParameter("ally1", ownAlly);
-		}
-		if( enemyAlly != null )
-		{
-			shipQuery.setParameter("ally2", enemyAlly);
-		}
 
 		List<Ship> shiplist = Common.cast(shipQuery.list());
 
-		Set<BattleShip> ownShips = new HashSet<>();
-		Set<BattleShip> enemyShips = new HashSet<>();
+		Set<BattleShip> ships = new HashSet<>();
 		Set<BattleShip> secondRowShips = new HashSet<>();
-		boolean firstRowExists = false;
-		boolean firstRowEnemyExists = false;
+		Map<User,List<BattleShip>> ship_map = new HashMap<>();
 
 		for (Ship aShip : shiplist) {
 			// Loot-Truemmer sollten in keine Schlacht wandern... (nicht schoen, gar nicht schoen geloest)
@@ -121,67 +120,66 @@ public class SchlachtErstellenService
 			}
 
 			BattleShip battleShip = new BattleShip(null, aShip);
-
 			ShipTypeData shiptype = aShip.getBaseType();
-
-
 			boolean ownShipFound = false;
 
-
-			if (((ownAlly != null) && (tmpUser.getAlly() == ownAlly)) || (user.getId() == tmpUser.getId())) {
-				ownUsers.add(tmpUser);
-				battleShip.setSide(0);
-				ownShipFound = true;
-
-				if (aShip == ownShip) {
-					ownBattleShip = battleShip;
-				}
-				else
+			//dann fuegen wir das schiff nun mal in der liste hinzu
+			//aber erst schauen wir, wo denn der User steht
+			if(!commanders.containsKey(tmpUser))
+			//wir kennen den User noch nicht, also legen wir ihn mal an
+			{
+				int tmp_side = 0;
+				//vielleicht ist ja schon jemand aus seiner Ally dabei:
+				if(tmpUser.getAlly() != null)
 				{
-					ownShips.add(battleShip);
+					for(Map.Entry<User,Integer> commander: commanders.entrySet())
+					{
+						if(tmpUser.getAlly() == commander.getKey().getAlly())
+							tmp_side = commander.getValue();
+							break;
+					}
 				}
+				if(tmp_side == 0)
+				//ok, seine Ally ist noch nicht drin, dann verpassen wir ihm eine eigene Seite
+				{
+					for(int i: commanders.values())
+					{
+						if (i>tmp_side)
+							tmp_side = i;
+					}
+				}
+				commanders.put(tmpUser,tmp_side+1);
 			}
-			else if (((enemyAlly != null) && (tmpUser.getAlly() == enemyAlly)) || (tmpEnemyShip.getOwner().getId() == tmpUser.getId())) {
-				enemyUsers.add(tmpUser);
-				battleShip.setSide(1);
+			//der User ist nun Commander und wir kennen seine Seite
+			int side = commanders.get(tmpUser);
 
-				if (aShip == enemyShip) {
-					enemyBattleShip = battleShip;
-				}
-				else
-				{
-					enemyShips.add(battleShip);
-				}
+			battleShip.setSide(side);
+			ownShipFound = true;
+
+			if (aShip == ownShip) {
+				ownBattleShip = battleShip;
+			}
+			else
+			{
+				List<BattleShip> tmpUser_ships = ship_map.get(tmpUser);
+				tmpUser_ships.add(battleShip);
+				ship_map.put(tmpUser, tmpUser_ships);
 			}
 
       if (shiptype.hasFlag(ShipTypeFlag.SECONDROW) && aShip.getEinstellungen().gotoSecondrow()) {
 				secondRowShips.add(battleShip);
-			}
-			else
-			{
-				if(ownShipFound)
-				{
-					firstRowExists = true;
-				}
-				else
-				{
-					firstRowEnemyExists = true;
-				}
 			}
 
 			//sollten auf dem Schiff Schiffe gedockt / gelandet sein, joinen diese nun ebenfalls der Schlacht
 			for(Ship lShip : aShip.getGedockteUndGelandeteSchiffe()){
 				BattleShip blShip = new BattleShip(null, lShip);
 				ShipTypeData lshiptype = lShip.getBaseType();
+				List<BattleShip> tmpUser_ships = ship_map.get(tmpUser);
 
 				//natuerlich kommt das gedockte Schiff auf die selbe Seite und in die selbe Reihe wie sein Traeger
 				blShip.setSide(battleShip.getSide());
-				if(ownShips.contains(battleShip)){
-					ownShips.add(blShip);
-				}
-				else{
-					enemyShips.add(blShip);
-				}
+				tmpUser_ships.add(battleShip);
+				ship_map.put(tmpUser, tmpUser_ships);
 				if(secondRowShips.contains(battleShip)){
 					secondRowShips.add(blShip);
 				}
@@ -189,7 +187,6 @@ public class SchlachtErstellenService
 				if ((lshiptype.getShipClass() == ShipClasses.GESCHUETZ) ) {
 					blShip.addFlag(BattleShipFlag.DISABLE_WEAPONS);
 				}
-
 			}
 		}
 
@@ -204,12 +201,11 @@ public class SchlachtErstellenService
 		}
 
 		Battle battle = new Battle(ownShip.getLocation());
-		battle.getOwnShips().addAll(ownShips);
-		battle.getEnemyShips().addAll(enemyShips);
+		battle.setShips(ship_map);
 
-		addToSecondRow(battle, secondRowShips, firstRowExists, firstRowEnemyExists);
+		addToSecondRow(battle, secondRowShips);
 
-		if( enemyBattleShip == null && (battle.getEnemyShips().size() == 0) ) {
+		if( enemyBattleShip == null && (battle.getShips(enemyUser).size() == 0) ) {
 			throw new IllegalArgumentException("Offenbar liegt ein Problem mit den feindlichen Schiffen vor. Es gibt nämlich keine die angegriffen werden könnten.");
 		}
 		else if( enemyBattleShip == null ) {
@@ -219,10 +215,7 @@ public class SchlachtErstellenService
 		//
 		// Schlacht in die DB einfuegen
 		//
-		battle.setAlly(0, ownBattleShip.getOwner().getAlly() != null ? ownBattleShip.getOwner().getAlly().getId() : 0);
-		battle.setAlly(1, enemyBattleShip.getOwner().getAlly() != null ? enemyBattleShip.getOwner().getAlly().getId() : 0);
-		battle.setCommander(0, ownBattleShip.getOwner());
-		battle.setCommander(1, enemyBattleShip.getOwner());
+		battle.setCommanders(commanders);
 		battle.setFlag(BattleFlag.FIRSTROUND);
 		db.save(battle);
 
@@ -248,7 +241,7 @@ public class SchlachtErstellenService
 
 		enemyShip.setBattle(battle);
 
-		insertShipsIntoDatabase(battle, battle.getEnemyShips(), startlist, idlist);
+		insertShipsIntoDatabase(battle, battle.getShips(enemyUser), startlist, idlist);
 		if( startlist.size() > 0 ) {
 			battle.logme(startlist.size() + " Jäger sind automatisch gestartet\n");
 			battle.log(new SchlachtLogAktion(1, startlist.size() + " Jäger sind automatisch gestartet"));
@@ -257,8 +250,8 @@ public class SchlachtErstellenService
 		}
 
 		startlist = new ArrayList<>();
-		battle.getEnemyShips().add(enemyBattleShip);
-		battle.setEnemyShipIndex(battle.getEnemyShips().size()-1);
+		battle.getShips(enemyUser).add(enemyBattleShip);
+		battle.setShipIndex(enemyUser,battle.getShips(enemyUser).size()-1);
 
 		// * Eigene Schiffe in die Schlacht einfuegen
 		idlist.add(ownBattleShip.getId());
@@ -275,13 +268,13 @@ public class SchlachtErstellenService
 		}
 		ownShip.setDocked("");
 
-		insertShipsIntoDatabase(battle, battle.getOwnShips(), startlist, idlist);
+		insertShipsIntoDatabase(battle, battle.getShips(user), startlist, idlist);
 		if( startOwn && startlist.size() > 0 ) {
 			battle.logme(startlist.size() + " Jäger sind automatisch gestartet\n");
 			battle.log(new SchlachtLogAktion(0, startlist.size() + " Jäger sind automatisch gestartet"));
 		}
-		battle.getOwnShips().add(ownBattleShip);
-		battle.setFiringShip(ownBattleShip.getShip());
+		battle.getShips(user).add(ownBattleShip);
+		battle.setFiringShip(user,ownBattleShip.getShip());
 
 		//
 		// Log erstellen
@@ -292,114 +285,41 @@ public class SchlachtErstellenService
 		// Beziehungen aktualisieren
 		//
 
-		// Zuerst schauen wir mal ob wir es mit Allys zu tun haben und
-		// berechnen ggf die Userlisten neu
-		Set<Integer> calcedallys = new HashSet<>();
 
+		// dann setzen wir doch mal die Relations fuer den Angreifer und den Angegriffenen
+		// sowie die zugehoerigen Allys.
 		db.setFlushMode(FlushMode.COMMIT);
+		List<User> allymember = user.getAlly().getMembers();
+		List<User> enemyallymember = enemyUser.getAlly().getMembers();
 
-		for( User auser : new ArrayList<>(ownUsers) ) {
-			if( (auser.getAlly() != null) && !calcedallys.contains(auser.getAlly().getId()) ) {
-				List<User> allyusers = Common.cast(db.createQuery("from User u where u.ally=:ally and (u not in (:ownUsers))")
-						.setEntity("ally", auser.getAlly())
-						.setParameterList("ownUsers", ownUsers)
-						.list());
-
-				ownUsers.addAll(allyusers);
-				calcedallys.add(auser.getAlly().getId());
-			}
-		}
-
-		for( User auser : new ArrayList<>(enemyUsers) ) {
-			if( (auser.getAlly() != null) && !calcedallys.contains(auser.getAlly().getId()) ) {
-				List<User> allyusers = Common.cast(db.createQuery("from User u where ally=:ally and (u not in (:enemyUsers))")
-						.setEntity("ally", auser.getAlly())
-						.setParameterList("enemyUsers", enemyUsers)
-						.list());
-				enemyUsers.addAll(allyusers);
-				calcedallys.add(auser.getAlly().getId());
-			}
-		}
-
-		for( User auser : ownUsers ) {
-			for( User euser : enemyUsers ) {
+		for( User auser : allymember ) {
+			for( User euser : enemyallymember ) {
 				auser.setRelation(euser.getId(), User.Relation.ENEMY);
 				euser.setRelation(auser.getId(), User.Relation.ENEMY);
 			}
 		}
 
 		// PM Wegen Schlachteröffnung schicken, sofern die Spieler dies wollen.
-		String eparty;
-		String eparty2;
-		if (battle.getAlly(0) == 0)
-		{
-			final User commander1 = battle.getCommander(0);
-			eparty = commander1.getNickname();
-		}
-		else
-		{
-			final Ally ally = (Ally) db.get(Ally.class, battle.getAlly(0));
-			eparty = ally.getName();
-		}
-
-		if (battle.getAlly(1) == 0)
-		{
-			final User commander2 = battle.getCommander(1);
-			eparty2 = commander2.getNickname();
-		}
-		else
-		{
-			final Ally ally = (Ally) db.get(Ally.class, battle.getAlly(1));
-			eparty2 = ally.getName();
-		}
 		User niemand = (User)db.get(User.class, -1);
 		String msg = "Es wurde eine Schlacht bei "+ownShip.getLocation().displayCoordinates(false)+" eröffnet.\n" +
-				"Es kämpfen "+eparty+" ("+ battle.getOwnShips().size() +" Schiffe) und "+eparty2+" ("+ battle.getEnemyShips().size() +" Schiffe) gegeneinander. "+
 				"Deine 2. Reihe ist ";
 		String msg1 = "";
-		String msg2 = "";
-		if (battle.isSecondRowStable(0))
+		for(User auser : commanders.keySet())
 		{
-			msg1 +="stabil.";
-		}
-		else
-		{
-			msg1 += "instabil. Vorsicht!";
-		}
-		if (battle.isSecondRowStable(1))
-		{
-			msg2 +="stabil.";
-		}
-		else
-		{
-			msg2 += "instabil. Vorsicht!";
-		}
-		for(User auser : ownUsers)
-		{
+			if (battle.isSecondRowStable(commanders.get(auser)))
+			{
+				msg1 +="stabil.";
+			}
+			else
+			{
+				msg1 += "instabil. Vorsicht!";
+			}
 			if(auser.getUserValue(WellKnownUserValue.GAMEPLAY_USER_BATTLE_PM))
 			{
 				PM.send(niemand, auser.getId(), "Schlacht eröffnet", msg+msg1);
-			/*	if(auser.getApiKey()!="")
-				{
-					new Notifier (auser.getApiKey()).sendMessage("Schlacht bei "+ownShip.getLocation().displayCoordinates(false)+" eröffnet", msg);
-				}
-			*/
 			}
-
 		}
-		for(User auser : enemyUsers)
-		{
-			if(auser.getUserValue(WellKnownUserValue.GAMEPLAY_USER_BATTLE_PM))
-			{
-				PM.send(niemand, auser.getId(), "Schlacht eröffnet", msg+msg2);
-			/*	if(auser.getApiKey()!="")
-				{
-					new Notifier (auser.getApiKey()).sendMessage("Schlacht bei "+ownShip.getLocation().displayCoordinates(false)+" eröffnet", msg);
-				}
-			*/
-			}
 
-		}
 		db.setFlushMode(FlushMode.AUTO);
 
 		return battle;
@@ -481,6 +401,7 @@ public class SchlachtErstellenService
 		{
 			throw new IllegalArgumentException("Dieses Schiff kann nicht angegriffen werden (egal wieviel Du mit der URL rumspielst!)");
 		}
+
 	}
 
 	/**
