@@ -1650,14 +1650,6 @@ public boolean hasFrontRow( int side) {
 	}
 
 	/**
-	 * Gibt die Versionsnummer zurueck.
-	 * @return Die Nummer
-	 */
-	public int getVersion() {
-		return this.version;
-	}
-
-	/**
 	 * Ermittelt den Kampfstärke einer Seite.
 	 *
 	 * @param side Die Seite, deren Kampfstärke abgefragt werden soll
