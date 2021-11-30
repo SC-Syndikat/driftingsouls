@@ -303,7 +303,10 @@ public class BattleShip {
 	 * @param id Die ID des Spielers
 	 */
 	public void setDestroyer(int id) {
-		this.destroyer = id;
+		//wird nur ueberschrieben, wenn wir noch keinen destroyer haben
+		//beim Multi-KS koennten mehrere Spieler auf ein Schiff schiessen, aber nur der erste bekommt den Kill
+		if(this.destroyer !=0)
+			this.destroyer = id;
 	}
 
 	/**
