@@ -21,6 +21,8 @@ package net.driftingsouls.ds2.server.modules.ks;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.BattleShipFlag;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.ships.ShipTypeFlag;
@@ -34,7 +36,7 @@ import java.util.List;
  *
  */
 public class KSFluchtAllAction extends BasicKSAction {
-	
+
 	/**
 	 * Prueft, ob das Schiff fliehen kann oder nicht.
 	 * @param ship Das Schiff
@@ -45,7 +47,7 @@ public class KSFluchtAllAction extends BasicKSAction {
 		// Extension Point
 		return true;
 	}
-	
+
 	@Override
 	public final Result execute(TemplateEngine t, Battle battle) throws IOException {
 		Result result = super.execute(t, battle);
@@ -54,41 +56,41 @@ public class KSFluchtAllAction extends BasicKSAction {
 		}
 
 		Boolean gotone = null;
-
-		List<BattleShip> ownShips = battle.getOwnShips();
+		User user = (User)ContextMap.getContext().getActiveUser();
+		List<BattleShip> ownShips = battle.getShips(user);
 		for( int i=0; i < ownShips.size(); i++ ) {
 			BattleShip aship = ownShips.get(i);
-			
+
 			if( aship.hasFlag(BattleShipFlag.DESTROYED) ) {
 				continue;
 			}
-			
+
 			if( aship.hasFlag(BattleShipFlag.FLUCHT) ) {
 				continue;
 			}
-			
+
 			if( aship.hasFlag(BattleShipFlag.JOIN) ) {
 				continue;
 			}
-			 
+
 			if( aship.getShip().getEngine() == 0 ) {
 				continue;
 			}
-			
+
 			if( aship.getShip().isLanded() || aship.getShip().isDocked() ) {
 				continue;
 			}
 
 			if( aship.getEngine() <= 0 ) {
 				continue;
-			} 
-			
+			}
+
 			ShipTypeData ashipType = aship.getTypeData();
-			 
+
 			if( (ashipType.getCrew() > 0) && (aship.getCrew() < (int)(ashipType.getMinCrew()/4d)) ) {
 				continue;
 			}
-	
+
 			if( (gotone == null) && ashipType.hasFlag(ShipTypeFlag.DROHNE) ) {
 				gotone = Boolean.FALSE;
 				for (BattleShip as : ownShips)
@@ -104,15 +106,15 @@ public class KSFluchtAllAction extends BasicKSAction {
 			if( (gotone == Boolean.FALSE) && ashipType.hasFlag(ShipTypeFlag.DROHNE) ) {
 				continue;
 			}
-			
+
 			if( !validateShipExt( aship, ashipType) ) {
 				continue;
 			}
 
-		
+
 			battle.logme( aship.getName()+" flieht n&auml;chste Runde\n" );
 			aship.addFlag(BattleShipFlag.FLUCHTNEXT);
-			
+
 			int remove = 1;
 			for (BattleShip s : ownShips)
 			{
@@ -123,12 +125,12 @@ public class KSFluchtAllAction extends BasicKSAction {
 					remove++;
 				}
 			}
-			
+
 			if( remove > 1 ) {
 				battle.logme( (remove-1)+" an "+aship.getName()+" gedockte Schiffe fliehen n&auml;chste Runde\n" );
 			}
 		}
-		
-		return Result.OK;	
+
+		return Result.OK;
 	}
 }

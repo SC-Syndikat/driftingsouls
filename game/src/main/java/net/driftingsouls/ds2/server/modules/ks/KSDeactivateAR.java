@@ -19,6 +19,9 @@
 package net.driftingsouls.ds2.server.modules.ks;
 
 import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.Alarmstufe;
 
@@ -32,7 +35,8 @@ public class KSDeactivateAR extends BasicKSMenuAction
 {
     @Override
     public Result validate(Battle battle) {
-        if(battle.getOwnShip().getShip().getAlarm() == Alarmstufe.RED)
+		User user = (User)ContextMap.getContext().getActiveUser();
+        if(battle.getShip(user).getShip().getAlarm() == Alarmstufe.RED)
         {
             return Result.OK;
         }
@@ -42,12 +46,13 @@ public class KSDeactivateAR extends BasicKSMenuAction
     @Override
     public Result execute(TemplateEngine t, Battle battle) throws IOException
     {
+        User user = (User)ContextMap.getContext().getActiveUser();
         Result result = super.execute(t, battle);
         if( result != Result.OK ) {
             return result;
         }
 
-        battle.getOwnShip().getShip().setAlarm(Alarmstufe.GREEN);
+        battle.getShip(user).getShip().setAlarm(Alarmstufe.GREEN);
 
         return Result.OK;
     }

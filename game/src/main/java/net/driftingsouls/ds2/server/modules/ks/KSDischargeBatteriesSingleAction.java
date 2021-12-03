@@ -23,6 +23,8 @@ import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.Resources;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 
@@ -40,17 +42,18 @@ public class KSDischargeBatteriesSingleAction extends BasicKSAction {
 	 */
 	public KSDischargeBatteriesSingleAction() {
 	}
-	
+
 	@Override
 	public Result validate(Battle battle) {
-		BattleShip ownShip = battle.getOwnShip();
+		User user = (User)ContextMap.getContext().getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
 		ShipTypeData ownShipType = ownShip.getTypeData();
-		
+
 		Cargo mycargo = ownShip.getCargo();
 		if( mycargo.hasResource( Resources.BATTERIEN ) && (ownShip.getShip().getEnergy() < ownShipType.getEps()) ) {
 			return Result.OK;
 		}
-		return Result.ERROR;	
+		return Result.ERROR;
 	}
 
 	@Override
@@ -59,34 +62,34 @@ public class KSDischargeBatteriesSingleAction extends BasicKSAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		
+
 		if( this.validate(battle) != Result.OK ) {
 			battle.logme("Die Aktion kann nicht ausgef&uuml;hrt werden");
 			return Result.ERROR;
 		}
-
-		BattleShip ownShip = battle.getOwnShip();
+		User user = (User)ContextMap.getContext().getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
 		ShipTypeData ownShipType = ownShip.getTypeData();
-		
+
 		Cargo mycargo = ownShip.getCargo();
-		
+
 		long batterien = mycargo.getResourceCount( Resources.BATTERIEN );
 
 		if( batterien > ownShipType.getEps()-ownShip.getShip().getEnergy() ) {
 			batterien = ownShipType.getEps()-ownShip.getShip().getEnergy();
-		}	
+		}
 
 		ownShip.getShip().setEnergy((int)(ownShip.getShip().getEnergy()+batterien));
 		ownShip.getShip().setBattleAction(true);
-	
+
 		mycargo.substractResource( Resources.BATTERIEN, batterien );
 		mycargo.addResource( Resources.LBATTERIEN, batterien );
-		
+
 		ownShip.getShip().setCargo(mycargo);
 
 		battle.logme( ownShip.getName()+": "+batterien+" Reservebatterien entladen\n" );
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), Battle.log_shiplink(ownShip.getShip()) + ": Reservebatterien entladen"));
-		
+		battle.log(new SchlachtLogAktion(battle.getSide(user), Battle.log_shiplink(ownShip.getShip()) + ": Reservebatterien entladen"));
+
 		ownShip.getShip().recalculateShipStatus();
 
 		return Result.OK;

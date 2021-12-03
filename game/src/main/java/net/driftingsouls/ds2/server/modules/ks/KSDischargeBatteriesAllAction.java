@@ -23,6 +23,8 @@ import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.Resources;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 
@@ -41,7 +43,7 @@ public class KSDischargeBatteriesAllAction extends BasicKSAction {
 	 */
 	public KSDischargeBatteriesAllAction() {
 	}
-	
+
 	/**
 	 * Prueft, ob das Schiff seine Battieren entladen soll oder nicht.
 	 * @param ship Das Schiff
@@ -62,8 +64,8 @@ public class KSDischargeBatteriesAllAction extends BasicKSAction {
 
 		int shipcount = 0;
 		StringBuilder ebattslog = new StringBuilder();
-		
-		List<BattleShip> ownShips = battle.getOwnShips();
+		User user = (User)ContextMap.getContext().getActiveUser();
+		List<BattleShip> ownShips = battle.getShips(user);
 		for (BattleShip aship : ownShips)
 		{
 			ShipTypeData ownShipType = aship.getTypeData();
@@ -107,7 +109,7 @@ public class KSDischargeBatteriesAllAction extends BasicKSAction {
 		}
 
 		if( shipcount > 0 ) {
-			battle.log(new SchlachtLogAktion(battle.getOwnSide(), ebattslog.toString()));
+			battle.log(new SchlachtLogAktion(battle.getSide(user), ebattslog.toString()));
 		}
 
 		return Result.OK;

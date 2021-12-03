@@ -22,6 +22,7 @@ import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
@@ -40,6 +41,7 @@ public class KSCheatRegenerateOwnAction extends BasicKSAction {
 	@Override
 	public Result execute(TemplateEngine t, Battle battle) throws IOException
 	{
+
 		Result result = super.execute(t, battle);
 		if (result != Result.OK)
 		{
@@ -47,6 +49,7 @@ public class KSCheatRegenerateOwnAction extends BasicKSAction {
 		}
 
 		Context context = ContextMap.getContext();
+		User user = (User)ContextMap.getContext().getActiveUser();
 
 		if (!new ConfigService().getValue(WellKnownConfigValue.ENABLE_CHEATS))
 		{
@@ -54,7 +57,7 @@ public class KSCheatRegenerateOwnAction extends BasicKSAction {
 			return Result.HALT;
 		}
 
-		BattleShip ownShip = battle.getOwnShip();
+		BattleShip ownShip = battle.getShip(user);
 
 		ShipTypeData ownShipType = ownShip.getTypeData();
 		ownShip.getShip().setCrew(ownShipType.getCrew());
@@ -77,7 +80,7 @@ public class KSCheatRegenerateOwnAction extends BasicKSAction {
 		ownShip.removeAllFlags();
 
 		battle.logme("CHEAT: Gegnerisches Schiff regeneriert.\n");
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), "CHEAT: [color=green]" + ownShip.getName() + "[/color] regeneriert."));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), "CHEAT: [color=green]" + ownShip.getName() + "[/color] regeneriert."));
 
 		ownShip.getShip().recalculateShipStatus();
 

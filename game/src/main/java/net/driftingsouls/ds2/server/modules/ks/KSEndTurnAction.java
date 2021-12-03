@@ -20,6 +20,9 @@ package net.driftingsouls.ds2.server.modules.ks;
 
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.SchlachtLogRundeBeendet;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 
 import java.io.IOException;
@@ -36,25 +39,28 @@ public class KSEndTurnAction extends BasicKSAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-
-		if( battle.isReady(battle.getEnemySide()) )
+		Context context = ContextMap.getContext();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)ContextMap.getContext().getActiveUser();
+		if( battle.isReady(battle.getSide(enemy)) )
 		{
 			if( !battle.endTurn(true) ) {
 				return Result.HALT;
 			}
 
-			battle.log(new SchlachtLogRundeBeendet(battle.getOwnSide(), SchlachtLogRundeBeendet.Modus.ALLE));
+			battle.log(new SchlachtLogRundeBeendet(battle.getSide(user), SchlachtLogRundeBeendet.Modus.ALLE));
 			battle.logme( "++++ Runde beendet ++++" );
 		}
 		else
 		{
-			battle.log(new SchlachtLogRundeBeendet(battle.getOwnSide(), SchlachtLogRundeBeendet.Modus.EIGENE));
+			battle.log(new SchlachtLogRundeBeendet(battle.getSide(user), SchlachtLogRundeBeendet.Modus.EIGENE));
 
 			battle.logme("Zug beendet - warte auf Gegner");
-			
-			battle.setReady(battle.getOwnSide(), true);
+
+			battle.setReady(battle.getSide(user), true);
 		}
-		
+
 		return Result.OK;
 	}
 }

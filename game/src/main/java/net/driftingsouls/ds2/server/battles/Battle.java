@@ -974,6 +974,9 @@ public boolean hasFrontRow( int side) {
 		return true;
 	}
 
+
+	//ToDo: Da man ja auch die Schiffe der Ally steuern kann, muss man hier die ganze Seite durchlaufen. Weiterhin muss ich mal gucken, ob ich nicht die Indizes loswerde.
+	// Die werden naemlich kompliziert
     public void setFiringShip(User user, Ship ownShip)
     {
 			if(commanders.containsKey(user))

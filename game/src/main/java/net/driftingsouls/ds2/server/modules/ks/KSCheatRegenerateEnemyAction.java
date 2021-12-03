@@ -22,6 +22,7 @@ import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
@@ -43,15 +44,17 @@ public class KSCheatRegenerateEnemyAction extends BasicKSAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		
+
 		Context context = ContextMap.getContext();
-		
+
 		if( !new ConfigService().getValue(WellKnownConfigValue.ENABLE_CHEATS) ) {
 			context.addError("Cheats sind deaktiviert!");
 			return Result.HALT;
 		}
-		
-		BattleShip enemyShip = battle.getEnemyShip();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)ContextMap.getContext().getActiveUser();
+		BattleShip enemyShip = battle.getShip(enemy);
 
 		ShipTypeData enemyShipType = enemyShip.getTypeData();
 		enemyShip.getShip().setCrew(enemyShipType.getCrew());
@@ -64,7 +67,7 @@ public class KSCheatRegenerateEnemyAction extends BasicKSAction {
 		enemyShip.getShip().setComm(100);
 		enemyShip.getShip().setHeat(0);
 		enemyShip.getShip().setWeaponHeat(new HashMap<>());
-		
+
 		enemyShip.setHull(enemyShip.getShip().getHull());
 		enemyShip.setShields(enemyShip.getShip().getShields());
 		enemyShip.setEngine(100);
@@ -72,9 +75,9 @@ public class KSCheatRegenerateEnemyAction extends BasicKSAction {
 		enemyShip.setSensors(100);
 		enemyShip.setComm(100);
 		enemyShip.removeAllFlags();
-		
+
 		battle.logme( "CHEAT: Gegnerisches Schiff regeneriert\n" );
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), "CHEAT: [color=green]"+enemyShip.getName()+"[/color] regeneriert"));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), "CHEAT: [color=green]"+enemyShip.getName()+"[/color] regeneriert"));
 
 		enemyShip.getShip().recalculateShipStatus();
 
