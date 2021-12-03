@@ -98,7 +98,6 @@ public class SchlachtErstellenService
 
 		List<Ship> shiplist = Common.cast(shipQuery.list());
 
-		Set<BattleShip> ships = new HashSet<>();
 		Set<BattleShip> secondRowShips = new HashSet<>();
 		Map<User,List<BattleShip>> ship_map = new HashMap<>();
 
@@ -205,16 +204,21 @@ public class SchlachtErstellenService
 
 		addToSecondRow(battle, secondRowShips);
 
-		if( enemyBattleShip == null && (battle.getShips(enemyUser).size() == 0) ) {
-			throw new IllegalArgumentException("Offenbar liegt ein Problem mit den feindlichen Schiffen vor. Es gibt nämlich keine die angegriffen werden könnten.");
+		if( enemyBattleShip == null  ) {
+			if((battle.getShips(enemyUser).size() == 0) ) {
+				throw new IllegalArgumentException("Offenbar liegt ein Problem mit den feindlichen Schiffen vor. Es gibt zwar welche, jedoch fehlt das Zielschiff.");
+			}
+			else
+			{
+				throw new IllegalArgumentException("Offenbar liegt ein Problem mit den feindlichen Schiffen vor. Es gibt nämlich keine die angegriffen werden könnten.");
+			}
 		}
-		else if( enemyBattleShip == null ) {
-			throw new IllegalArgumentException("Offenbar liegt ein Problem mit den feindlichen Schiffen vor. Es gibt zwar welche, jedoch fehlt das Zielschiff.");
-		}
+
 
 		//
 		// Schlacht in die DB einfuegen
 		//
+
 		battle.setCommanders(commanders);
 		battle.setFlag(BattleFlag.FIRSTROUND);
 		db.save(battle);
@@ -303,19 +307,19 @@ public class SchlachtErstellenService
 		User niemand = (User)db.get(User.class, -1);
 		String msg = "Es wurde eine Schlacht bei "+ownShip.getLocation().displayCoordinates(false)+" eröffnet.\n" +
 				"Deine 2. Reihe ist ";
-		String msg1 = "";
 		for(User auser : commanders.keySet())
 		{
-			if (battle.isSecondRowStable(commanders.get(auser)))
-			{
-				msg1 +="stabil.";
-			}
-			else
-			{
-				msg1 += "instabil. Vorsicht!";
-			}
 			if(auser.getUserValue(WellKnownUserValue.GAMEPLAY_USER_BATTLE_PM))
 			{
+				String msg1 = "";
+				if (battle.isSecondRowStable(commanders.get(auser)))
+				{
+					msg1 +="stabil.";
+				}
+				else
+				{
+					msg1 += "instabil. Vorsicht!";
+				}
 				PM.send(niemand, auser.getId(), "Schlacht eröffnet", msg+msg1);
 			}
 		}

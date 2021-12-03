@@ -19,10 +19,12 @@
 package net.driftingsouls.ds2.server.modules.ks;
 
 import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.Alarmstufe;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
+import net.driftingsouls.ds2.server.entities.User;
 
 import java.io.IOException;
 
@@ -35,9 +37,11 @@ public class KSActivateAR extends BasicKSMenuAction
     @Override
     public Result validate(Battle battle) {
 
-        ShipTypeData shiptype = battle.getOwnShip().getShip().getTypeData();
+        User user = (User)ContextMap.getContext().getActiveUser();
 
-        if(battle.getOwnShip().getShip().getAlarm() != Alarmstufe.RED && (shiptype.getShipClass() != ShipClasses.GESCHUETZ) && shiptype.isMilitary())
+        ShipTypeData shiptype = battle.getShip(user).getShip().getTypeData();
+
+        if(battle.getShip(user).getShip().getAlarm() != Alarmstufe.RED && (shiptype.getShipClass() != ShipClasses.GESCHUETZ) && shiptype.isMilitary())
         {
             return Result.OK;
         }
@@ -51,8 +55,9 @@ public class KSActivateAR extends BasicKSMenuAction
         if( result != Result.OK ) {
             return result;
         }
+        User user = (User)ContextMap.getContext().getActiveUser();
 
-        battle.getOwnShip().getShip().setAlarm(Alarmstufe.RED);
+        battle.getShip(user).getShip().setAlarm(Alarmstufe.RED);
 
         return Result.OK;
     }

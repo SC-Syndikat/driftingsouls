@@ -470,6 +470,23 @@ public boolean hasFrontRow( int side) {
 	}
 
 	/**
+	 * Gibt einen User der angegebenen Seite zurueck
+	 * @param side Die Seite
+	 * @return Der erste gefundene User dieser Seite bzw <code>null</code>, sollte es keinen User auf dieser Seite geben
+	 */
+	public User getCommander(int side)
+	{
+		for(Map.Entry<User,Integer> entry : commanders.entrySet())
+		{
+			if(entry.getValue() == side)
+			{
+				return entry.getKey();
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Prueft, ob das aktuell ausgewaehlte Schiff des Users ein gueltiges Ziel ist
 	 * (das Schiff also existiert). Bei gueltigen Zielen ist ein aufruf von {@link #getEnemyShip()}
 	 * gefahrlos moeglich.

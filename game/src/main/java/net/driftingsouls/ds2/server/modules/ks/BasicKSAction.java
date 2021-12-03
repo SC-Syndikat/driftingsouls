@@ -54,13 +54,13 @@ public abstract class BasicKSAction {
 		 */
 		HALT
 	}
-	
+
 	private boolean requireCommander;
 	private boolean requireActive;
 	private boolean requireOwnShipReady;
 	private AngriffController controller;
     private final User commander;
-	
+
 	/**
 	 * Konstruktor.
 	 *
@@ -68,51 +68,51 @@ public abstract class BasicKSAction {
 	public BasicKSAction()
 	{
 		this.controller = null;
-		
+
 		this.requireCommander(true);
 		this.requireActive(true);
 		this.requireOwnShipReady(false);
         this.commander = null;
 	}
-    
+
     public BasicKSAction(User user)
     {
         this.commander = user;
     }
-	
+
 	/**
 	 * Setzt den KS-Controller.
 	 * @param controller Der KS-Controller
 	 */
 	public void setController(AngriffController controller)
 	{
-		this.controller = controller;	
+		this.controller = controller;
 	}
-	
+
 	/**
 	 * Gibt den assoziierten KS-Controller zurueck.
 	 * @return Der KS-Controller
 	 */
 	public AngriffController getController()
 	{
-		return this.controller;	
+		return this.controller;
 	}
-	
+
 	protected void requireCommander( boolean value )
 	{
 		this.requireCommander = value;
 	}
-	
+
 	protected void requireActive( boolean value )
 	{
 		this.requireActive = value;
 	}
-	
+
 	protected void requireOwnShipReady( boolean value )
 	{
 		this.requireOwnShipReady = value;
 	}
-	
+
 	// TODO: auch bei der validierung sollten requireAP usw gecheckt werden
 	/**
 	 * Ueberprueft, ob die AKtion ausgefuert werden kann in Kontext der angegebenen Schlacht.
@@ -122,15 +122,15 @@ public abstract class BasicKSAction {
 	public Result validate( Battle battle )
 	{
 		return Result.OK;
-	} 
-	
+	}
+
 	/**
 	 * Fuehrt die Aktion aus.
 	 *
 	 * @param t Die verwendete Template-Engine
 	 * @param battle Die Schlacht in deren Kontext die Aktion ausgefuert werden soll
 	 * @return Das Ergebnis
-	 * @throws IOException 
+	 * @throws IOException
 	 */
 	public Result execute(TemplateEngine t, Battle battle) throws IOException
 	{
@@ -139,35 +139,35 @@ public abstract class BasicKSAction {
         {
 	        user = (User)ContextMap.getContext().getActiveUser();
         }
-		
+
 		if( this.requireCommander ) {
-			if( !battle.isCommander(user, battle.getOwnSide()) ) {
-				battle.logme( "Sie k&ouml;nnen diese Aktion nicht durchf&uuml;hren, da sie ihre Seite nicht kommandieren\n" );
+			if( !battle.isCommander(user, battle.getSide(user)) ) {
+				battle.logme( "Sie k&ouml;nnen diese Aktion nicht durchf&uuml;hren, da sie diese Seite nicht kommandieren\n" );
 				return Result.ERROR;
 			}
 		}
-		
+
 		if( this.requireActive ) {
-			if( battle.isReady(battle.getOwnSide()) ) {
-				battle.logme( "Sie haben ihren Zug bereits beendet\n" );
+			if( battle.isReady(battle.getSide(user)) ) {
+				battle.logme( "Ihre Seite hat ihren Zug bereits beendet\n" );
 				return Result.ERROR;
 			}
 		}
-		
+
 		if( this.requireOwnShipReady ) {
-			BattleShip ownShip = battle.getOwnShip();
-	
+			BattleShip ownShip = battle.getShip(user);
+
 			if( ownShip.hasFlag(BattleShipFlag.FLUCHT) ) {
 				battle.logme( "Das Schiff flieht gerade\n" );
 				return Result.ERROR;
 			}
-	
+
 			if( ownShip.hasFlag(BattleShipFlag.JOIN) ) {
 				battle.logme( "Das Schiff tritt erst gerade der Schlacht bei\n" );
 				return Result.ERROR;
-			}	
+			}
 		}
-		
+
 		return Result.OK;
 	}
 }

@@ -323,6 +323,8 @@ public class KSAttackAction extends BasicKSAction {
 	}
 
 	private final Weapon weapon;
+	private User user;
+	private User enemy;
 	private BattleShip ownShip;
 	private BattleShip enemyShip;
 	private Waffenbeschreibung localweapon;
@@ -337,6 +339,7 @@ public class KSAttackAction extends BasicKSAction {
     public KSAttackAction(User user, Weapon weapon, String attMode)
     {
         super(user);
+				this.user = user;
         this.weapon = weapon;
 
         this.requireOwnShipReady(true);
@@ -377,7 +380,7 @@ public class KSAttackAction extends BasicKSAction {
 		// Ueberpruefen, ob weitere (angedockte) Schiffe zerstoert wurden
 		//
 
-		List<BattleShip> enemyShips = battle.getEnemyShips();
+		List<BattleShip> enemyShips = battle.getShips(eShip.getOwner());
 		for (BattleShip s : enemyShips)
 		{
 			if (s.getShip().getBaseShip() != null && s.getShip().getBaseShip().getId() == eShip.getId())
@@ -869,12 +872,13 @@ public class KSAttackAction extends BasicKSAction {
 		return (int)antitorptrefferws;
 	}
 
-	public int getFighterDefense( Battle battle )
+	public int getFighterDefense( Battle battle, int side )
 	{
-        if((this.localweapon.getDestroyable() == 0.0d) || battle.getEnemyShip().getTypeData().getSize() <= ShipType.SMALL_SHIP_MAXSIZE)
-        {
-            return 0;
-        }
+
+		if((this.localweapon.getDestroyable() == 0.0d) || battle.getShip(battle.getCommander(side)).getTypeData().getSize() <= ShipType.SMALL_SHIP_MAXSIZE)
+		{
+				return 0;
+		}
 		//FighterDefense des Gegners
 		int defcount = 0;		// Anzahl zu verteidigender Schiffe
 		int fighterdefcount = 0;// Gesamtpunktzahl an Bombenabwehr durch Jaeger
@@ -883,7 +887,7 @@ public class KSAttackAction extends BasicKSAction {
 		int docks = 0;			// Gesamtanzahl Docks
 		int docksuse = 0;		// Gesamtanzahl an Schiffen, welche Docks brauchen
 
-		List<BattleShip> enemyShips = battle.getEnemyShips();
+		List<BattleShip> enemyShips = battle.getShips(side);
 		for (BattleShip selectedShip : enemyShips)
 		{
 			double crewFactor = determineCrewFactor(selectedShip);
@@ -955,7 +959,9 @@ public class KSAttackAction extends BasicKSAction {
 		int owndocks = 0;			// Gesamtanzahl Docks
 		int owndocksuse = 0;		// Gesamtanzahl an Schiffen, welche Docks brauchen
 
-		List<BattleShip> ownShips = battle.getOwnShips();
+		User user = (User)ContextMap.getContext().getActiveUser();
+		int ownside = battle.getSide(user);
+		List<BattleShip> ownShips = battle.getShips(ownside);
 		for (BattleShip selectedShip : ownShips)
 		{
 			double crewFactor = determineCrewFactor(selectedShip);
@@ -1078,7 +1084,7 @@ public class KSAttackAction extends BasicKSAction {
 		List<BattleShip> backup = new ArrayList<>();
 		boolean gottarget = false;
 
-		List<BattleShip> enemyShips = battle.getEnemyShips();
+		List<BattleShip> enemyShips = battle.getShips(enemyShip.getSide());
 		for (BattleShip eship : enemyShips)
 		{
 			if (eship.getShip().getType() == type)
@@ -1231,16 +1237,19 @@ public class KSAttackAction extends BasicKSAction {
         Context context = ContextMap.getContext();
         final String weaponName = context.getRequest().getParameterString("weapon");
         int ammoId = context.getRequest().getParameterInt("ammoid");
+				int enemyId = context.getRequest().getParameterInt("enemyId");
+				User enemy = (User)context.getDB().get(User.class, enemyId);
 
-        init(battle, weaponName, ammoId != 0 ? (Munition) context.getDB().get(Munition.class, ammoId) : null);
+        init(battle, weaponName, ammoId != 0 ? (Munition) context.getDB().get(Munition.class, ammoId) : null,enemy);
 
         return attack(t, battle);
 	}
 
-    public boolean init(Battle battle, String weaponName, Munition munition)
+    public boolean init(Battle battle, String weaponName, Munition munition, User enemy)
     {
-        this.ownShip = battle.getOwnShip();
-        this.enemyShip = battle.getEnemyShip();
+				this.enemy = enemy;
+        this.ownShip = battle.getShip(user);
+        this.enemyShip = battle.getShip(enemy);
 
         ShipTypeData shipType = this.ownShip.getTypeData();
 
@@ -1386,7 +1395,7 @@ public class KSAttackAction extends BasicKSAction {
         boolean gotone = false;
         if( ownShipType.hasFlag(ShipTypeFlag.DROHNE) )
         {
-            List<BattleShip> ownShips = battle.getOwnShips();
+            List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
             for (BattleShip aship : ownShips)
             {
                 ShipTypeData ashiptype = aship.getTypeData();
@@ -1426,20 +1435,20 @@ public class KSAttackAction extends BasicKSAction {
             return Result.ERROR;
         }
 
-        int oldenemyship = battle.getEnemyShipIndex();
+        int oldenemyship = battle.getShipIndex(enemy);
 
         // Die auessere Schleife laeuft ueber die generischen Schiffe
         // Die innere Scheife feuernt n Mal auf das gerade ausgewaehlte gegnerische Schiff
 
         Offizier attoffizier = ownShip.getShip().getOffizier();
-        int fighterdef = getFighterDefense(battle);
+        int fighterdef = getFighterDefense(battle, battle.getSide(enemy));
 
 		StringBuilder logMsg = new StringBuilder();
 
         result = Result.OK;
         outer: for( int outerloop=0; outerloop < nextShipLoop; outerloop++ ) {
 			// Nun das gegnerische Schiff laden und checken
-			this.enemyShip = battle.getEnemyShip();
+			this.enemyShip = battle.getShip(enemy);
 
 			for (int innerloop = 0; innerloop < sameShipLoop; innerloop++) {
 				if ((outerloop > 0) || (innerloop > 0)) {
@@ -1512,7 +1521,7 @@ public class KSAttackAction extends BasicKSAction {
 					break;
 				}
 
-				for (BattleShip battleship : battle.getEnemyShips()) {
+				for (BattleShip battleship : battle.getShips(battle.getSide(enemy))) {
 					if (battleship.getShip().getTypeData().hasFlag(ShipTypeFlag.SCHUTZSCHILD) && !this.enemyShip.getTypeData().hasFlag(ShipTypeFlag.SCHUTZSCHILD)) {
 						battle.logme("Sie m&uuml;ssen zuerst den Schutzschild zerstören\n");
 						result = Result.ERROR;
@@ -1603,26 +1612,17 @@ public class KSAttackAction extends BasicKSAction {
 
 
 				/*
-				 *  BETAK - Check
-				 */
-				if (battle.getBetakStatus(battle.getOwnSide()) && !enemyShipType.isMilitary()) {
-					battle.setBetakStatus(battle.getOwnSide(), false);
-					battle.logme("[color=red][b]Sie haben die BETAK-Konvention verletzt[/b][/color]\n\n");
-					logMsg.append("[color=red][b]Die BETAK-Konvention wurde verletzt[/b][/color]\n\n");
-				}
-
-				/*
 				 *	Schiff falls notwendig zerstoeren
 				 */
 				if (!savedamage && new ConfigService().getValue(WellKnownConfigValue.DESTROYABLE_SHIPS)) {
 					this.destroyShip(logMsg, this.ownShip.getOwner().getId(), battle, this.enemyShip);
-					int newindex = battle.getNewTargetIndex();
+					int newindex = battle.getNewTargetIndex(enemy);
 					if (newindex != -1) {
-						battle.setEnemyShipIndex(newindex);
+						battle.setShipIndex(enemy,newindex);
 					} else {
 						breakFlag = true;
 					}
-					this.enemyShip = battle.getEnemyShip();
+					this.enemyShip = battle.getShip(enemy);
 				}
 
 				/*
@@ -1642,11 +1642,11 @@ public class KSAttackAction extends BasicKSAction {
 			}
 
 			if (outerloop < nextShipLoop - 1) {
-				int newindex = battle.getNewTargetIndex();
+				int newindex = battle.getNewTargetIndex(enemy);
 				if (newindex == -1) {
 					newindex = 0;
 				}
-				battle.setEnemyShipIndex(newindex);
+				battle.setShipIndex(enemy,newindex);
 			}
 
 			if (breakFlag) {
@@ -1659,12 +1659,12 @@ public class KSAttackAction extends BasicKSAction {
 
         if( !firstentry )
         {
-			battle.log(new SchlachtLogAktion(battle.getOwnSide(), logMsg.toString()));
+			battle.log(new SchlachtLogAktion(battle.getSide(user), logMsg.toString()));
         }
 
-        if( !battle.getEnemyShip(oldenemyship).hasFlag(BattleShipFlag.DESTROYED) )
+        if( !battle.getShipByID(oldenemyship).hasFlag(BattleShipFlag.DESTROYED) )
         {
-            battle.setEnemyShipIndex(oldenemyship);
+            battle.setShipIndex(enemy,oldenemyship);
         }
 
         this.ownShip.getShip().recalculateShipStatus();
