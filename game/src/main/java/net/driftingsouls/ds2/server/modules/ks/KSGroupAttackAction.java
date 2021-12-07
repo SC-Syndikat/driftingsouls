@@ -57,20 +57,23 @@ public class KSGroupAttackAction extends BasicKSAction {
     @Override
     public Result execute(TemplateEngine t, Battle battle) throws IOException
     {
-        int typeid = battle.getOwnShip().getTypeData().getTypeId();
-        int enemytypeid = battle.getEnemyShip().getTypeData().getTypeId();
-
         Context context = ContextMap.getContext();
+        int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)context.getActiveUser();
+        int typeid = battle.getShip(user).getTypeData().getTypeId();
+        int enemytypeid = battle.getShip(enemy).getTypeData().getTypeId();
+
         final int activeShipID = context.getRequest().getParameterInt("ship");
         BattleShip activeShip = battle.getShipByID(activeShipID);
 
-        List<BattleShip> togoShips = battle.getOwnShips().stream().filter(bship -> bship.getTypeData().getTypeId() == typeid).collect(Collectors.toList());
+        List<BattleShip> togoShips = battle.getShips(user).stream().filter(bship -> bship.getTypeData().getTypeId() == typeid).collect(Collectors.toList());
         battle.logme(togoShips.size() + " Schiffe zu feuern.\n");
 
         for(BattleShip aship : togoShips)
         {
-            BattleShip enemyShip = battle.getEnemyShip();
-            battle.setFiringShip(aship.getShip());
+            BattleShip enemyShip = battle.getShip(enemy);
+            battle.setFiringShip(user,aship.getShip());
             battle.logme("Schiff: "+Battle.log_shiplink(aship.getShip())+"\n");
 
             if(enemyShip.getTypeData().getTypeId() != enemytypeid)
