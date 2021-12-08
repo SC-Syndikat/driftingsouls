@@ -46,27 +46,27 @@ public class KSMenuFluchtAction extends BasicKSMenuAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		
+
 		Context context = ContextMap.getContext();
-		
+
 		BattleShip ownShip = battle.getOwnShip();
 		ShipTypeData ownShipType = ownShip.getTypeData();
-		
+
 		BattleShip enemyShip = battle.getEnemyShip();
-		
+
 		String fluchtmode = context.getRequest().getParameterString("fluchtmode");
-		
-		if(!fluchtmode.equals("next")) 
+
+		if(!fluchtmode.equals("next"))
 		{
-			fluchtmode = "next";	
+			fluchtmode = "next";
 		}
-		
+
 		Map<String,String> fluchtmodes = new HashMap<>();
 		fluchtmodes.put("next", "N&auml;chste Runde");
-							
+
 		Map<String,String> nextfluchtmode = new HashMap<>();
 		nextfluchtmode.put("next", "current");
-							  
+
 		this.menuEntry(t, "<span style=\"font-size:3px\">&nbsp;<br /></span>Fluchtzeitpunkt: "+fluchtmodes.get(fluchtmode)+"<br />\n"+
 						"<span style=\"font-size:12px\">&lt; Klicken um Fluchtzeitpunkt zu &auml;ndern &gt;</span><span style=\"font-size:4px\"><br />&nbsp;</span>",
 						"ship",		ownShip.getId(),
@@ -145,11 +145,11 @@ public class KSMenuFluchtAction extends BasicKSMenuAction {
                         "fluchtmode",	fluchtmode },
                     "Wollen sie wirklich mit allen Schiffen der Klasse '"+classID.getSingular()+"' fl&uuml;chten?" );
         }
-				
+
 		this.menuEntry(t, "zur&uuml;ck",
 				"ship",		ownShip.getId(),
 				"attack",	enemyShip.getId() );
-												
+
 		return Result.OK;
 	}
 }

@@ -124,7 +124,7 @@ public class KSKapernAction extends BasicKSAction {
 		User user = (User)context.getActiveUser();
 
 		org.hibernate.Session db = context.getDB();
-		BattleShip ownShip = battle.getOwnShip();
+		BattleShip ownShip = battle.getShip(user);
 		BattleShip enemyShip = battle.getEnemyShip();
 
 		if( this.validate(battle) != Result.OK ) {
@@ -262,7 +262,7 @@ public class KSKapernAction extends BasicKSAction {
 
 		ownUnits.addCargo(saveunits);
 
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), msg.toString()));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), msg.toString()));
 		ownShip.getShip().setBattleAction(true);
 		ownShip.setUnits(ownUnits);
 
@@ -301,7 +301,7 @@ public class KSKapernAction extends BasicKSAction {
 			enemyShip.getShip().removeFromFleet();
 			enemyShip.getShip().setOwner(user);
 			enemyShip.getShip().setBattleAction(true);
-			enemyShip.setSide(battle.getOwnSide());
+			enemyShip.setSide(battle.getSide(user));
             if(enemyShip.getShip().isDocked())
             {
                 enemyShip.getShip().setDocked("");
@@ -321,7 +321,7 @@ public class KSKapernAction extends BasicKSAction {
 				dockShip.setBattleAction(true);
 
 				BattleShip bDockShip = (BattleShip)db.get(BattleShip.class, dockShip.getId());
-				bDockShip.setSide(battle.getOwnSide());
+				bDockShip.setSide(battle.getSide(user));
 
 				for( Offizier offi : dockShip.getOffiziere() )
 				{
@@ -370,7 +370,7 @@ public class KSKapernAction extends BasicKSAction {
 				if( kaperlist.contains(eship.getId()) ) {
 					enemyShips.remove(i);
 					i--;
-					battle.getOwnShips().add(eship);
+					battle.getShips(user).add(eship);
 				}
 			}
 

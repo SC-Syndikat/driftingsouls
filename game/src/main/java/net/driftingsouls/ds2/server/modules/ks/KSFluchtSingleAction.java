@@ -83,7 +83,7 @@ public class KSFluchtSingleAction extends BasicKSAction {
 		boolean gotone = false;
 
 		if( ownShipType.hasFlag(ShipTypeFlag.DROHNE) ) {
-			List<BattleShip> ownShips = battle.getShips(user);
+			List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 			for (BattleShip aship : ownShips)
 			{
 				ShipTypeData ashiptype = aship.getTypeData();
@@ -108,7 +108,7 @@ public class KSFluchtSingleAction extends BasicKSAction {
 		ownShip.addFlag(BattleShipFlag.FLUCHTNEXT);
 
 		int remove = 1;
-		List<BattleShip> ownShips = battle.getShips(user);
+		List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 		for (BattleShip s : ownShips)
 		{
 			if (s.getShip().getBaseShip() != null && s.getShip().getBaseShip().getId() == ownShip.getId())

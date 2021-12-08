@@ -21,7 +21,6 @@ package net.driftingsouls.ds2.server.modules.ks;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.SchlachtLogRundeBeendet;
 import net.driftingsouls.ds2.server.entities.User;
-import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 
@@ -39,11 +38,14 @@ public class KSEndTurnAction extends BasicKSAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		Context context = ContextMap.getContext();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
 		User user = (User)ContextMap.getContext().getActiveUser();
-		if( battle.isReady(battle.getSide(enemy)) )
+		battle.setReady(battle.getSide(user), true);
+		boolean ready = true;
+		for(int seite : battle.getSides())
+		{
+			ready &= battle.isReady(seite);
+		}
+		if( ready )
 		{
 			if( !battle.endTurn(true) ) {
 				return Result.HALT;
@@ -58,7 +60,7 @@ public class KSEndTurnAction extends BasicKSAction {
 
 			battle.logme("Zug beendet - warte auf Gegner");
 
-			battle.setReady(battle.getSide(user), true);
+
 		}
 
 		return Result.OK;

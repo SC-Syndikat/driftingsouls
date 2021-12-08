@@ -67,7 +67,7 @@ public class KSGroupAttackAction extends BasicKSAction {
         final int activeShipID = context.getRequest().getParameterInt("ship");
         BattleShip activeShip = battle.getShipByID(activeShipID);
 
-        List<BattleShip> togoShips = battle.getShips(user).stream().filter(bship -> bship.getTypeData().getTypeId() == typeid).collect(Collectors.toList());
+        List<BattleShip> togoShips = battle.getShips(battle.getSide(user)).stream().filter(bship -> bship.getTypeData().getTypeId() == typeid).collect(Collectors.toList());
         battle.logme(togoShips.size() + " Schiffe zu feuern.\n");
 
         for(BattleShip aship : togoShips)

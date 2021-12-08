@@ -995,6 +995,27 @@ public boolean hasFrontRow( int side) {
 			}
     }
 
+			//ToDo: Da man ja auch die Schiffe der Ally steuern kann, muss man hier die ganze Seite durchlaufen. Weiterhin muss ich mal gucken, ob ich nicht die Indizes loswerde.
+	// Die werden naemlich kompliziert
+	public void setFiringShip(Ship ownShip)
+	{
+		User user = ownShip.getOwner();
+		if(commanders.containsKey(user))
+		{
+			if(ownShip != null)
+			{
+					for(int i=0; i < ships.get(user).size(); i++)
+					{
+							if(ships.get(user).get(i).getId() == ownShip.getId())
+							{
+									this.activeShip.put(user,i);
+									break;
+							}
+					}
+			}
+		}
+	}
+
     public void setAttackedShip(User user, Ship enemyShip)
     {
 			if(commanders.containsKey(user))

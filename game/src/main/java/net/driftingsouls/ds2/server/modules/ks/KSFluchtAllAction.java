@@ -57,7 +57,7 @@ public class KSFluchtAllAction extends BasicKSAction {
 
 		Boolean gotone = null;
 		User user = (User)ContextMap.getContext().getActiveUser();
-		List<BattleShip> ownShips = battle.getShips(user);
+		List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 		for( int i=0; i < ownShips.size(); i++ ) {
 			BattleShip aship = ownShips.get(i);
 
