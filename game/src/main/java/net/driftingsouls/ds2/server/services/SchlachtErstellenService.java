@@ -6,7 +6,6 @@ import net.driftingsouls.ds2.server.battles.*;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
-import net.driftingsouls.ds2.server.entities.ally.Ally;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Context;
@@ -120,7 +119,6 @@ public class SchlachtErstellenService
 
 			BattleShip battleShip = new BattleShip(null, aShip);
 			ShipTypeData shiptype = aShip.getBaseType();
-			boolean ownShipFound = false;
 
 			//dann fuegen wir das schiff nun mal in der liste hinzu
 			//aber erst schauen wir, wo denn der User steht
@@ -153,10 +151,13 @@ public class SchlachtErstellenService
 			int side = commanders.get(tmpUser);
 
 			battleShip.setSide(side);
-			ownShipFound = true;
 
 			if (aShip == ownShip) {
 				ownBattleShip = battleShip;
+			}
+			else if (aShip == enemyShip)
+			{
+				enemyBattleShip = battleShip;
 			}
 			else
 			{
