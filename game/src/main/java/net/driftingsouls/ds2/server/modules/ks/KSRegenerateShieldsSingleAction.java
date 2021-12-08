@@ -21,6 +21,8 @@ package net.driftingsouls.ds2.server.modules.ks;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 
@@ -45,20 +47,20 @@ public class KSRegenerateShieldsSingleAction extends BasicKSAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		
-		BattleShip ownShip = battle.getOwnShip();
+		User user = (User)ContextMap.getContext().getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
 		ShipTypeData ownShipType = ownShip.getTypeData();
-		
+
 		if( ownShip.getShip().getEnergy() < 1 ) {
 			battle.logme( "Keine Energie um die Schilde zu laden\n" );
 			return Result.ERROR;
 		}
-		
+
 		if( ownShipType.getShields() < 1 ) {
 			battle.logme( "Das Schiff besitzt keine Schilde\n" );
 			return Result.ERROR;
 		}
-		
+
 		if( ownShip.getShip().getShields() >= ownShipType.getShields() ) {
 			battle.logme( "Die Schilde sind bereits vollst&auml;ndig aufgeladen\n" );
 			return Result.ERROR;
@@ -82,7 +84,7 @@ public class KSRegenerateShieldsSingleAction extends BasicKSAction {
 		}
 
 		battle.logme( "Schilde nun bei "+ownShip.getShip().getShields()+"/"+ownShipType.getShields()+"\n" );
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(),"Die "+Battle.log_shiplink(ownShip.getShip())+" hat ihre Schilde aufgeladen"));
+		battle.log(new SchlachtLogAktion(battle.getSide(user),"Die "+Battle.log_shiplink(ownShip.getShip())+" hat ihre Schilde aufgeladen"));
 
 		ownShip.getShip().setBattleAction(true);
 
@@ -94,7 +96,7 @@ public class KSRegenerateShieldsSingleAction extends BasicKSAction {
 		ownShip.setShields(curShields);
 
 		ownShip.getShip().recalculateShipStatus();
-			
+
 		return Result.OK;
 	}
 }

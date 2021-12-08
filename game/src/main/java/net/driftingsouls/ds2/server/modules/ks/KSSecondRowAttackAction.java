@@ -23,7 +23,9 @@ import net.driftingsouls.ds2.server.battles.BattleFlag;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.BattleShipFlag;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
-import net.driftingsouls.ds2.server.battles.Side;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
@@ -42,24 +44,24 @@ public class KSSecondRowAttackAction extends BasicKSAction {
 	 */
 	public KSSecondRowAttackAction() {
 	}
-	
+
 	@Override
 	public Result validate(Battle battle) {
 		if( battle.hasFlag(BattleFlag.FIRSTROUND) ) {
 			return Result.ERROR;
 		}
-		
-		if( (battle.getOwnSide() == 0) && battle.hasFlag(BattleFlag.DROP_SECONDROW_1) ) {
+		User user = (User)ContextMap.getContext().getActiveUser();
+		Context context = ContextMap.getContext();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int seite = battle.getSide(user);
+		if( battle.hasSideFlag(seite,BattleFlag.DROP_SECONDROW) ) {
 			return Result.ERROR;
 		}
-		
-		if( (battle.getOwnSide() == 1) && battle.hasFlag(BattleFlag.DROP_SECONDROW_0) ) {
-			return Result.ERROR;
-		}
-		
+
 		//The attacker needs a destroyer
 		boolean hasDestroyer = false;
-		for(BattleShip aship: battle.getOwnShips()) 
+		for(BattleShip aship: battle.getShips(seite))
 		{
 			if( aship.hasFlag(BattleShipFlag.FLUCHT) || aship.hasFlag(BattleShipFlag.JOIN) ||
 				aship.hasFlag(BattleShipFlag.SECONDROW) )
@@ -67,21 +69,21 @@ public class KSSecondRowAttackAction extends BasicKSAction {
 				continue;
 			}
 			ShipTypeData shiptype = aship.getTypeData();
-			
+
 			if( shiptype.getShipClass() == ShipClasses.ZERSTOERER ) {
 				hasDestroyer = true;
 			}
 		}
-		
+
 		if( !hasDestroyer ) {
 			return Result.ERROR;
 		}
-		
-		if(battle.getBattleValue(Side.OWN) < battle.getBattleValue(Side.ENEMY)*2)
+
+		if(battle.getBattleValue(seite) < battle.getBattleValue(battle.getSide(enemy))*2)
 		{
 			return Result.ERROR;
 		}
-		
+
 		return Result.OK;
 	}
 
@@ -91,21 +93,19 @@ public class KSSecondRowAttackAction extends BasicKSAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		
+		User user = (User)ContextMap.getContext().getActiveUser();
+		Context context = ContextMap.getContext();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
 		if( this.validate(battle) != Result.OK ) {
 			battle.logme("Die Aktion kann nicht ausgef&uuml;hrt werden");
 			return Result.ERROR;
 		}
 
-		if( battle.getOwnSide() == 0 ) {
-			battle.setFlag(BattleFlag.DROP_SECONDROW_1, true);
-		}
-		else {
-			battle.setFlag(BattleFlag.DROP_SECONDROW_0, true);
-		}
-		
+		battle.setSideFlag(battle.getSide(enemy),BattleFlag.DROP_SECONDROW, true);
+
 		battle.logme( "Ihre Schiffe r&uuml;cken vor und dr&auml;ngen die feindlichen Linien unter schwerem Feuer langsam zur&uuml;ck");
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), "Die feindlichen Schiffe rücken unter schwerem Feuer langsam vor und drängen trotz heftigsten Widerstands die Linien zurück\n"));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), "Die feindlichen Schiffe rücken unter schwerem Feuer langsam vor und drängen trotz heftigsten Widerstands die Linien zurück\n"));
 
 		return Result.OK;
 	}

@@ -21,6 +21,7 @@ package net.driftingsouls.ds2.server.modules.ks;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.BattleShipFlag;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
@@ -48,11 +49,13 @@ public class KSMenuFluchtAction extends BasicKSMenuAction {
 		}
 
 		Context context = ContextMap.getContext();
-
-		BattleShip ownShip = battle.getOwnShip();
+        int enemyId = context.getRequest().getParameterInt("enemyId");
+        User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)ContextMap.getContext().getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
 		ShipTypeData ownShipType = ownShip.getTypeData();
 
-		BattleShip enemyShip = battle.getEnemyShip();
+		BattleShip enemyShip = battle.getShip(enemy);
 
 		String fluchtmode = context.getRequest().getParameterString("fluchtmode");
 
@@ -76,7 +79,7 @@ public class KSMenuFluchtAction extends BasicKSMenuAction {
 
         boolean gotone = false;
         if( ownShipType.hasFlag(ShipTypeFlag.DROHNE) ) {
-            List<BattleShip> ownShips = battle.getOwnShips();
+            List<BattleShip> ownShips = battle.getShips(ownShip.getSide());
             for (BattleShip aship : ownShips)
             {
                 ShipTypeData ashiptype = aship.getTypeData();
@@ -105,7 +108,7 @@ public class KSMenuFluchtAction extends BasicKSMenuAction {
         int fluchtidlist = 0;
         Map<ShipClasses,Integer> fluchtclasslist = new HashMap<>();
 
-        List<BattleShip> ownShips = battle.getOwnShips();
+        List<BattleShip> ownShips = battle.getShips(ownShip.getSide());
         for (BattleShip aship : ownShips)
         {
             ShipTypeData ashiptype = aship.getTypeData();

@@ -21,7 +21,10 @@ package net.driftingsouls.ds2.server.modules.ks;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.ConfigService;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 
 import java.io.IOException;
@@ -38,10 +41,13 @@ public class KSMenuOtherAction extends BasicKSMenuAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
-		
+		Context context = ContextMap.getContext();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)ContextMap.getContext().getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
+
 		//Cheat-Menue
 		if( new ConfigService().getValue(WellKnownConfigValue.ENABLE_CHEATS) ) {
 			menuEntry(t, "Cheats",	"ship",		ownShip.getId(),
@@ -98,7 +104,7 @@ public class KSMenuOtherAction extends BasicKSMenuAction {
 
 		menuEntry(t, "zur&uuml;ck",	"ship",		ownShip.getId(),
 									"attack",	enemyShip.getId() );
-		
+
 		return Result.OK;
 	}
 }

@@ -20,7 +20,10 @@ package net.driftingsouls.ds2.server.modules.ks;
 
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
@@ -38,8 +41,10 @@ import java.util.Map;
 public class KSMenuShieldsAction extends BasicKSMenuAction {
 	@Override
 	public Result validate(Battle battle) {
+
+		User user = (User)ContextMap.getContext().getActiveUser();
 		boolean showshields = false;
-		List<BattleShip> ownShips = battle.getOwnShips();
+		List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 		for (BattleShip aship : ownShips)
 		{
 			ShipTypeData ashiptype = aship.getTypeData();
@@ -64,27 +69,32 @@ public class KSMenuShieldsAction extends BasicKSMenuAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		
+
 		if( this.validate(battle) != Result.OK ) {
 			battle.logme("Die Aktion kann nicht ausgef&uuml;hrt werden");
 			return Result.ERROR;
 		}
-		
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+
+		Context context = ContextMap.getContext();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)ContextMap.getContext().getActiveUser();
+
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 		ShipTypeData ownShipType = ownShip.getTypeData();
-	
+
 		if( (ownShipType.getShields() > 0) && (ownShip.getShip().getShields() < ownShipType.getShields()) ) {
 			this.menuEntry(t, "Schilde aufladen",
 					"ship",		ownShip.getId(),
 					"attack",	enemyShip.getId(),
 					"ksaction",	"shields_single" );
 		}
-				
+
 		int shieldidlist = 0;
 		Map<ShipClasses,Integer> shieldclasslist = new HashMap<>();
-		
-		List<BattleShip> ownShips = battle.getOwnShips();
+
+		List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 		for (BattleShip aship : ownShips)
 		{
 			ShipTypeData ashiptype = aship.getTypeData();
@@ -94,7 +104,7 @@ public class KSMenuShieldsAction extends BasicKSMenuAction {
 				Common.safeIntInc(shieldclasslist, ashiptype.getShipClass());
 			}
 		}
-								
+
 		if( shieldidlist > 0 ) {
 			this.menuEntryAsk(t, "Alle Schilde aufladen",
 					new Object[] {
@@ -103,14 +113,14 @@ public class KSMenuShieldsAction extends BasicKSMenuAction {
 						"ksaction",	"shields_all" },
 					"Wollen sie wirklich alle Schilde aufladen?" );
 		}
-		
+
 		for( Map.Entry<ShipClasses, Integer> entry: shieldclasslist.entrySet()) {
 			ShipClasses classID = entry.getKey();
 			int idlist = entry.getValue();
-			
+
 			if( idlist == 0 ) {
 				continue;
-			} 
+			}
 			this.menuEntryAsk(t, "Alle "+classID.getPlural()+"-Schilde aufladen",
 					new Object[] {
 						"ship",		ownShip.getId(),
@@ -119,12 +129,12 @@ public class KSMenuShieldsAction extends BasicKSMenuAction {
 						"shieldclass",	classID.ordinal() },
 					"Wollen sie wirklich bei allen Schiffen der Klasse '"+classID.getSingular()+"' die Schilde aufladen?" );
 		}
-				
+
 		this.menuEntry(t, "zur&uuml;ck",
 				"ship",		ownShip.getId(),
 				"attack",	enemyShip.getId(),
 				"ksaction",	"other" );
-												
+
 		return Result.OK;
 	}
 }

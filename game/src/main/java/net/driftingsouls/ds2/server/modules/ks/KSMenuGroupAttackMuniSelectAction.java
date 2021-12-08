@@ -50,56 +50,60 @@ import java.util.*;
 public class KSMenuGroupAttackMuniSelectAction extends BasicKSMenuAction {
 	private static final Map<String,String> ATTMODES = new HashMap<>();
 	private static final Map<String,String> NEXTATTMODES = new HashMap<>();
-	
+
 	static {
 		ATTMODES.put("single", "Einzelsalve");
 		ATTMODES.put("alphastrike", "Mehrfachsalve (5)");
 		ATTMODES.put("strafe", "Sperrfeuer (5)");
 		ATTMODES.put("alphastrike_max", "Mehrfachsalve (max)");
 		ATTMODES.put("strafe_max", "Sperrfeuer (max)");
-		
+
 		NEXTATTMODES.put("single", "alphastrike");
 		NEXTATTMODES.put("alphastrike", "strafe");
 		NEXTATTMODES.put("strafe", "alphastrike_max");
 		NEXTATTMODES.put("alphastrike_max", "strafe_max");
 		NEXTATTMODES.put("strafe_max", "single");
 	}
-	
+
 	@Override
 	public Result validate(Battle battle) {
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
-	
+		Context context = ContextMap.getContext();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)ContextMap.getContext().getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
+
 		if( ownShip.hasFlag(BattleShipFlag.JOIN) ) {
 			return Result.ERROR;
 		}
-		
+
 		if( enemyShip.hasFlag(BattleShipFlag.JOIN) ) {
 			return Result.ERROR;
 		}
-		
+
 		if( enemyShip.hasFlag(BattleShipFlag.DESTROYED) ) {
 			return Result.ERROR;
 		}
-		if(ownShip.getShip().isLanded()) 
+		if(ownShip.getShip().isLanded())
 		{
 			return Result.ERROR;
 		}
-		
+
 		if( ownShip.hasFlag(BattleShipFlag.FLUCHT) ) {
 			return Result.ERROR;
 		}
-		
+
 		ShipTypeData ownShipType = ownShip.getTypeData();
-		
+
 		if( enemyShip.hasFlag(BattleShipFlag.FLUCHT) && !ownShipType.hasFlag(ShipTypeFlag.ABFANGEN) ) {
 			return Result.ERROR;
 		}
-		
-		boolean gotone = true;			
+
+		boolean gotone = true;
 		if( ownShipType.hasFlag(ShipTypeFlag.DROHNE) ) {
 			gotone = false;
-			List<BattleShip> ownShips = battle.getOwnShips();
+			List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 			for (BattleShip aship : ownShips)
 			{
 				ShipTypeData ashiptype = aship.getTypeData();
@@ -110,81 +114,84 @@ public class KSMenuGroupAttackMuniSelectAction extends BasicKSMenuAction {
 				}
 			}
 		}
-						
+
 		if( !gotone ) {
 			return Result.ERROR;
 		}
-		
-		return Result.OK;	
+
+		return Result.OK;
 	}
-	
+
 	private String getAttMode() {
 		Context context = ContextMap.getContext();
 		String attmode = context.getRequest().getParameterString("attmode");
-		
+
 		String userattmode = "";
-		
+
 		if( attmode.length() == 0 ) {
 			User user = (User)context.getActiveUser();
 			attmode = userattmode = user.getUserValue(WellKnownUserValue.TBLORDER_KS_ATTACKMODE);
 		}
-		
+
 		if( !ATTMODES.containsKey(attmode) ) {
 			attmode = "single";
 		}
-		
+
 		if( !attmode.equals(userattmode) ) {
 			User user = (User)context.getActiveUser();
 			user.setUserValue(WellKnownUserValue.TBLORDER_KS_ATTACKMODE, attmode);
 		}
-		
+
 		return attmode;
 	}
-	
+
 	@Override
 	public Result execute(TemplateEngine t, Battle battle) throws IOException {
 		Result result = super.execute(t, battle);
 		if( result != Result.OK ) {
 			return result;
 		}
-		
+
 		Context context = ContextMap.getContext();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)ContextMap.getContext().getActiveUser();
 		org.hibernate.Session db = context.getDB();
-		
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
-		
+
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
+
 		final String weapon = context.getRequest().getParameterString("weapon");
-		
+
 		String attmode = this.getAttMode();
-		
+
 		if( ownShip.hasFlag(BattleShipFlag.SECONDROW) &&
 			!Weapons.get().weapon(weapon).hasFlag(Weapon.Flags.LONG_RANGE) &&
 			!Weapons.get().weapon(weapon).hasFlag(Weapon.Flags.VERY_LONG_RANGE) ) {
 			battle.logme("Diese Waffe hat nicht die notwendige Reichweite um aus der zweiten Reihe heraus abgefeuert zu werden\n");
-			return Result.ERROR;	
+			return Result.ERROR;
 		}
-		
+
 		if( enemyShip.hasFlag(BattleShipFlag.SECONDROW) &&
 			!Weapons.get().weapon(weapon).hasFlag(Weapon.Flags.VERY_LONG_RANGE)	) {
 			battle.logme("Diese Waffe hat nicht die notwendige Reichweite um in die zweiten Reihe des Gegners abgefeuert zu werden\n");
 			return Result.ERROR;
 		}
-		
+
 		if( ownShip.hasFlag(BattleShipFlag.BLOCK_WEAPONS) ) {
 			battle.logme( "Sie k&ouml;nnen in dieser Runde keine Waffen mehr abfeuern\n" );
 			return Result.ERROR;
 		}
-		
+
 		if( ownShip.hasFlag(BattleShipFlag.DISABLE_WEAPONS) ) {
 			battle.logme( "Das Schiff kann seine Waffen in diesem Kampf nicht mehr abfeuern\n" );
 			return Result.ERROR;
 		}
-		
+
 		/*
 		 * 	Feuermodusauswahl
 		 */
-									
+
 		menuEntry( t, "<span style=\"font-size:3px\">&nbsp;<br /></span>Feuermodus: "+ATTMODES.get(attmode)+"<br /> "+
 				"<span style=\"font-size:12px\">&lt; Klicken um Feuermodus zu wechseln &gt;</span><span style=\"font-size:4px\"><br />&nbsp;</span>",
 				"ship",		ownShip.getId(),
@@ -228,12 +235,12 @@ public class KSMenuGroupAttackMuniSelectAction extends BasicKSMenuAction {
 				}
 			}
 		}
-		
+
 		menuEntry(t, "zur&uuml;ck",	"ship",		ownShip.getId(),
 									"attack",	enemyShip.getId(),
 									"ksaction",	"groupattack",
 									"attmode",	attmode );
-		
+
 		return Result.OK;
 	}
 }

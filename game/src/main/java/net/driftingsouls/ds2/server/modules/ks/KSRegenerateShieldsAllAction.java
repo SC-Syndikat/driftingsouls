@@ -21,6 +21,8 @@ package net.driftingsouls.ds2.server.modules.ks;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 
@@ -43,7 +45,7 @@ public class KSRegenerateShieldsAllAction extends BasicKSAction {
 		// Extension Point
 		return true;
 	}
-	
+
 	@Override
 	public final Result execute(TemplateEngine t, Battle battle) throws IOException {
 		Result result = super.execute(t, battle);
@@ -53,8 +55,9 @@ public class KSRegenerateShieldsAllAction extends BasicKSAction {
 
 		int shipcount = 0;
 		StringBuilder eshieldlog = new StringBuilder();
-		
-		List<BattleShip> ownShips = battle.getOwnShips();
+		User user = (User)ContextMap.getContext().getActiveUser();
+
+		List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 		for (BattleShip ownShip : ownShips)
 		{
 			if (ownShip.getShip().getEnergy() < 1)
@@ -116,10 +119,10 @@ public class KSRegenerateShieldsAllAction extends BasicKSAction {
 			shipcount++;
 		}
 
-		if( shipcount > 0 ) {	
-			battle.log(new SchlachtLogAktion(battle.getOwnSide(), eshieldlog.toString()));
+		if( shipcount > 0 ) {
+			battle.log(new SchlachtLogAktion(battle.getSide(user), eshieldlog.toString()));
 		}
-	
+
 		return Result.OK;
 	}
 }

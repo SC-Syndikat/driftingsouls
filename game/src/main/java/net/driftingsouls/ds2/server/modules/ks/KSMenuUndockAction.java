@@ -20,7 +20,9 @@ package net.driftingsouls.ds2.server.modules.ks;
 
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
+import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
@@ -37,7 +39,8 @@ import java.util.Map;
 public class KSMenuUndockAction extends BasicKSMenuAction {
     @Override
     public Result validate(Battle battle) {
-        BattleShip ownShip = battle.getOwnShip();
+		User user = (User)ContextMap.getContext().getActiveUser();
+        BattleShip ownShip = battle.getShip(user);
         org.hibernate.Session db = ContextMap.getContext().getDB();
 
         if(ownShip.getShip().getBaseShip() != null)
@@ -62,10 +65,14 @@ public class KSMenuUndockAction extends BasicKSMenuAction {
         if( result != Result.OK ) {
             return result;
         }
+        Context context = ContextMap.getContext();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)ContextMap.getContext().getActiveUser();
 
-        BattleShip ownShip = battle.getOwnShip();
+        BattleShip ownShip = battle.getShip(user);
 
-        BattleShip enemyShip = battle.getEnemyShip();
+        BattleShip enemyShip = battle.getShip(enemy);
 
         if(ownShip.getShip().getBaseShip() != null)
         {
@@ -84,7 +91,7 @@ public class KSMenuUndockAction extends BasicKSMenuAction {
 
             Map<ShipClasses,Integer> undockclasslist = new HashMap<>();
 
-            List<BattleShip> ownShips = battle.getOwnShips();
+            List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
             for (BattleShip aship : ownShips)
             {
                 if (aship.getShip().getBaseShip() == null || aship.getShip().getBaseShip().getId() != ownShip.getId())

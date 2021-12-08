@@ -23,7 +23,8 @@ import net.driftingsouls.ds2.server.battles.BattleFlag;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.BattleShipFlag;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
-import net.driftingsouls.ds2.server.battles.Side;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.ships.ShipTypeFlag;
@@ -44,63 +45,57 @@ public class KSSecondRowAction extends BasicKSAction {
 	public KSSecondRowAction() {
 		this.requireOwnShipReady(true);
 	}
-	
+
 	@Override
 	public Result validate(Battle battle) {
-		BattleShip ownShip = battle.getOwnShip();
-		
+		User user = (User)ContextMap.getContext().getActiveUser();
+		int seite = battle.getSide(user);
+		BattleShip ownShip = battle.getShip(user);
+
 		if( ownShip.hasFlag(BattleShipFlag.SECONDROW) || ownShip.hasFlag(BattleShipFlag.DESTROYED) ||
 				ownShip.getShip().getEngine() == 0 || ownShip.getShip().isLanded() ||
 				ownShip.getShip().isDocked() || ownShip.hasFlag(BattleShipFlag.FLUCHT) ||
 			ownShip.hasFlag(BattleShipFlag.JOIN) ) {
 			return Result.ERROR;
 		}
-		
+
 		if( ownShip.hasFlag(BattleShipFlag.SECONDROW_BLOCKED) ) {
 			return Result.ERROR;
 		}
-		
-		if( (battle.getOwnSide() == 0) && battle.hasFlag(BattleFlag.DROP_SECONDROW_0) ) {
+
+		if( battle.hasSideFlag(seite,BattleFlag.DROP_SECONDROW) ) {
 			return Result.ERROR;
 		}
-		
-		if( (battle.getOwnSide() == 1) && battle.hasFlag(BattleFlag.DROP_SECONDROW_1) ) {
+
+		if( battle.hasSideFlag(seite,BattleFlag.BLOCK_SECONDROW) ) {
 			return Result.ERROR;
 		}
-		
-		if( (battle.getOwnSide() == 0) && battle.hasFlag(BattleFlag.BLOCK_SECONDROW_0) ) {
-			return Result.ERROR;
-		}
-		
-		if( (battle.getOwnSide() == 1) && battle.hasFlag(BattleFlag.BLOCK_SECONDROW_1) ) {
-			return Result.ERROR;
-		}
-		
+
 		if( ownShip.getShip().isBattleAction() ) {
-			return Result.ERROR;	
+			return Result.ERROR;
 		}
-	
+
 		if( ownShip.getEngine() <= 0 ) {
 			return Result.ERROR;
-		} 
-		
+		}
+
 		ShipTypeData ownShipType = ownShip.getTypeData();
-		
+
 		if( !ownShipType.hasFlag(ShipTypeFlag.SECONDROW) ) {
 			return Result.ERROR;
 		}
-		
+
 		if( ownShipType.getCost() == 0 ) {
 			return Result.ERROR;
 		}
-		 
+
 		if( (ownShipType.getCrew() > 0) && (ownShip.getCrew() == 0) ) {
 			return Result.ERROR;
 		}
-		
+
 		boolean gotone = false;
 		if( ownShipType.hasFlag(ShipTypeFlag.DROHNE) ) {
-			List<BattleShip> ownShips = battle.getOwnShips();
+			List<BattleShip> ownShips = battle.getShips(seite);
 			for (BattleShip aship : ownShips)
 			{
 				ShipTypeData ashiptype = aship.getTypeData();
@@ -112,22 +107,22 @@ public class KSSecondRowAction extends BasicKSAction {
 			}
 		}
 		else {
-			gotone = true;	
+			gotone = true;
 		}
-		
+
 		if( !gotone ) {
 			return Result.ERROR;
 		}
-		
+
 		//Does a first row exist without this ship?
-		for(BattleShip ship: battle.getShips(Side.OWN))
+		for(BattleShip ship: battle.getShips(seite))
 		{
 			if(!ship.equals(ownShip) && !ship.isSecondRow())
 			{
 				return Result.OK;
 			}
 		}
-				
+
 		return Result.ERROR;
 	}
 
@@ -137,23 +132,23 @@ public class KSSecondRowAction extends BasicKSAction {
 		if( result != Result.OK ) {
 			return result;
 		}
-		
+
 		if( this.validate(battle) != Result.OK ) {
 			battle.logme("Die Aktion kann nicht ausgef&uuml;hrt werden");
 			return Result.ERROR;
 		}
-		
-		BattleShip ownShip = battle.getOwnShip();
+		User user = (User)ContextMap.getContext().getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
 
 		battle.logme( ownShip.getName()+" fliegt in die zweite Reihe\n" );
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), Battle.log_shiplink(ownShip.getShip())+" fliegt in die zweite Reihe"));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), Battle.log_shiplink(ownShip.getShip())+" fliegt in die zweite Reihe"));
 
 		ownShip.addFlag(BattleShipFlag.SECONDROW);
 		ownShip.addFlag(BattleShipFlag.SECONDROW_BLOCKED);
 		ownShip.addFlag(BattleShipFlag.BLOCK_WEAPONS);
 
 		int remove = 1;
-		List<BattleShip> ownShips = battle.getOwnShips();
+		List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 		for (BattleShip s : ownShips)
 		{
 			if (s.getShip().getBaseShip() != null && s.getShip().getBaseShip().getId() == ownShip.getId())
@@ -165,7 +160,7 @@ public class KSSecondRowAction extends BasicKSAction {
 				}
 			}
 		}
-		
+
 		if( remove > 1 ) {
 			battle.logme( (remove-1)+" an "+ownShip.getName()+" gedockte Schiffe fliegen in die zweite Reihe\n" );
 		}
