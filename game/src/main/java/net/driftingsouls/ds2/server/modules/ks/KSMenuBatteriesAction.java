@@ -80,8 +80,8 @@ public class KSMenuBatteriesAction extends BasicKSMenuAction {
 		
 		Context context = ContextMap.getContext();
 		User user = (User)context.getActiveUser();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		BattleShip ownShip = battle.getShip(user);
 		BattleShip enemyShip = battle.getShip(enemy);
 	

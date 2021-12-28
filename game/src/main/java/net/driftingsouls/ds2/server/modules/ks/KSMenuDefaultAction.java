@@ -20,6 +20,9 @@ package net.driftingsouls.ds2.server.modules.ks;
 
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 
 import java.io.IOException;
@@ -36,9 +39,13 @@ public class KSMenuDefaultAction extends BasicKSMenuAction {
 		if( result != Result.OK ) {
 			return result;
 		}
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 
 		if( this.isPossible(battle, new KSMenuAttackAction()) == Result.OK ) {
 			this.menuEntry(t, "Angriff",	"ship",		ownShip.getId(),
@@ -115,18 +122,18 @@ public class KSMenuDefaultAction extends BasicKSMenuAction {
 		}
 
 		// Naechstes eigenes Schiff
-		if(battle.getOwnShipCount()>1){
+		if(battle.getShipCount(user)>1){
 			this.menuEntry(t, "n&auml;chstes eigenes Schiff",
-									"ship",			battle.getNextOwnBattleShip().getId(),
+									"ship",			battle.getNextBattleShip(user).getId(),
 									"attack",		enemyShip.getId(),
 									"ksaction",		"default" );
 		}
 
 		// Naechstes feindliches Schiff
-		if( battle.getEnemyShipCount()>1){
+		if( battle.getShipCount(enemy)>1){
 			this.menuEntry(t, "n&auml;chstes feindliches Schiff",
 									"ship",			ownShip.getId(),
-									"attack",		battle.getNextEnemyBattleShip().getId(),
+									"attack",		battle.getNextBattleShip(enemy).getId(),
 									"ksaction",		"default" );
 		}
 

@@ -63,11 +63,11 @@ public class KSNewCommanderAction extends BasicKSAction {
 			return Result.ERROR;
 		}
 
-		if( (battle.getAlly(battle.getOwnSide()) == 0) ||
-			((com.getAlly() != null) && (com.getAlly().getId() != battle.getAlly(battle.getOwnSide()))) ) {
+		if( (battle.getAlly(battle.getSide(user)) == 0) ||
+			((com.getAlly() != null) && (com.getAlly().getId() != battle.getAlly(battle.getSide(user)))) ) {
 
 			boolean found = false;
-			List<BattleShip> ownShips = battle.getOwnShips();
+			List<BattleShip> ownShips = battle.getShips(battle.getSide(user));
 			for (BattleShip ownShip : ownShips)
 			{
 				if (ownShip.getOwner() == com)
@@ -89,13 +89,13 @@ public class KSNewCommanderAction extends BasicKSAction {
 
 		PM.send(user, com.getId(), "Schlacht übergeben", "Ich habe Dir die Leitung der Schlacht bei "+battle.getLocation().displayCoordinates(false)+" übergeben.");
 
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), "[userprofile="+com.getId()+",profile_alog]"+Common._titleNoFormat(com.getName())+"[/userprofile] kommandiert nun die Truppen."));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), "[userprofile="+com.getId()+",profile_alog]"+Common._titleNoFormat(com.getName())+"[/userprofile] kommandiert nun die Truppen."));
 
-		battle.setCommander(battle.getOwnSide(), com);
+		battle.setCommander(battle.getSide(user), com);
 
-		battle.log(new SchlachtLogKommandantWechselt(battle.getOwnSide(), battle.getCommander(battle.getOwnSide())));
+		battle.log(new SchlachtLogKommandantWechselt(battle.getSide(user), battle.getCommander(battle.getSide(user))));
 
-		battle.setTakeCommand(battle.getOwnSide(), 0);
+		battle.setTakeCommand(battle.getSide(user), null);
 
 		return Result.OK;
 	}

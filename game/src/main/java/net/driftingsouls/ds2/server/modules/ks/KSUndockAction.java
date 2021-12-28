@@ -21,6 +21,9 @@ package net.driftingsouls.ds2.server.modules.ks;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 
 import java.io.IOException;
@@ -39,7 +42,9 @@ public class KSUndockAction extends BasicKSAction {
 
     @Override
     public Result validate(Battle battle) {
-        BattleShip ownShip = battle.getOwnShip();
+        Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+        BattleShip ownShip = battle.getShip(user);
 
         if(ownShip.getShip().getBaseShip() != null)
         {
@@ -51,6 +56,8 @@ public class KSUndockAction extends BasicKSAction {
 
     @Override
     public Result execute(TemplateEngine t, Battle battle) throws IOException {
+        Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
         Result result = super.execute(t, battle);
         if( result != Result.OK ) {
             return result;
@@ -61,7 +68,7 @@ public class KSUndockAction extends BasicKSAction {
             return Result.ERROR;
         }
 
-        BattleShip ownShip = battle.getOwnShip();
+        BattleShip ownShip = battle.getShip(user);
 
         ownShip.getShip().setBattleAction(true);
 
@@ -75,7 +82,7 @@ public class KSUndockAction extends BasicKSAction {
         }
 
         battle.logme("Die "+Battle.log_shiplink(ownShip.getShip())+" wurde abgedockt");
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), "Die "+Battle.log_shiplink(ownShip.getShip())+" wurde abgedockt"));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), "Die "+Battle.log_shiplink(ownShip.getShip())+" wurde abgedockt"));
 
         ownShip.getShip().recalculateShipStatus();
 

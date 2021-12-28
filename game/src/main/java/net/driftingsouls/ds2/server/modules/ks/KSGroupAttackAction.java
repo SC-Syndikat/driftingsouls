@@ -58,8 +58,8 @@ public class KSGroupAttackAction extends BasicKSAction {
     public Result execute(TemplateEngine t, Battle battle) throws IOException
     {
         Context context = ContextMap.getContext();
-        int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+        int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		User user = (User)context.getActiveUser();
         int typeid = battle.getShip(user).getTypeData().getTypeId();
         int enemytypeid = battle.getShip(enemy).getTypeData().getTypeId();

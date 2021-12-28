@@ -22,6 +22,8 @@ import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.BattleShipFlag;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.Ship;
@@ -58,7 +60,9 @@ public class KSUndockAllAction extends BasicKSAction {
 
 	@Override
 	public Result validate(Battle battle) {
-		BattleShip ownShip = battle.getOwnShip();
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
 		org.hibernate.Session db = ContextMap.getContext().getDB();
 
 		boolean dock = db.createQuery("from Ship where docked in (:docked,:landed)")
@@ -74,6 +78,8 @@ public class KSUndockAllAction extends BasicKSAction {
 
 	@Override
 	public Result execute(TemplateEngine t, Battle battle) throws IOException {
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
 		Result result = super.execute(t, battle);
 		if( result != Result.OK ) {
 			return result;
@@ -83,14 +89,14 @@ public class KSUndockAllAction extends BasicKSAction {
 			battle.logme( "Validation failed\n" );
 			return Result.ERROR;
 		}
-		BattleShip ownShip = battle.getOwnShip();
+		BattleShip ownShip = battle.getShip(user);
 
 		ownShip.getShip().setBattleAction(true);
 
         List<Ship> startList = new ArrayList<>();
         List<Ship> undockList = new ArrayList<>();
 
-        for(BattleShip aship : battle.getOwnShips())
+        for(BattleShip aship : battle.getShips(user))
         {
             if(!validateShipExt(aship, aship.getTypeData()))
             {
@@ -118,7 +124,7 @@ public class KSUndockAllAction extends BasicKSAction {
         ownShip.getShip().start(startArray);
         ownShip.getShip().undock(undockArray);
 
-		List<BattleShip> ownShips = battle.getOwnShips();
+		List<BattleShip> ownShips = battle.getShips(user);
 		for (BattleShip s : ownShips)
 		{
 			if (s.hasFlag(BattleShipFlag.SECONDROW) && !s.getTypeData().hasFlag(ShipTypeFlag.SECONDROW))
@@ -129,7 +135,7 @@ public class KSUndockAllAction extends BasicKSAction {
 		}
 
 		battle.logme((startList.size()+undockList.size())+" Schiffe wurden abgedockt");
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), (startList.size()+undockList.size())+" Schiffe wurden von der "+Battle.log_shiplink(ownShip.getShip())+" abgedockt"));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), (startList.size()+undockList.size())+" Schiffe wurden von der "+Battle.log_shiplink(ownShip.getShip())+" abgedockt"));
 
 		ownShip.getShip().recalculateShipStatus();
 

@@ -51,8 +51,8 @@ public class KSCheatRegenerateEnemyAction extends BasicKSAction {
 			context.addError("Cheats sind deaktiviert!");
 			return Result.HALT;
 		}
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		User user = (User)ContextMap.getContext().getActiveUser();
 		BattleShip enemyShip = battle.getShip(enemy);
 

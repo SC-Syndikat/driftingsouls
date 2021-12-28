@@ -65,11 +65,9 @@ public class KSKapernAction extends BasicKSAction {
 	@Override
 	public Result validate(Battle battle) {
 		Context context = ContextMap.getContext();
-        int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+        int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		User user = (User)context.getActiveUser();
-        int typeid = battle.getShip(user).getTypeData().getTypeId();
-        int enemytypeid = battle.getShip(enemy).getTypeData().getTypeId();
 		BattleShip ownShip = battle.getShip(user);
 		BattleShip enemyShip = battle.getShip(enemy);
 
@@ -128,8 +126,8 @@ public class KSKapernAction extends BasicKSAction {
 		}
 		Context context = ContextMap.getContext();
 		User user = (User)context.getActiveUser();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 
 		org.hibernate.Session db = context.getDB();
 		BattleShip ownShip = battle.getShip(user);
@@ -371,7 +369,7 @@ public class KSKapernAction extends BasicKSAction {
 			// Ein neues Ziel auswaehlen
 			//battle.setEnemyShipIndex(battle.getNewTargetIndex());
 
-			List<BattleShip> enemyShips = battle.getShips(enemy);
+			List<BattleShip> enemyShips = battle.getShips(battle.getSide(user));
 			for( int i=0; i < enemyShips.size(); i++ ) {
 				BattleShip eship = enemyShips.get(i);
 

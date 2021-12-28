@@ -52,15 +52,15 @@ public class KSStopTakeCommandAction extends BasicKSAction {
 		
 		User user = (User)context.getActiveUser();	
 		
-		if( battle.getTakeCommand(battle.getOwnSide()) == 0 ) {
+		if( battle.getTakeCommand(battle.getSide(user)) == null ) {
 			battle.logme( "Es versucht niemand das Kommando zu &uuml;bernehmen\n" );
 			
 			return Result.ERROR;
 		}
 		
-		PM.send( user, battle.getTakeCommand(battle.getOwnSide()), "Schlacht-&uuml;bergabe abgelehnt", "Die &Uuml;bergabe es Kommandos der Schlacht bei "+battle.getLocation().displayCoordinates(false)+" wurde abgelehnt");
+		PM.send( user, battle.getTakeCommand(battle.getSide(user)).getId(), "Schlacht-&uuml;bergabe abgelehnt", "Die &Uuml;bergabe es Kommandos der Schlacht bei "+battle.getLocation().displayCoordinates(false)+" wurde abgelehnt");
 
-		battle.setTakeCommand(battle.getOwnSide(), 0);
+		battle.setTakeCommand(battle.getSide(user), null);
 
 		return Result.OK;
 	}

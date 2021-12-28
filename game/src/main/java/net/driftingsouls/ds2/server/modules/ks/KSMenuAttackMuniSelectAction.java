@@ -74,8 +74,8 @@ public class KSMenuAttackMuniSelectAction extends BasicKSMenuAction {
 	public Result validate(Battle battle) {
 		Context context = ContextMap.getContext();
 		User user = (User)context.getActiveUser();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		BattleShip ownShip = battle.getShip(user);
 		BattleShip enemyShip = battle.getShip(enemy);
 	
@@ -154,8 +154,8 @@ public class KSMenuAttackMuniSelectAction extends BasicKSMenuAction {
 	public Result execute(TemplateEngine t, Battle battle) throws IOException {
 		Context context = ContextMap.getContext();
 		User user = (User)context.getActiveUser();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		Result result = super.execute(t, battle);
 		if( result != Result.OK ) {
 			return result;

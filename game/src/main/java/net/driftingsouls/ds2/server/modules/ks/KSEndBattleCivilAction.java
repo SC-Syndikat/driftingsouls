@@ -71,13 +71,15 @@ public class KSEndBattleCivilAction extends BasicKSAction {
 
 		Context context = ContextMap.getContext();
 		User user = (User)context.getActiveUser();
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		
 		context.getResponse().getWriter().append("Du hast die Schlacht bei <a class='forschinfo' href='./client#/map/")
 						.append(battle.getLocation().urlFragment()).append("'>")
 						.append(battle.getLocation().displayCoordinates(false))
 						.append("</a> gewonnen.");
 
-		PM.send(user, battle.getCommander(battle.getEnemySide()).getId(), "Schlacht verloren", "Der Gegner hat die Schlacht beendet, da du nur noch zivile Schiffe hattest. Du hast die Schlacht bei "+battle.getLocation().displayCoordinates(false)+" gegen [userprofile="+user.getId()+"]"+user.getName()+"[/userprofile] somit verloren!");
+		PM.send(user, battle.getCommander(battle.getSide(enemy)).getId(), "Schlacht verloren", "Der Gegner hat die Schlacht beendet, da du nur noch zivile Schiffe hattest. Du hast die Schlacht bei "+battle.getLocation().displayCoordinates(false)+" gegen [userprofile="+user.getId()+"]"+user.getName()+"[/userprofile] somit verloren!");
 
 		// Schlacht beenden -> +1 Siege fuer mich; +1 Niederlagen fuer den Gegner
 		battle.endTurn(true);

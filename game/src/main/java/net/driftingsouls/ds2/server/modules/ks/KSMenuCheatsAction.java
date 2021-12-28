@@ -21,6 +21,7 @@ package net.driftingsouls.ds2.server.modules.ks;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
@@ -42,14 +43,17 @@ public class KSMenuCheatsAction extends BasicKSMenuAction {
 		}
 		
 		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		
 		if( !new ConfigService().getValue(WellKnownConfigValue.DESTROYABLE_SHIPS) ) {
 			context.addError("Cheats sind deaktiviert!");
 			return Result.HALT;
 		}
 		
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 			
 		this.menuEntry(t, "Schiff regenerieren",
 				"ship",		ownShip.getId(),

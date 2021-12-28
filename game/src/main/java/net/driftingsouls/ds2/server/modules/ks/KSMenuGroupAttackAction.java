@@ -61,8 +61,8 @@ public class KSMenuGroupAttackAction extends BasicKSMenuAction {
 	@Override
 	public Result validate(Battle battle) {
 		Context context = ContextMap.getContext();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		User user = (User)ContextMap.getContext().getActiveUser();
 		BattleShip ownShip = battle.getShip(user);
 		BattleShip enemyShip = battle.getShip(enemy);
@@ -151,8 +151,8 @@ public class KSMenuGroupAttackAction extends BasicKSMenuAction {
 
 		String attmode = this.getAttMode();
 		Context context = ContextMap.getContext();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		User user = (User)ContextMap.getContext().getActiveUser();
 
 		BattleShip ownShip = battle.getShip(user);

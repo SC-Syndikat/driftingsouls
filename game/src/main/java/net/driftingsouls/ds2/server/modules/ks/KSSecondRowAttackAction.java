@@ -52,8 +52,8 @@ public class KSSecondRowAttackAction extends BasicKSAction {
 		}
 		User user = (User)ContextMap.getContext().getActiveUser();
 		Context context = ContextMap.getContext();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		int seite = battle.getSide(user);
 		if( battle.hasSideFlag(seite,BattleFlag.DROP_SECONDROW) ) {
 			return Result.ERROR;
@@ -95,8 +95,8 @@ public class KSSecondRowAttackAction extends BasicKSAction {
 		}
 		User user = (User)ContextMap.getContext().getActiveUser();
 		Context context = ContextMap.getContext();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		if( this.validate(battle) != Result.OK ) {
 			battle.logme("Die Aktion kann nicht ausgef&uuml;hrt werden");
 			return Result.ERROR;

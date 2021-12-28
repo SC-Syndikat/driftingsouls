@@ -68,8 +68,8 @@ public class KSMenuGroupAttackMuniSelectAction extends BasicKSMenuAction {
 	@Override
 	public Result validate(Battle battle) {
 		Context context = ContextMap.getContext();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		User user = (User)ContextMap.getContext().getActiveUser();
 		BattleShip ownShip = battle.getShip(user);
 		BattleShip enemyShip = battle.getShip(enemy);
@@ -93,10 +93,13 @@ public class KSMenuGroupAttackMuniSelectAction extends BasicKSMenuAction {
 		if( ownShip.hasFlag(BattleShipFlag.FLUCHT) ) {
 			return Result.ERROR;
 		}
+		if( ownShip.hasFlag(BattleShipFlag.JOINSIDE) ) {
+			return Result.ERROR;
+		}
 
 		ShipTypeData ownShipType = ownShip.getTypeData();
 
-		if( enemyShip.hasFlag(BattleShipFlag.FLUCHT) && !ownShipType.hasFlag(ShipTypeFlag.ABFANGEN) ) {
+		if( (enemyShip.hasFlag(BattleShipFlag.FLUCHT) || enemyShip.hasFlag(BattleShipFlag.JOINSIDE)) && !ownShipType.hasFlag(ShipTypeFlag.ABFANGEN) ) {
 			return Result.ERROR;
 		}
 
@@ -153,8 +156,8 @@ public class KSMenuGroupAttackMuniSelectAction extends BasicKSMenuAction {
 		}
 
 		Context context = ContextMap.getContext();
-		int enemyId = context.getRequest().getParameterInt("enemyId");
-		User enemy = (User)context.getDB().get(User.class, enemyId);
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		User user = (User)ContextMap.getContext().getActiveUser();
 		org.hibernate.Session db = context.getDB();
 
