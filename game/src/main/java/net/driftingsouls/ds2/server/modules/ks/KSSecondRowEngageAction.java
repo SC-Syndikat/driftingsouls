@@ -23,6 +23,9 @@ import net.driftingsouls.ds2.server.battles.BattleFlag;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.BattleShipFlag;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 
 import java.io.IOException;
@@ -43,7 +46,10 @@ public class KSSecondRowEngageAction extends BasicKSAction {
 	
 	@Override
 	public Result validate(Battle battle) {
-		if( battle.isSecondRowStable(battle.getEnemySide()) ) {
+		Context context = ContextMap.getContext();
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
+		if( battle.isSecondRowStable(battle.getSide(enemy)) ) {
 			return Result.ERROR;
 		}  
 		
@@ -52,6 +58,10 @@ public class KSSecondRowEngageAction extends BasicKSAction {
 
 	@Override
 	public Result execute(TemplateEngine t, Battle battle) throws IOException {
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		int enemySide = context.getRequest().getParameterInt("enemySide");
+		User enemy = (User)context.getDB().get(User.class, battle.getUser(enemySide).getId());
 		Result result = super.execute(t, battle);
 		if( result != Result.OK ) {
 			return result;
@@ -62,21 +72,16 @@ public class KSSecondRowEngageAction extends BasicKSAction {
 			return Result.ERROR;
 		}
 
-		List<BattleShip> enemyShips = battle.getEnemyShips();
+		List<BattleShip> enemyShips = battle.getShips(enemy);
 		for (BattleShip eShip : enemyShips)
 		{
 			eShip.removeFlag(BattleShipFlag.SECONDROW);
 		}
 		
 		battle.logme( "Ihre Schiffe r&uuml;cken vor und durchbrechen die feindlichen Linien\n");
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), "Die feindlichen Schiffe r&uuml;cken vor und durchbrechen trotz heftigen Widerstands die Linien"));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), "Die feindlichen Schiffe r&uuml;cken vor und durchbrechen trotz heftigen Widerstands die Linien"));
 
-		if( battle.getOwnSide() == 0 ) {
-			battle.setFlag(BattleFlag.BLOCK_SECONDROW_1, true);
-		}
-		else {
-			battle.setFlag(BattleFlag.BLOCK_SECONDROW_0, true);
-		}
+		battle.setSideFlag(battle.getSide(user),BattleFlag.BLOCK_SECONDROW, true);
 		
 		return Result.OK;
 	}

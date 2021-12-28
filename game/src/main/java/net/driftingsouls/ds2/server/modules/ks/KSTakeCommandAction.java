@@ -58,15 +58,15 @@ public class KSTakeCommandAction extends BasicKSAction {
 
         if(!user.hasFlag(UserFlag.KS_TAKE_BATTLES))
         {
-            if( (battle.getAlly(battle.getOwnSide()) == 0) ||
-                ((user.getAlly() != null) && (battle.getAlly(battle.getOwnSide()) != user.getAlly().getId())) ) {
+            if( (battle.getAlly(battle.getSide(user)) == 0) ||
+                ((user.getAlly() != null) && (battle.getAlly(battle.getSide(user)) != user.getAlly().getId())) ) {
 
                 battle.logme( "Sie geh&ouml;ren nicht der kommandierenden Allianz an\n" );
                 return Result.ERROR;
             }
         }
 
-		if( battle.getTakeCommand(battle.getOwnSide()) != 0 ) {
+		if( battle.getTakeCommand(battle.getSide(user)) != null ) {
 			battle.logme( "Es versucht bereits ein anderer Spieler das Kommando zu &uuml;bernehmen\n" );
 			return Result.ERROR;
 		}
@@ -77,9 +77,9 @@ public class KSTakeCommandAction extends BasicKSAction {
 			return Result.ERROR;
 		}
 		*/
-		battle.setCommander(battle.getOwnSide(), user);
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), "[userprofile="+user.getId()+",profile_alog]"+Common._titleNoFormat(user.getName())+"[/userprofile] hat die Schlacht übernommen"));
-		battle.log(new SchlachtLogKommandantWechselt(battle.getOwnSide(), battle.getCommander(battle.getOwnSide())));
+		battle.setCommander(battle.getSide(user), user);
+		battle.log(new SchlachtLogAktion(battle.getSide(user), "[userprofile="+user.getId()+",profile_alog]"+Common._titleNoFormat(user.getName())+"[/userprofile] hat die Schlacht übernommen"));
+		battle.log(new SchlachtLogKommandantWechselt(battle.getSide(user), battle.getCommander(battle.getSide(user))));
 
 		return Result.OK;
 	}
