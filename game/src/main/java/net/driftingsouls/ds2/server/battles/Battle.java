@@ -28,6 +28,7 @@ import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
+import net.driftingsouls.ds2.server.framework.templates.comm;
 import net.driftingsouls.ds2.server.ships.*;
 
 import org.apache.commons.logging.Log;
@@ -72,8 +73,14 @@ public class Battle implements Locatable
 	private int flags;
 
 	//UserMaps
+	//Alle User werden einer Seite zugeordnet
 	@Transient
-	private Map<User,Integer> commanders = new HashMap<>();
+	private Map<User,Integer> users = new HashMap<>();
+	//jede Seite hat einen Commander
+	@Transient
+	private Map<Integer,User> commanders = new HashMap<>();
+	@Transient
+	private Map<Integer,User> takeCommand = new HashMap<>();
 	@Transient
 	private Map<User,String> shipGroup = new HashMap<>();
 	@Transient
@@ -138,6 +145,66 @@ public class Battle implements Locatable
 	}
 
 	/**
+	 * Prueft, ob ein Spieler Kommandant der Seite der Schlacht ist.
+	 * @param user Der Spieler
+	 * @param side Die Seite
+	 * @return <code>true</code>, falls er Kommandant ist
+	 */
+
+	public boolean isCommander( User user, int side ) {
+		for(Map.Entry<Integer,User> command : this.commanders.entrySet())
+		{
+			if(command.getKey() == side && command.getValue().getId() == user.getId())
+				return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Setzt den Kommandaten einer Seite.
+	 * @param side Die Seite
+	 * @param user Der neue Kommandant
+	 */
+	public void setCommander(int side, User user) {
+		if (commanders.keySet().contains(side))
+		{
+			this.commanders.put(side, user);
+		}
+	}
+
+	/**
+	 * Gibt den Spieler zurueck, der auf einer Seite das Kommando uebernehmen will. Sollte
+	 * kein solcher Spieler existieren, so wird <code>null</code> zurueckgegeben.
+	 * @param side Die Seite
+	 * @return Den Spieler oder <codeNULL</code>
+	 */
+	public User getTakeCommand(int side) {
+		if(takeCommand.containsKey(side))
+		{
+			return takeCommand.get(side);
+		}
+		return null;
+	}
+
+	/**
+	 * Setzt den Spieler, welcher auf einer Seite das Kommando uebernehmen will.
+	 * @param side Die Seite
+	 * @param user Der Spieler
+	 */
+	public void setTakeCommand(int side, User user) {
+		//pruefen, ob die Seite gueltig ist
+		if (commanders.keySet().contains(side))
+		{
+			this.takeCommand.put(side,user);
+		}
+		
+	}
+
+	private User[] getTakeCommands() {
+		return (User[]) this.takeCommand.entrySet().toArray();
+	}
+
+	/**
 	 * Gibt eine Liste aller User einer Seite zurueck
 	 * @param side die Seite
 	 * @return die Userliste bzw null
@@ -145,7 +212,7 @@ public class Battle implements Locatable
 	public List<User> getUserPerSide(int side)
 	{
 		List<User> user_list = new ArrayList<>();
-		for(Map.Entry<User, Integer> entry : commanders.entrySet())
+		for(Map.Entry<User, Integer> entry : users.entrySet())
 		{
 			if(entry.getValue() == side)
 				user_list.add(entry.getKey());
@@ -162,7 +229,7 @@ public class Battle implements Locatable
 	 * @return die Anzahl
 	 */
 	public int getShipCount(int side) {
-		if(!commanders.containsValue(side))
+		if(!users.containsValue(side))
 		{
 			return 0;
 		}
@@ -180,7 +247,7 @@ public class Battle implements Locatable
 	 * @return die Anzahl
 	 */
 	public int getShipCount(User user) {
-		if (!commanders.containsKey(user))
+		if (!users.containsKey(user))
 			return 0;
 		else
 		{
@@ -463,7 +530,7 @@ public boolean hasFrontRow( int side) {
 	 * @return Das aktuell ausgewaehlte eigene Schiff
 	 */
 	public BattleShip getShip(User user) {
-		if(commanders.containsKey(user))
+		if(users.containsKey(user))
 			return this.ships.get(user).get(this.activeShip.get(user));
 		else
 			return null;
@@ -474,9 +541,9 @@ public boolean hasFrontRow( int side) {
 	 * @param side Die Seite
 	 * @return Der erste gefundene User dieser Seite bzw <code>null</code>, sollte es keinen User auf dieser Seite geben
 	 */
-	public User getCommander(int side)
+	public User getUser(int side)
 	{
-		for(Map.Entry<User,Integer> entry : commanders.entrySet())
+		for(Map.Entry<User,Integer> entry : users.entrySet())
 		{
 			if(entry.getValue() == side)
 			{
@@ -487,6 +554,16 @@ public boolean hasFrontRow( int side) {
 	}
 
 	/**
+	 * Gibt den leitenden Commander einer Seite zurueck
+	 * @param side die Seite
+	 * @return Der aktuelle Commander (User) oder <code>null</code>, sollte die Seite nicht existieren
+	 */
+	public User getCommander(int side)
+	{
+		return this.commanders.get(side);
+	}
+
+	/**
 	 * Prueft, ob das aktuell ausgewaehlte Schiff des Users ein gueltiges Ziel ist
 	 * (das Schiff also existiert). Bei gueltigen Zielen ist ein aufruf von {@link #getEnemyShip()}
 	 * gefahrlos moeglich.
@@ -494,7 +571,7 @@ public boolean hasFrontRow( int side) {
 	 * @return <code>true</code>, falls das Ziel gueltig ist
 	 */
 	public boolean isValidTarget(User user) {
-		if(commanders.containsKey(user))
+		if(users.containsKey(user))
         return this.activeShip.get(user) < this.ships.get(user).size() && this.activeShip.get(user) >= 0;
 			else
 				return false;
@@ -507,7 +584,7 @@ public boolean hasFrontRow( int side) {
 	 */
 	public BattleShip getNextBattleShip(User user) {
 
-		if(!commanders.containsKey(user))
+		if(!users.containsKey(user))
 		{
 			return null;
 		}
@@ -547,7 +624,7 @@ public boolean hasFrontRow( int side) {
 	 */
 	public int getNewTargetIndex(User user) {
 		// Falls das aktuelle Schiff ungueltig, dann das erstbeste in der Liste zurueckgeben
-		if(!commanders.containsKey(user))
+		if(!users.containsKey(user))
 		{
 			return -1;
 		}
@@ -603,7 +680,7 @@ public boolean hasFrontRow( int side) {
 	 * @return Der Index des aktuell ausgewaehlten gegnerischen Schiffes
 	 */
 	public int getShipIndex(User user) {
-		if(!commanders.containsKey(user))
+		if(!users.containsKey(user))
 		{
 			return -1;
 		}
@@ -616,7 +693,7 @@ public boolean hasFrontRow( int side) {
 	 * @param index Der neue Index
 	 */
 	public void setShipIndex(User user, int index) {
-		if(!commanders.containsKey(user))
+		if(!users.containsKey(user))
 		{
 			throw new IndexOutOfBoundsException("User "+user.getName()+" ist nicht Teil der Schlacht.");
 		}
@@ -807,9 +884,9 @@ public boolean hasFrontRow( int side) {
 	 */
 	public int getSchlachtMitglied(User user)
 	{
-		if (commanders.containsKey(user))
+		if (users.containsKey(user))
 		{
-			return commanders.get(user);
+			return users.get(user);
 		}
 		else
 		{
@@ -825,9 +902,9 @@ public boolean hasFrontRow( int side) {
 	public int getSideOrCreateNewSide(User user)
 	{
 		int side = -1;
-		if(commanders.containsKey(user))
+		if(users.containsKey(user))
 		{
-			side = commanders.get(user);
+			side = users.get(user);
 		}
 		else
 		{
@@ -836,9 +913,9 @@ public boolean hasFrontRow( int side) {
 			{
 					for(User u : user.getAlly().getMembers())
 					{
-						if(commanders.containsKey(u))
+						if(users.containsKey(u))
 						{
-							side = commanders.get(u);
+							side = users.get(u);
 							break;
 						}
 					}
@@ -849,7 +926,7 @@ public boolean hasFrontRow( int side) {
 		{
 			//dann suchen wir mal die groesste Seitennummer raus
 			int max = -1;
-			for(Integer s : commanders.values())
+			for(Integer s : users.values())
 			{
 				max = Math.max(max, s);
 			}
@@ -860,7 +937,7 @@ public boolean hasFrontRow( int side) {
 			shipTypeCount.put(user, null);
 
 		}
-		commanders.put(user, side);
+		users.put(user, side);
 
 		return side;
 	}
@@ -896,7 +973,7 @@ public boolean hasFrontRow( int side) {
 			}
 		}
 		//ungueltiger Gegner
-		if(!commanders.containsKey(enemy))
+		if(!users.containsKey(enemy))
 		{
 			return false;
 		}
@@ -909,7 +986,7 @@ public boolean hasFrontRow( int side) {
 		this.ships.clear();
 
 		this.shipTypeCount.clear();
-		this.commanders.clear();
+		this.users.clear();
 
 		List<BattleShip> ships = Common.cast(db.createQuery("from BattleShip bs inner join fetch bs.ship as s " +
                 "where s.id>0 and bs.battle=:battle " +
@@ -921,12 +998,12 @@ public boolean hasFrontRow( int side) {
 		int side = -1;
 		List<BattleShip> schiffe = new ArrayList<>();
 		for (BattleShip ship : ships) {
-			if (!commanders.containsKey(ship.getOwner()))
+			if (!users.containsKey(ship.getOwner()))
 			{
 				side = getSideOrCreateNewSide(user);
 			}
 
-			if(commanders.get(ship.getOwner()) == side)
+			if(users.get(ship.getOwner()) == side)
 			{
 				schiffe.add(ship);
 				if (!ship.getShip().isLanded()) {
@@ -979,7 +1056,7 @@ public boolean hasFrontRow( int side) {
 	// Die werden naemlich kompliziert
     public void setFiringShip(User user, Ship ownShip)
     {
-			if(commanders.containsKey(user))
+			if(users.containsKey(user))
 			{
         if(ownShip != null)
         {
@@ -1000,7 +1077,7 @@ public boolean hasFrontRow( int side) {
 	public void setFiringShip(Ship ownShip)
 	{
 		User user = ownShip.getOwner();
-		if(commanders.containsKey(user))
+		if(users.containsKey(user))
 		{
 			if(ownShip != null)
 			{
@@ -1018,7 +1095,7 @@ public boolean hasFrontRow( int side) {
 
     public void setAttackedShip(User user, Ship enemyShip)
     {
-			if(commanders.containsKey(user))
+			if(users.containsKey(user))
 			{
         if(enemyShip != null)
         {
@@ -1089,7 +1166,7 @@ public boolean hasFrontRow( int side) {
 		//
 		// Zuerst die Schiffe berechnen
 		//
-		for( User u: commanders.keySet() )
+		for( User u: users.keySet() )
 		{
 			List<BattleShip> shipsSecond = new ArrayList<>();
 
@@ -1164,7 +1241,7 @@ public boolean hasFrontRow( int side) {
 							}
 					}
 
-					if (this.hasSideFlag(commanders.get(u), BattleFlag.DROP_SECONDROW)) {
+					if (this.hasSideFlag(users.get(u), BattleFlag.DROP_SECONDROW)) {
 							ship.removeFlag(BattleShipFlag.SECONDROW);
 					}
 
@@ -1191,7 +1268,7 @@ public boolean hasFrontRow( int side) {
 			}
 
 			for(BattleShip second : shipsSecond){
-				if(this.isSecondRowStable(commanders.get(u), second)){
+				if(this.isSecondRowStable(users.get(u), second)){
 					second.addFlag(BattleShipFlag.SECONDROW);
 				}
 			}
@@ -1214,14 +1291,14 @@ public boolean hasFrontRow( int side) {
 		{
 
 			Map<User,Integer> winner_map = new HashMap<>();
-			for(User user : commanders.keySet())
+			for(User user : users.keySet())
 			{
 				PM.send(niemand, user.getId(), "Schlacht unentschieden", "Die Schlacht bei "+this.getLocation().displayCoordinates(false)+" wurde mit einem Unentschieden beendet!");
 				winner_map.put(user,0);
 			}
 			this.endBattle(winner_map);
 			this.ships.clear();
-			this.commanders.clear();
+			this.users.clear();
 			this.activeShip.clear();
 			this.shipGroup.clear();
 			this.shipTypeCount.clear();
@@ -1273,7 +1350,7 @@ public boolean hasFrontRow( int side) {
 				this.log(new SchlachtLogAktion(seite, "[Automatisch] Die Schlachtpartei "+seite+" wurde besiegt."));
 			}
 		}
-		//Seiten ohne Schiffe sind jetzt nicht mehr in der Commanders-Map, werden also auch nicht mehr in feindbeziehungen aufgefuehrt
+		//Seiten ohne Schiffe sind jetzt nicht mehr in der users-Map, werden also auch nicht mehr in feindbeziehungen aufgefuehrt
 		//Dann laden wir mal die Relations der Seiten
 		Map<Integer,List<Integer>> feindbeziehungen = this.getEnemySides();
 		boolean enemy_on_sight = false;
@@ -1293,13 +1370,13 @@ public boolean hasFrontRow( int side) {
 		//wir haben wohl keine Feinde mehr... dann erklaeren wir alle verbliebenen User zu gewinnern
 		{
 			Map<User,Integer> winner_map =new HashMap<>();
-			for(User u: commanders.keySet())
+			for(User u: users.keySet())
 			{
 				winner_map.put(u,1);
 			}
 			this.endBattle(winner_map);
 			this.ships.clear();
-			this.commanders.clear();
+			this.users.clear();
 			this.activeShip.clear();
 			this.shipGroup.clear();
 			this.shipTypeCount.clear();
@@ -1345,6 +1422,23 @@ public boolean hasFrontRow( int side) {
 		if( this.hasFlag(BattleFlag.FIRSTROUND) ) {
 			this.setFlag(BattleFlag.FIRSTROUND, false);
 		}
+		if(!calledByUser)
+		{
+			for(Map.Entry<Integer,User> tc : this.takeCommand.entrySet())
+			{
+				int seite = tc.getKey();
+				User com = tc.getValue();
+
+				PM.send(com, this.getCommander(seite).getId(), "Schlacht &uuml;bernommen", "Ich habe die Leitung der Schlacht bei "+this.getLocation().displayCoordinates(false)+" &uuml;bernommen.");
+
+				this.log(new SchlachtLogAktion(seite, "[Automatisch] "+Common._titleNoFormat(com.getName())+" kommandiert nun die Truppen"));
+
+				this.setCommander(seite, com);
+
+				this.log(new SchlachtLogKommandantWechselt(seite, com));
+				this.takeCommand.remove(seite);
+			}
+		}
 
 		return true;
 	}
@@ -1358,9 +1452,9 @@ public boolean hasFrontRow( int side) {
 	 */
 	public void remove(User user)
 	{
-		if(commanders.containsKey(user))
+		if(users.containsKey(user))
 		{
-			this.commanders.remove(user);
+			this.users.remove(user);
 			this.activeShip.remove(user);
 			this.shipGroup.remove(user);
 			this.shipTypeCount.remove(user);
@@ -1374,7 +1468,7 @@ public boolean hasFrontRow( int side) {
 	public List<Integer> getSides()
 	{
 		List<Integer> sides = new ArrayList<>();
-		for(Map.Entry<User,Integer> user : commanders.entrySet())
+		for(Map.Entry<User,Integer> user : users.entrySet())
 		{
 			if(!sides.contains(user.getValue()))
 			{
@@ -1391,7 +1485,7 @@ public boolean hasFrontRow( int side) {
 	public Map<Integer,List<Integer>> getEnemySides()
 	{
 		Map<Integer,List<Integer>> result = new HashMap<>();
-		for(Map.Entry<User,Integer> entry : commanders.entrySet())
+		for(Map.Entry<User,Integer> entry : users.entrySet())
 		{
 			List<Integer> enemyList = new ArrayList<>();
 
@@ -1401,7 +1495,7 @@ public boolean hasFrontRow( int side) {
 			{
 				enemyList = result.get(side);
 			}
-			for(Map.Entry<User,Integer> enemy : commanders.entrySet())
+			for(Map.Entry<User,Integer> enemy : users.entrySet())
 			{
 
 				if(enemy.getValue() == side )
@@ -1483,26 +1577,26 @@ public boolean hasFrontRow( int side) {
 	}
 
 	/**
-	 * Prueft, ob ein Spieler Kommandant der Schlacht ist.
+	 * Prueft, ob ein Spieler Mitglied der Schlacht ist.
 	 * @param user Der Spieler
-	 * @return <code>true</code>, falls er Kommandant ist
+	 * @return <code>true</code>, falls er Mitglied ist
 	 */
-	public boolean isCommander( User user ) {
-		return commanders.containsKey(user);
+	public boolean isMitglied( User user ) {
+		return users.containsKey(user);
 	}
 
 	/**
-	 * Prueft, ob ein Spieler auf einer Seite Kommandant ist.
+	 * Prueft, ob ein Spieler auf einer Seite Mitglied ist.
 	 * @param user Der Spieler
 	 * @param side Die Seite oder <code>-1</code>, falls die Seite egal ist
-	 * @return <code>true</code>, falls er Kommandant ist
+	 * @return <code>true</code>, falls er Mitglied ist
 	 */
-	public boolean isCommander( User user, int side ) {
-		if(!commanders.containsKey(user))
+	public boolean isMitglied( User user, int side ) {
+		if(!users.containsKey(user))
 		{
 			return false;
 		}
-		return ( commanders.get(user) == side);
+		return ( users.get(user) == side);
 	}
 
 	/**
@@ -1511,7 +1605,7 @@ public boolean hasFrontRow( int side) {
 	 * @return Die ID der aktuellen gegnerischen Schiffsgruppe
 	 */
 	public String getShipGroup(User user) {
-		if(commanders.containsKey(user))
+		if(users.containsKey(user))
 			return shipGroup.get(user);
 		else
 			return "";
@@ -1523,7 +1617,7 @@ public boolean hasFrontRow( int side) {
 	 * @param enemyShipGroup Die neue Schiffsgruppen-ID
 	 */
 	public void setShipGroup(User user, String enemyShipGroup) {
-		if(commanders.containsKey(user))
+		if(users.containsKey(user))
 			this.shipGroup.put(user, enemyShipGroup);
 	}
 
@@ -1533,9 +1627,9 @@ public boolean hasFrontRow( int side) {
 	 * @return Die ID der gegnerischen Seite
 	 */
 	public int getSide(User user) {
-		if(!commanders.containsKey(user))
+		if(!users.containsKey(user))
 			return -1;
-		return commanders.get(user);
+		return users.get(user);
 	}
 
 	/**
@@ -1544,7 +1638,7 @@ public boolean hasFrontRow( int side) {
 	 * @return Die Liste der gegnerischen Schiffe
 	 */
 	public List<BattleShip> getShips(User user) {
-		if(!commanders.containsKey(user))
+		if(!users.containsKey(user))
 			return null;
 		else
 			return ships.get(user);
@@ -1573,7 +1667,7 @@ public boolean hasFrontRow( int side) {
 	 * @return Das Schiff
 	 */
 	public BattleShip getShip(User user, int index ) {
-		if(!commanders.containsKey(user))
+		if(!users.containsKey(user))
 			return null;
 		else
 			return ships.get(user).get(index);
@@ -1591,7 +1685,7 @@ public boolean hasFrontRow( int side) {
 		}
 		BattleShip ship = null;
 
-		for (User u : commanders.keySet())
+		for (User u : users.keySet())
 		{
 			ship = ships.get(u).stream()
 										.filter(ownShip -> ownShip.getId() == shipID)
@@ -1634,9 +1728,9 @@ public boolean hasFrontRow( int side) {
 	 * Setzt die Commander-Seite-Map der Schlacht
 	 * @param die Map
 	 */
-	public void setCommanders(Map<User,Integer> commanders)
+	public void setusers(Map<User,Integer> users)
 	{
-		this.commanders = commanders;
+		this.users = users;
 	}
 
 	/**
@@ -1908,8 +2002,8 @@ public boolean hasFrontRow( int side) {
 	 * Gibt eine Map<User,Integer> der User und der Seite, fuer die sie kaempfen, zurueck
 	 * @return die Map
 	 */
-	public Map<User,Integer> getCommanders()
+	public Map<User,Integer> getusers()
 	{
-		return this.commanders;
+		return this.users;
 	}
 }

@@ -49,16 +49,17 @@ public class KSMenuBattleConsignAction extends BasicKSMenuAction {
 		Context context = ContextMap.getContext();
 		org.hibernate.Session db = context.getDB();
 		User user = (User)context.getActiveUser();	
-		
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 		
 		List<?> sideUsers = db.createQuery("select distinct u " +
 				"from BattleShip as bs " +
 				"join bs.ship.owner as u " +
 			"where bs.battle= :battleId and bs.side= :sideId order by u.id")
 			.setInteger("battleId", battle.getId())
-			.setInteger("sideId", battle.getOwnSide())
+			.setInteger("sideId", battle.getSide(user))
 			.list();
 		
 		Set<User> users = new LinkedHashSet<>();
@@ -68,8 +69,8 @@ public class KSMenuBattleConsignAction extends BasicKSMenuAction {
 			users.add((User) sideUser);
 		}
 		
-		if( battle.getAlly(battle.getOwnSide()) > 0 ) {
-			Ally ally = (Ally)db.get(Ally.class, battle.getAlly(battle.getOwnSide()));
+		if( battle.getAlly(battle.getSide(user)) > 0 ) {
+			Ally ally = (Ally)db.get(Ally.class, battle.getAlly(battle.getSide(user)));
 			users.addAll(ally.getMembers());
 		}
 		

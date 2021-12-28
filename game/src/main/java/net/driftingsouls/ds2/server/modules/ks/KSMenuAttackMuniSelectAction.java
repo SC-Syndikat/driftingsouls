@@ -72,8 +72,12 @@ public class KSMenuAttackMuniSelectAction extends BasicKSMenuAction {
 	
 	@Override
 	public Result validate(Battle battle) {
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 	
 		if( ownShip.hasFlag(BattleShipFlag.JOIN) ) {
 			return Result.ERROR;
@@ -104,7 +108,7 @@ public class KSMenuAttackMuniSelectAction extends BasicKSMenuAction {
 		boolean gotone = true;			
 		if( ownShipType.hasFlag(ShipTypeFlag.DROHNE) ) {
 			gotone = false;
-			List<BattleShip> ownShips = battle.getOwnShips();
+			List<BattleShip> ownShips = battle.getShips(user);
 			for (BattleShip aship : ownShips)
 			{
 				ShipTypeData ashiptype = aship.getTypeData();
@@ -148,16 +152,19 @@ public class KSMenuAttackMuniSelectAction extends BasicKSMenuAction {
 	
 	@Override
 	public Result execute(TemplateEngine t, Battle battle) throws IOException {
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
 		Result result = super.execute(t, battle);
 		if( result != Result.OK ) {
 			return result;
 		}
 		
-		Context context = ContextMap.getContext();
 		org.hibernate.Session db = context.getDB();
 		
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 		
 		final String weapon = context.getRequest().getParameterString("weapon");
 		

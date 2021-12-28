@@ -61,8 +61,12 @@ public class KSMenuAttackAction extends BasicKSMenuAction {
 
 	@Override
 	public Result validate(Battle battle) {
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 
 		if( ownShip.hasFlag(BattleShipFlag.JOIN) ) {
 			return Result.ERROR;
@@ -87,6 +91,9 @@ public class KSMenuAttackAction extends BasicKSMenuAction {
 		if( ownShip.hasFlag(BattleShipFlag.FLUCHT) ) {
 			return Result.ERROR;
 		}
+		if(ownShip.hasFlag(BattleShipFlag.JOINSIDE)) {
+			return Result.ERROR;
+		}
 
 		ShipTypeData ownShipType = ownShip.getTypeData();
 
@@ -97,7 +104,7 @@ public class KSMenuAttackAction extends BasicKSMenuAction {
 		boolean gotone = true;
 		if( ownShipType.hasFlag(ShipTypeFlag.DROHNE) ) {
 			gotone = false;
-			List<BattleShip> ownShips = battle.getOwnShips();
+			List<BattleShip> ownShips = battle.getShips(user);
 			for (BattleShip aship : ownShips)
 			{
 				ShipTypeData ashiptype = aship.getTypeData();
@@ -141,6 +148,10 @@ public class KSMenuAttackAction extends BasicKSMenuAction {
 
 	@Override
 	public Result execute(TemplateEngine t, Battle battle) throws IOException {
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
 		Result result = super.execute(t, battle);
 		if( result != Result.OK ) {
 			return result;
@@ -148,8 +159,8 @@ public class KSMenuAttackAction extends BasicKSMenuAction {
 
 		String attmode = this.getAttMode();
 
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 
 		if( ownShip.hasFlag(BattleShipFlag.BLOCK_WEAPONS) ) {
 			battle.logme( "Sie k&ouml;nnen in dieser Runde keine Waffen mehr abfeuern\n" );
@@ -167,7 +178,6 @@ public class KSMenuAttackAction extends BasicKSMenuAction {
 		}
 
 		ShipTypeData ownShipType = ownShip.getTypeData();
-		ShipTypeData enemyShipType = enemyShip.getTypeData();
 
 		menuEntry( t, "<span style=\"font-size:3px\">&nbsp;<br /></span>Feuermodus: "+ATTMODES.get(attmode)+"<br /> "+
 							"<span style=\"font-size:12px\">&lt; Klicken um Feuermodus zu wechseln &gt;</span><span style=\"font-size:4px\"><br />&nbsp;</span>",
@@ -177,9 +187,6 @@ public class KSMenuAttackAction extends BasicKSMenuAction {
 						 	"attmode",	NEXTATTMODES.get(attmode));
 
 		String ask = "";
-		if( battle.getBetakStatus(battle.getOwnSide()) && !enemyShipType.isMilitary() ) {
-			ask = "Wenn sie auf das gew&auml;hlte Ziel feuern, versto&szlig;en sie gegen die BETAK-Konvention. Wollen sie dies wirklich tun?";
-		}
 
 		Map<String,Integer> weaponlist = ownShipType.getWeapons();
 

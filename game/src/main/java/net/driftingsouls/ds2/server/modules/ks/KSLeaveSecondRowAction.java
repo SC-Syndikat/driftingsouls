@@ -22,6 +22,9 @@ import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.battles.BattleShipFlag;
 import net.driftingsouls.ds2.server.battles.SchlachtLogAktion;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.ships.ShipTypeFlag;
@@ -45,7 +48,9 @@ public class KSLeaveSecondRowAction extends BasicKSAction {
 	
 	@Override
 	public Result validate(Battle battle) {
-		BattleShip ownShip = battle.getOwnShip();
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		BattleShip ownShip = battle.getShip(user);
 		
 		if( !ownShip.hasFlag(BattleShipFlag.SECONDROW) || ownShip.hasFlag(BattleShipFlag.DESTROYED) ||
 			 ownShip.getShip().isLanded() || ownShip.getShip().isDocked() || ownShip.hasFlag(BattleShipFlag.FLUCHT) ||
@@ -70,10 +75,13 @@ public class KSLeaveSecondRowAction extends BasicKSAction {
 		if( (ownShipType.getCrew() > 0) && (ownShip.getCrew() == 0) ) {
 			return Result.ERROR;
 		}
+		if( ownShip.hasFlag(BattleShipFlag.JOINSIDE)){
+			return Result.ERROR;
+		}
 		
 		boolean gotone = false;
 		if( ownShipType.hasFlag(ShipTypeFlag.DROHNE) ) {
-			List<BattleShip> ownShips = battle.getOwnShips();
+			List<BattleShip> ownShips = battle.getShips(user);
 			for (BattleShip aship : ownShips)
 			{
 				ShipTypeData ashiptype = aship.getTypeData();
@@ -97,6 +105,8 @@ public class KSLeaveSecondRowAction extends BasicKSAction {
 
 	@Override
 	public Result execute(TemplateEngine t, Battle battle) throws IOException {
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
 		Result result = super.execute(t, battle);
 		if( result != Result.OK ) {
 			return result;
@@ -107,16 +117,16 @@ public class KSLeaveSecondRowAction extends BasicKSAction {
 			return Result.ERROR;
 		}
 		
-		BattleShip ownShip = battle.getOwnShip();
+		BattleShip ownShip = battle.getShip(user);
 
 		battle.logme( ownShip.getName()+" fliegt zur Front\n" );
-		battle.log(new SchlachtLogAktion(battle.getOwnSide(), Battle.log_shiplink(ownShip.getShip())+" fliegt zur Front\n"));
+		battle.log(new SchlachtLogAktion(battle.getSide(user), Battle.log_shiplink(ownShip.getShip())+" fliegt zur Front\n"));
 
 		ownShip.removeFlag(BattleShipFlag.SECONDROW);
 		ownShip.addFlag(BattleShipFlag.SECONDROW_BLOCKED);
 		
 		int remove = 0;
-		for(BattleShip ship: battle.getOwnShips())
+		for(BattleShip ship: battle.getShips(user))
 		{
 			if((ship.getShip().isLanded() || ship.getShip().isDocked()) &&
 					ship.getShip().getBaseShip().getId() == ownShip.getShip().getId() &&

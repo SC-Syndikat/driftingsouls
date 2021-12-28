@@ -64,8 +64,14 @@ public class KSKapernAction extends BasicKSAction {
 
 	@Override
 	public Result validate(Battle battle) {
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		Context context = ContextMap.getContext();
+        int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		User user = (User)context.getActiveUser();
+        int typeid = battle.getShip(user).getTypeData().getTypeId();
+        int enemytypeid = battle.getShip(enemy).getTypeData().getTypeId();
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 
 		if( ownShip.hasFlag(BattleShipFlag.SECONDROW) || enemyShip.hasFlag(BattleShipFlag.SECONDROW) ) {
 			return Result.ERROR;
@@ -122,10 +128,12 @@ public class KSKapernAction extends BasicKSAction {
 		}
 		Context context = ContextMap.getContext();
 		User user = (User)context.getActiveUser();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
 
 		org.hibernate.Session db = context.getDB();
 		BattleShip ownShip = battle.getShip(user);
-		BattleShip enemyShip = battle.getEnemyShip();
+		BattleShip enemyShip = battle.getShip(enemy);
 
 		if( this.validate(battle) != Result.OK ) {
 			battle.logme( "Sie k&ouml;nnen dieses Schiff nicht kapern" );
@@ -363,7 +371,7 @@ public class KSKapernAction extends BasicKSAction {
 			// Ein neues Ziel auswaehlen
 			//battle.setEnemyShipIndex(battle.getNewTargetIndex());
 
-			List<BattleShip> enemyShips = battle.getEnemyShips();
+			List<BattleShip> enemyShips = battle.getShips(enemy);
 			for( int i=0; i < enemyShips.size(); i++ ) {
 				BattleShip eship = enemyShips.get(i);
 
@@ -375,27 +383,28 @@ public class KSKapernAction extends BasicKSAction {
 			}
 
 			if( enemyShips.size() < 1 ) {
+				//ToDo: Die aktuell ausgewaehlte gegnerische Seite ist wohl besiegt, aber eventuell gibt es noch mehr Feinde. Daher muss hier erst noch mehr ueberprueft werden
 				battle.endBattle(1, 0);
 
-				User commander = battle.getCommander(battle.getOwnSide());
+				User commander = battle.getCommander(battle.getSide(user));
 
 				context.getResponse().getWriter()
 						.append("Du hast das letzte gegnerische Schiff gekapert und somit die Schlacht bei <a class='forschinfo' href='./client#/map/")
 						.append(battle.getLocation().urlFragment()).append("'>")
 						.append(battle.getLocation().displayCoordinates(false))
 						.append("</a> gewonnen!");
-				PM.send(commander, battle.getCommander(battle.getEnemySide()).getId(), "Schlacht verloren", "Du hast die Schlacht bei "+battle.getLocation().displayCoordinates(false)+" gegen "+user.getName()+" verloren, da dein letztes Schiff gekapert wurde!");
+				PM.send(commander, battle.getCommander(battle.getSide(enemy)).getId(), "Schlacht verloren", "Du hast die Schlacht bei "+battle.getLocation().displayCoordinates(false)+" gegen "+user.getName()+" verloren, da dein letztes Schiff gekapert wurde!");
 
 				return Result.HALT;
 			}
 
-			if( !battle.isValidTarget() ) {
-				int newindex = battle.getNewTargetIndex();
+			if( !battle.isValidTarget(enemy) ) {
+				int newindex = battle.getNewTargetIndex(enemy);
 				if( newindex == -1)
 				{
 					newindex = 0;
 				}
-				battle.setEnemyShipIndex(newindex);
+				battle.setShipIndex(enemy,newindex);
 			}
 
 		}

@@ -166,6 +166,10 @@ public abstract class BasicKSAction {
 				battle.logme( "Das Schiff tritt erst gerade der Schlacht bei\n" );
 				return Result.ERROR;
 			}
+			if( ownShip.hasFlag(BattleShipFlag.JOINSIDE) ) {
+				battle.logme( "Das Schiff tritt gerade einer Schlachtseite bei\n" );
+				return Result.ERROR;
+			}
 		}
 
 		return Result.OK;

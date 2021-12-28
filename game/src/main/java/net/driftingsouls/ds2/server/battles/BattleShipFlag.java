@@ -44,7 +44,16 @@ public enum BattleShipFlag
 	/**
 	 * Waffen sind bis zum Kampfende blockiert.
 	 */
-	DISABLE_WEAPONS(512);
+	DISABLE_WEAPONS(512),
+	/**
+	 * Schiff wechselt naechste Runde die Seite
+	 */
+	JOINSIDENEXT(1024),
+	/**
+	 *  Schiff wechselt Seite
+	 */
+	JOINSIDE(2048);
+	;
 
 	private final int bit;
 

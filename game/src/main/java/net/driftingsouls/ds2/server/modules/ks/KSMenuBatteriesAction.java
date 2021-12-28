@@ -22,7 +22,10 @@ import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.Resources;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
@@ -41,8 +44,10 @@ public class KSMenuBatteriesAction extends BasicKSMenuAction {
 	@Override
 	public Result validate(Battle battle) {
 		int battships = 0;
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
 		
-		List<BattleShip> ownShips = battle.getOwnShips();
+		List<BattleShip> ownShips = battle.getShips(user);
 		for (BattleShip aship : ownShips)
 		{
 			ShipTypeData ashiptype = aship.getTypeData();
@@ -73,8 +78,12 @@ public class KSMenuBatteriesAction extends BasicKSMenuAction {
 			return result;
 		}
 		
-		BattleShip ownShip = battle.getOwnShip();
-		BattleShip enemyShip = battle.getEnemyShip();
+		Context context = ContextMap.getContext();
+		User user = (User)context.getActiveUser();
+		int enemyId = context.getRequest().getParameterInt("enemyId");
+		User enemy = (User)context.getDB().get(User.class, enemyId);
+		BattleShip ownShip = battle.getShip(user);
+		BattleShip enemyShip = battle.getShip(enemy);
 	
 		if( this.isPossible(battle, new KSDischargeBatteriesSingleAction() ) == Result.OK ) {
 			this.menuEntry(t, "Batterien entladen",
@@ -86,7 +95,7 @@ public class KSMenuBatteriesAction extends BasicKSMenuAction {
 		int battsidlist = 0;
 		Map<ShipClasses,Integer> battsclasslist = new HashMap<>();
 				
-		List<BattleShip> ownShips = battle.getOwnShips();
+		List<BattleShip> ownShips = battle.getShips(user);
 		for (BattleShip aship : ownShips)
 		{
 			ShipTypeData ashiptype = aship.getTypeData();
