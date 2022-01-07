@@ -1323,7 +1323,7 @@ public class KSAttackAction extends BasicKSAction {
 
         if( !weaponList.containsKey(weaponName) )
         {
-            battle.logme("Ihr Schiff besitzt keine Waffen des Typs "+this.weapon.getName());
+            battle.logme("Ihr Schiff besitzt keine Waffen des Typs "+this.weapon.getName()+"\n");
             return Result.ERROR;
         }
 
