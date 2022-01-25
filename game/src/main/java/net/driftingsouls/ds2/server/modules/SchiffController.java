@@ -177,6 +177,12 @@ public class SchiffController extends Controller
 		{
 			pluginMapper.put("units", context.getBean(UnitsDefault.class, null));
 		}
+
+		if(context.getActiveUser().getId() < 0 )
+		{
+			pluginMapper.put("autopilot", context.getBean(AutopilotDefault.class, null));
+		}
+
 		return pluginMapper;
 	}
 
@@ -793,7 +799,8 @@ public class SchiffController extends Controller
 				"ship.s", ship.getHeat(),
 				"ship.fleet", ship.getFleet() != null ? ship.getFleet().getId() : 0,
 				"shiptype.werft", shiptype.getWerft(),
-				"ship.showalarm", !user.isNoob() && (shiptype.getShipClass() != ShipClasses.GESCHUETZ) && shiptype.isMilitary());
+				"ship.showalarm", !user.isNoob() && (shiptype.getShipClass() != ShipClasses.GESCHUETZ) && shiptype.isMilitary(),
+				"plugin.autopilot.show", user.getId() < 0);
 
 		if (ship.getHeat() >= 100)
 		{
@@ -1123,6 +1130,16 @@ public class SchiffController extends Controller
 			rufeAlsSubActionAuf(caller.pluginId+"_ops", plugin, "output", parameters);
 
 			pluginMapper.remove("cargo");
+		}
+
+		if (pluginMapper.containsKey("autopilot"))
+		{
+			SchiffPlugin plugin = pluginMapper.get("autopilot");
+			caller.pluginId = "autopilot";
+			caller.target = "plugin.autopilot";
+			rufeAlsSubActionAuf(caller.pluginId+"_ops", plugin, "output", parameters);
+
+			pluginMapper.remove("autopilot");
 		}
 
 		if (pluginMapper.containsKey("units"))

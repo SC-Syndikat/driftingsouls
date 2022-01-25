@@ -217,6 +217,11 @@
 		<td class="schiff" style="width:230px" valign="top" align="center" colspan="2">
 			{plugin.navigation}
 		</td>
+		{if plugin.autopilot.show}
+			<td class="schiffWaren" style="width:260px" valign="top">
+				{plugin.autopilot}
+			</td>
+		{/endif}
 		<td class="schiffWaren" style="width:260px" valign="top">
 			{plugin.cargo}
 		</td>
