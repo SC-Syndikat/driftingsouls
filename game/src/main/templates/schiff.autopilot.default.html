@@ -1,9 +1,18 @@
-<!-- BEGIN schiff.autopilot.koords.listITEM -->
 Flugroute:<br />
-Ziel: <input name="autopilot_ops[x]" type="text" size="3" value="{schiff.autopilot.dest.x}" />
-/
-<input name="autopilot_ops[y]" type="text" size="3" value="{schiff.autopilot.dest.y}" />
-<br /> Triebwerks&uuml;berhitzung: <input name="autopilot_ops[heat]" type="text" size="3" value="{schiff.autopilot.heat}" />
-<br />
-<!-- END schiff.autopilot.koords.listitem -->
-<input name="new_Target" type="submit" value="Weiteres Ziel angeben" /><input name="save" type="submit" value="Flugroute speichern" />
+<div id="wrapper">
+    <!-- BEGIN schiff.autopilot.koords.listITEM -->
+        Ziel: <input name="autopilot_ops[x]" type="text" size="3" value="{schiff.autopilot.dest.x}" />
+    /
+    <input name="autopilot_ops[y]" type="text" size="3" value="{schiff.autopilot.dest.y}" />
+    <br /> Triebwerks&uuml;berhitzung: <input name="autopilot_ops[heat]" type="text" size="3" value="{schiff.autopilot.heat}" />
+    <br />
+    <!-- END schiff.autopilot.koords.listitem -->
+</div>
+{!form_create_hidden plugin, plugin:$global.pluginid, navigation_ops[moveship]:1, navigation_ops[act]:5, navigation_ops[count]:1, ship:$ship.id}
+<input name="new_Target" type="button" onclick="add_fields();" value="Weiteres Ziel angeben" /><input name="save" type="submit" value="Flugroute speichern" />
+
+<script>
+    	function add_fields() {
+		document.getElementById('wrapper').innerHTML += 'Ziel: <input name="autopilot_ops[x]" type="text" size="3" value="0" />/<input name="autopilot_ops[y]" type="text" size="3" value="0" /><br /> Triebwerks&uuml;berhitzung: <input name="autopilot_ops[heat]" type="text" size="3" value="100"/><br />';
+	}
+</script>
