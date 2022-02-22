@@ -72,27 +72,8 @@ public class Battle implements Locatable
 	private long lastturn;
 	private int flags;
 
-	//UserMaps
-	//Alle User werden einer Seite zugeordnet
 	@Transient
-	private Map<User,Integer> users = new HashMap<>();
-	//jede Seite hat einen Commander
-	@Transient
-	private Map<Integer,User> commanders = new HashMap<>();
-	@Transient
-	private Map<Integer,User> takeCommand = new HashMap<>();
-	@Transient
-	private Map<User,String> shipGroup = new HashMap<>();
-	@Transient
-	private Map<User,List<BattleShip>> ships = new HashMap<>();
-	@Transient
-	private Map<User,Map<Integer,Integer>> shipTypeCount = new HashMap<>();
-	@Transient
-	private Map<User,Integer> activeShip = new HashMap<>();
-
-	//SideMaps
-	private Map<Integer,Boolean> ready = new HashMap<>();
-	private Map<Integer,Integer> side_flags = new HashMap<>();
+	private List<BattleSide> sides;
 
 	@OneToOne()
 	@JoinColumn
@@ -152,9 +133,9 @@ public class Battle implements Locatable
 	 */
 
 	public boolean isCommander( User user, int side ) {
-		for(Map.Entry<Integer,User> command : this.commanders.entrySet())
+		for(BattleSide s: sides)
 		{
-			if(command.getKey() == side && command.getValue().getId() == user.getId())
+			if(s.getSide_id() == side && s.getCommander().getId() == user.getId())
 				return true;
 		}
 		return false;
@@ -166,9 +147,13 @@ public class Battle implements Locatable
 	 * @param user Der neue Kommandant
 	 */
 	public void setCommander(int side, User user) {
-		if (commanders.keySet().contains(side))
+		for(BattleSide s : sides)
 		{
-			this.commanders.put(side, user);
+			if(s.getSide_id() == side)
+			{
+				s.setCommander(user);
+				return;
+			}
 		}
 	}
 
@@ -197,7 +182,7 @@ public class Battle implements Locatable
 		{
 			this.takeCommand.put(side,user);
 		}
-		
+
 	}
 
 	private User[] getTakeCommands() {
@@ -211,16 +196,12 @@ public class Battle implements Locatable
 	 */
 	public List<User> getUserPerSide(int side)
 	{
-		List<User> user_list = new ArrayList<>();
-		for(Map.Entry<User, Integer> entry : users.entrySet())
+		for(BattleSide s: sides)
 		{
-			if(entry.getValue() == side)
-				user_list.add(entry.getKey());
+			if(s.getSide_id() == side)
+				return s.getUsers();
 		}
-		if(user_list.size() == 0)
-			return null;
-		else
-			return user_list;
+		return null;
 	}
 
 
@@ -229,17 +210,19 @@ public class Battle implements Locatable
 	 * @return die Anzahl
 	 */
 	public int getShipCount(int side) {
-		if(!users.containsValue(side))
+		for(BattleSide s : sides )
 		{
-			return 0;
-		}
-		else{
-			int count = 0;
-			for(User u : getUserPerSide(side)){
-				count += ships.get(u).size();
+			if(s.getSide_id() == side)
+			{
+				int i = 0;
+				for(User u : s.getUsers())
+				{
+					i += s.getBattleships().get(u).size();
+				}
+				return i;
 			}
-			return count;
 		}
+		return 0;
 	}
 
 	/**
@@ -247,12 +230,14 @@ public class Battle implements Locatable
 	 * @return die Anzahl
 	 */
 	public int getShipCount(User user) {
-		if (!users.containsKey(user))
-			return 0;
-		else
+		for(BattleSide s : sides )
 		{
-				return ships.get(user).size();
+			if(s.getUsers().contains(user))
+			{
+				return s.getBattleships().get(user).size();
+			}
 		}
+		return 0;
 	}
 
 
@@ -332,126 +317,6 @@ public class Battle implements Locatable
 	}
 
 	/**
-	 * Prueft, ob die zweite Reihe stabil ist. Beruecksichtigt wird auf Wunsch
-	 * auch eine Liste von Schiffen, welche der Schlacht noch nicht begetreten sind
-	 * (unter der Annahme, dass gemaess Flags die Schiffe in der ersten bzw zweiten
-	 * Reihe landen wuerden).
-	 * @param side Die Seite deren zweite Reihe geprueft werden soll
-	 * @param added Eine Liste zusaetzlicher Schiffe, welche sich noch nicht in der Schlacht befinden oder <code>null</code>
-	 * @return <code>true</code>, falls die zweite Reihe unter den Bedingungen stabil ist
-	 */
-	public boolean isSecondRowStable( int side, BattleShip ... added ) {
-		List<BattleShip> shiplist;
-		shiplist = getShips(side);
-
-		double owncaps = 0;
-		double secondrowcaps = 0;
-        for (BattleShip aship : shiplist) {
-            if (aship.hasFlag(BattleShipFlag.JOIN)) {
-                continue;
-            }
-            ShipTypeData type = aship.getTypeData();
-
-            double size = type.getSize();
-            if (aship.hasFlag(BattleShipFlag.SECONDROW)) {
-                if (!aship.getShip().isDocked() && !aship.getShip().isLanded()) {
-                    secondrowcaps += size;
-                }
-            }
-            else
-            {
-                if (size > ShipType.SMALL_SHIP_MAXSIZE) {
-                    double countedSize = size;
-                    if (type.getCrew() > 0) {
-                        countedSize *= (aship.getCrew() / ((double) type.getCrew()));
-                    }
-                    owncaps += countedSize;
-                }
-            }
-        }
-
-		if( added != null ) {
-            for (BattleShip aship : added) {
-                ShipTypeData type = aship.getTypeData();
-
-                if (!type.hasFlag(ShipTypeFlag.SECONDROW)) {
-                    continue;
-                }
-
-                if (!aship.getShip().isDocked() && !aship.getShip().isLanded()) {
-                    secondrowcaps += type.getSize();
-                }
-            }
-		}
-
-        return Double.valueOf(secondrowcaps).intValue() == 0 || Double.valueOf(owncaps).intValue() >= Double.valueOf(secondrowcaps).intValue() * 2;
-
-		}
-
-
-	/**
-* Prueft, ob eine zweite Reihe existiert
-* @param side Die Seite deren zweite Reihe geprueft werden soll
-* @return <code>true</code>, falls eine zweite Reihe exitiert
-*/
-public boolean hasSecondRow( int side) {
-	List<BattleShip> shiplist;
-	shiplist = getShips(side);
-
-	int counter = 0;
-	for (BattleShip aship : shiplist) {
-			if (aship.hasFlag(BattleShipFlag.JOIN)) {
-					continue;
-			}
-
-			if (aship.hasFlag(BattleShipFlag.SECONDROW)) {
-					if (!aship.getShip().isDocked() && !aship.getShip().isLanded()) {
-							counter ++;
-					}
-			}
-	}
-	return counter > 0;
-}
-
-/**
-* Prueft, ob fiehende / beitretende Schiffe existiert
-* @param side Die Seite deren zweite Reihe geprueft werden soll
-* @return <code>true</code>, falls eine zweite Reihe exitiert
-*/
-public boolean hasJoinFluchtRow( int side) {
-	List<BattleShip> shiplist;
-	shiplist = getShips(side);
-
-	int counter = 0;
-	for (BattleShip aship : shiplist) {
-			if (aship.hasFlag(BattleShipFlag.JOIN) || aship.hasFlag(BattleShipFlag.FLUCHT)) {
-					counter ++;
-			}
-	}
-	return counter > 0;
-}
-
-/**
-* Prueft, ob eine erste Reihe existiert
-* @param side Die Seite deren zweite Reihe geprueft werden soll
-* @return <code>true</code>, falls eine zweite Reihe exitiert
-*/
-public boolean hasFrontRow( int side) {
-
-	List<BattleShip> shiplist;
-	shiplist = getShips(side);
-
-
-	int counter = 0;
-	for (BattleShip aship : shiplist) {
-			if (!(aship.hasFlag(BattleShipFlag.JOIN) || aship.hasFlag(BattleShipFlag.FLUCHT) || aship.hasFlag(BattleShipFlag.SECONDROW))) {
-					counter ++;
-			}
-	}
-	return counter > 0;
-}
-
-	/**
 	 * Prueft, ob die Schlacht ueber das angegebene Flag verfuegt.
 	 * @param flag Das Flag
 	 * @return <code>true</code>, falls die Schlacht das Flag besitzt
@@ -488,10 +353,14 @@ public boolean hasFrontRow( int side) {
 	 * @return <code>true</code>, falls die Schlacht das Flag besitzt
 	 */
 	public boolean hasSideFlag(int side, BattleFlag flag ) {
-		if(side_flags.containsKey(side))
-			return (this.side_flags.get(side) & flag.getBit()) != 0;
-		else
-			return false;
+		for(BattleSide s : sides)
+		{
+			if (s.getSide_id() == side)
+			{
+				return (s.getFlags() & flag.getBit()) != 0;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -500,8 +369,7 @@ public boolean hasFrontRow( int side) {
 	 * @param flag Das Flag
 	 */
 	public void setSideFlag(int side, BattleFlag flag ) {
-		if(side_flags.containsKey(side))
-			setSideFlag(side,flag, true);
+		setSideFlag(side,flag,true);
 	}
 
 	/**
@@ -511,16 +379,12 @@ public boolean hasFrontRow( int side) {
 	 * @param status <code>true</code>, falls das Flag hinzugefuegt werden soll. Andernfalls <code>false</code>
 	 */
 	public void setSideFlag(int side, BattleFlag flag, boolean status ) {
-		if(side_flags.containsKey(side))
+		for(BattleSide s : sides)
 		{
-			int f = side_flags.get(side);
-			if( status ) {
-				f |= flag.getBit();
+			if (s.getSide_id() == side)
+			{
+				s.setFlag(flag,status);
 			}
-			else if( (f & flag.getBit()) != 0 ) {
-				f ^= flag.getBit();
-			}
-			this.side_flags.put(side,f);
 		}
 	}
 
@@ -530,10 +394,14 @@ public boolean hasFrontRow( int side) {
 	 * @return Das aktuell ausgewaehlte eigene Schiff
 	 */
 	public BattleShip getShip(User user) {
-		if(users.containsKey(user))
-			return this.ships.get(user).get(this.activeShip.get(user));
-		else
-			return null;
+		for(BattleSide s : sides)
+		{
+			if(s.getUsers().contains(user))
+			{
+				return s.getActiveShipForUser(user);
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -543,11 +411,11 @@ public boolean hasFrontRow( int side) {
 	 */
 	public User getUser(int side)
 	{
-		for(Map.Entry<User,Integer> entry : users.entrySet())
+		for(BattleSide s : sides)
 		{
-			if(entry.getValue() == side)
+			if (s.getSide_id() == side)
 			{
-				return entry.getKey();
+				s.getUsers().get(0);
 			}
 		}
 		return null;
@@ -560,7 +428,14 @@ public boolean hasFrontRow( int side) {
 	 */
 	public User getCommander(int side)
 	{
-		return this.commanders.get(side);
+		for(BattleSide s : sides)
+		{
+			if (s.getSide_id() == side)
+			{
+				return s.getCommander();
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -571,11 +446,15 @@ public boolean hasFrontRow( int side) {
 	 * @return <code>true</code>, falls das Ziel gueltig ist
 	 */
 	public boolean isValidTarget(User user) {
-		if(users.containsKey(user))
-        return this.activeShip.get(user) < this.ships.get(user).size() && this.activeShip.get(user) >= 0;
-			else
-				return false;
+		for(BattleSide s : sides)
+		{
+			if(s.getUsers().contains(user))
+			{
+				return s.getActiveShipForUser(user) != null;
+			}
 		}
+		return false;
+	}
 
 	/**
 	 * Liefert das naechste Schiff des Users nach dem aktuell ausgewaehlten.
