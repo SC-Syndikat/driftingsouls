@@ -142,6 +142,23 @@ public class Battle implements Locatable
 	}
 
 	/**
+	 * Gibt die Seite zurueck, fuer die der User kaempft
+	 * @param User der Spieler
+	 * @return die Schlachtseite bzw. <code>null</code>
+	 */
+	public BattleSide getSideForUser(User user)
+	{
+		for(BattleSide s : sides)
+		{
+			if(s.getUsers().contains(user))
+			{
+				return s;
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Setzt den Kommandaten einer Seite.
 	 * @param side Die Seite
 	 * @param user Der neue Kommandant
@@ -205,40 +222,9 @@ public class Battle implements Locatable
 	}
 
 
-	/**
-	 * Gibt die Anzahl der Schiffe einer Seite zurueck.
-	 * @return die Anzahl
-	 */
-	public int getShipCount(int side) {
-		for(BattleSide s : sides )
-		{
-			if(s.getSide_id() == side)
-			{
-				int i = 0;
-				for(User u : s.getUsers())
-				{
-					i += s.getBattleships().get(u).size();
-				}
-				return i;
-			}
-		}
-		return 0;
-	}
 
-	/**
-	 * Gibt die Anzahl der Schiffe eines Users zurueck.
-	 * @return die Anzahl
-	 */
-	public int getShipCount(User user) {
-		for(BattleSide s : sides )
-		{
-			if(s.getUsers().contains(user))
-			{
-				return s.getBattleships().get(user).size();
-			}
-		}
-		return 0;
-	}
+
+
 
 
 	/**
@@ -346,47 +332,8 @@ public class Battle implements Locatable
 			this.flags ^= flag.getBit();
 		}
 	}
-		/**
-	 * Prueft, ob die Schlacht ueber das angegebene Flag verfuegt.
-	 * @param side die Seite
-	 * @param flag Das Flag
-	 * @return <code>true</code>, falls die Schlacht das Flag besitzt
-	 */
-	public boolean hasSideFlag(int side, BattleFlag flag ) {
-		for(BattleSide s : sides)
-		{
-			if (s.getSide_id() == side)
-			{
-				return (s.getFlags() & flag.getBit()) != 0;
-			}
-		}
-		return false;
-	}
 
-	/**
-	 * Fuegt der Schlacht das angegebene Flag hinzu.
-	 * @param side die Seite
-	 * @param flag Das Flag
-	 */
-	public void setSideFlag(int side, BattleFlag flag ) {
-		setSideFlag(side,flag,true);
-	}
 
-	/**
-	 * Fuegt der Schlacht ein Flag hinzu oder entfernt eines.
-	 * @param side die Seite
-	 * @param flag Das Flag
-	 * @param status <code>true</code>, falls das Flag hinzugefuegt werden soll. Andernfalls <code>false</code>
-	 */
-	public void setSideFlag(int side, BattleFlag flag, boolean status ) {
-		for(BattleSide s : sides)
-		{
-			if (s.getSide_id() == side)
-			{
-				s.setFlag(flag,status);
-			}
-		}
-	}
 
 	/**
 	 * Gibt das aktuell ausgewaehlte Schiff des Users zurueck.
@@ -394,12 +341,10 @@ public class Battle implements Locatable
 	 * @return Das aktuell ausgewaehlte eigene Schiff
 	 */
 	public BattleShip getShip(User user) {
-		for(BattleSide s : sides)
+		BattleSide s = getSideForUser(user);
+		if(s != null)
 		{
-			if(s.getUsers().contains(user))
-			{
-				return s.getActiveShipForUser(user);
-			}
+			return s.getActiveShipForUser(user);
 		}
 		return null;
 	}
@@ -446,12 +391,10 @@ public class Battle implements Locatable
 	 * @return <code>true</code>, falls das Ziel gueltig ist
 	 */
 	public boolean isValidTarget(User user) {
-		for(BattleSide s : sides)
+		BattleSide s = getSideForUser(user);
+		if(s != null)
 		{
-			if(s.getUsers().contains(user))
-			{
-				return s.getActiveShipForUser(user) != null;
-			}
+			return s.getActiveShipForUser(user) != null;
 		}
 		return false;
 	}
@@ -463,35 +406,36 @@ public class Battle implements Locatable
 	 */
 	public BattleShip getNextBattleShip(User user) {
 
-		if(!users.containsKey(user))
+		BattleSide s = getSideForUser(user);
+		if(s != null)
 		{
-			return null;
-		}
-		// alle Schiffe ab dem aktiven durchlaufen
-		for( int i= activeShip.get(user)+1; i < ships.get(user).size(); i++){
-
-			BattleShip aship = ships.get(user).get(i);
-			if( !aship.getShip().isLanded() &&
-						!aship.hasFlag(BattleShipFlag.DESTROYED) &&
+			List<BattleShip> bs = s.getBattleShipForUser(user);
+			BattleShip activeShip = s.getActiveShipForUser(user);
+			int index = bs.indexOf(activeShip);
+			// alle Schiffe ab dem aktiven durchlaufen
+			for(int i = index + 1; i < bs.size(); i++)
+			{
+				BattleShip aship = bs.get(i);
+				if( !aship.getShip().isLanded() &&
 						!aship.hasFlag(BattleShipFlag.FLUCHT) &&
 						!aship.hasFlag(BattleShipFlag.JOIN) ) {
 					return aship;
 				}
-		}
-		// nichts gefunden, dann von vorne bis zum aktiven
-		for( int i= 0; i < activeShip.get(user); i++){
+			}
+			// nichts gefunden, dann von vorne bis zum aktiven
+			for( int i= 0; i < index; i++){
 
-			BattleShip aship = ships.get(user).get(i);
-			if( !aship.getShip().isLanded() &&
-						!aship.hasFlag(BattleShipFlag.DESTROYED) &&
+				BattleShip aship = bs.get(i);
+				if( !aship.getShip().isLanded() &&
 						!aship.hasFlag(BattleShipFlag.FLUCHT) &&
 						!aship.hasFlag(BattleShipFlag.JOIN) ) {
 					return aship;
 				}
+			}
+			// immer noch nichts gefunden, dann bleibt es beim aktuellen
+			return s.getActiveShipForUser(user);
 		}
-		// immer noch nichts gefunden, dann bleibt es beim aktuellen
-		return ships.get(user).get(activeShip.get(user));
-
+		return null;
 	}
 
 
@@ -503,13 +447,15 @@ public class Battle implements Locatable
 	 */
 	public int getNewTargetIndex(User user) {
 		// Falls das aktuelle Schiff ungueltig, dann das erstbeste in der Liste zurueckgeben
-		if(!users.containsKey(user))
+		BattleSide s = getSideForUser(user);
+		if (s == null)
 		{
 			return -1;
 		}
+
 		if( !this.isValidTarget(user) ) {
-			for( int i=0; i < ships.get(user).size(); i++ ) {
-				BattleShip aship = ships.get(user).get(i);
+			for( int i=0; i < s.getBattleShipForUser(user).size(); i++ ) {
+				BattleShip aship = s.getBattleShipForUser(user).get(i);
 
 				if( !aship.getShip().isLanded() &&
 						!aship.hasFlag(BattleShipFlag.DESTROYED) && !aship.hasFlag(BattleShipFlag.SECONDROW) ) {
@@ -522,7 +468,7 @@ public class Battle implements Locatable
 
 		boolean foundOld = false;
 
-		BattleShip enemyShip = this.ships.get(user).get(this.activeShip.get(user));
+		BattleShip enemyShip = s.getBattleShipForUser(user).get(s.getBattleShipForUser(user).indexOf(s.getActiveShipForUser(user)));
 
 		// Schiff gleichen Typs hinter dem aktuellen Schiff suchen
 		List<BattleShip> enemyShips = getShips(user);
@@ -551,35 +497,6 @@ public class Battle implements Locatable
 			}
 		}
 		return -1;
-	}
-
-	/**
-	 * Gibt den Index des aktuell ausgewaehlten Schiffes des Users zurueck.
-	 * @param User der User
-	 * @return Der Index des aktuell ausgewaehlten gegnerischen Schiffes
-	 */
-	public int getShipIndex(User user) {
-		if(!users.containsKey(user))
-		{
-			return -1;
-		}
-		return this.activeShip.get(user);
-	}
-
-	/**
-	 * Setzt den Index des aktuell ausgewaehlten Schiffes des Users.
-	 * @param User der User
-	 * @param index Der neue Index
-	 */
-	public void setShipIndex(User user, int index) {
-		if(!users.containsKey(user))
-		{
-			throw new IndexOutOfBoundsException("User "+user.getName()+" ist nicht Teil der Schlacht.");
-		}
-		if( index >= this.ships.get(user).size() ) {
-			throw new IndexOutOfBoundsException("Schiffsindex fuer gegnerische Schiffe '"+index+"' > als das das vorhandene Maximum ("+this.ships.get(user).size()+")");
-		}
-		this.activeShip.put(user,index);
 	}
 
 
@@ -636,7 +553,7 @@ public class Battle implements Locatable
 		}
 
 		//ok, der User darf mit dem Schiff also joinen. Dann schauen wir doch mal, ob er oder seine Ally bereits eine Seite in der Schlacht hat, sonst machen wir eine neue auf
-		int side = getSideOrCreateNewSide(userobj);
+		BattleSide battleside = getSideOrCreateNewSide(userobj);
 
 		Map<Integer,Integer> shipcounts = new HashMap<>();
 
@@ -665,7 +582,6 @@ public class Battle implements Locatable
 		}
 
 		//gehen wir mal die joinenden Schiffe durch
-		List<BattleShip> schiffe = getShips(side);
 		for(Ship aship : sid)
 		{
 				if (db.get(BattleShip.class, aship.getId()) != null) {
@@ -684,14 +600,13 @@ public class Battle implements Locatable
 				shiplist.add(aship.getId());
 				BattleShip aBattleShip = new BattleShip(this, aship);
 
-				// Das neue Schiff in die Liste der eigenen Schiffe eintragen
+
 				if (!shiptype.hasFlag(ShipTypeFlag.INSTANT_BATTLE_ENTER)) {
 						aBattleShip.addFlag(BattleShipFlag.JOIN);
 				}
-
-				aBattleShip.setSide(side);
-
-				schiffe.add(aBattleShip);
+				// Das neue Schiff in die Liste der eigenen Schiffe eintragen
+				aBattleShip.setSide(battleside.getSide_id());
+				battleside.addShip(aBattleShip);
 
 				Common.safeIntInc(shipcounts, aship.getType());
 
@@ -725,7 +640,7 @@ public class Battle implements Locatable
 
 					sid2bs.setSide(aBattleShip.getSide());
 
-					schiffe.add(sid2bs);
+					battleside.addShip(sid2bs);
 
 					Common.safeIntInc(shipcounts, lShip.getType());
 
@@ -739,13 +654,12 @@ public class Battle implements Locatable
 		if( shiplist.size() > 1 )
 		{
 			int addedShips = shiplist.size()-1;
-			this.ships.put(userobj, schiffe);
-			this.log(new SchlachtLogAktion(side, "Die " + log_shiplink(shipd) + " ist zusammen mit " + addedShips + " weiteren Schiffen der Schlacht beigetreten"));
+			this.log(new SchlachtLogAktion(battleside.getSide_id(), "Die " + log_shiplink(shipd) + " ist zusammen mit " + addedShips + " weiteren Schiffen der Schlacht beigetreten"));
 			this.logme( "Die "+log_shiplink(shipd)+" ist zusammen mit "+addedShips+" weiteren Schiffen der Schlacht beigetreten\n\n" );
 		}
 		else
 		{
-			this.log(new SchlachtLogAktion(side, "Die " + log_shiplink(shipd) + " ist der Schlacht beigetreten"));
+			this.log(new SchlachtLogAktion(battleside.getSide_id(), "Die " + log_shiplink(shipd) + " ist der Schlacht beigetreten"));
 			this.logme("Die "+log_shiplink(shipd)+" ist der Schlacht beigetreten\n\n");
 
 			shipd.setBattle(this);
@@ -755,70 +669,49 @@ public class Battle implements Locatable
 	}
 
 	/**
-	 * Gibt zurueck, auf welcher Seite ein Spieler Teil der Schlacht ist.
-	 * Falls ein Spieler nicht Teil der Schlacht ist wird <code>-1</code>
-	 * zurueckgegeben.
-	 * @param user Der Spieler
-	 * @return Die Seite oder <code>-1</code>
-	 */
-	public int getSchlachtMitglied(User user)
-	{
-		if (users.containsKey(user))
-		{
-			return users.get(user);
-		}
-		else
-		{
-			return -1;
-		}
-	}
-
-	/**
 	 * Gibt die Seite eines Users zurueck oder legt eine neue Seite an, falls der User in keiner Seite ist
 	 * @param User der User
 	 * @return die ID der Seite, auf der der User kaempft
 	 */
-	public int getSideOrCreateNewSide(User user)
+	public BattleSide getSideOrCreateNewSide(User user)
 	{
 		int side = -1;
-		if(users.containsKey(user))
+		List<User> allyMembers = new ArrayList<>();
+		if(user.getAlly() != null)
 		{
-			side = users.get(user);
+			//Wir haben eine Ally, also fuegen wir alle AllyMember in die Userliste ein
+			allyMembers = user.getAlly().getMembers();
 		}
 		else
 		{
-			if(user.getAlly() != null)
-			//Der User ist also in ner Ally, ist von der Ally vielleicht schon jemand in der Schlacht?
-			{
-					for(User u : user.getAlly().getMembers())
-					{
-						if(users.containsKey(u))
-						{
-							side = users.get(u);
-							break;
-						}
-					}
-			}
+			//keine Ally, dann bleibt er allein in dieser Liste
+			allyMembers.add(user);
 		}
-		if (side == -1)
-		//also nicht selbst und auch die Ally nicht in der Schlacht, dann machen wir mal ne neue Seite auf
+		for(BattleSide s : sides)
 		{
-			//dann suchen wir mal die groesste Seitennummer raus
-			int max = -1;
-			for(Integer s : users.values())
+			//mittels disjoint wird geprueft, ob es mindestens einen User gibt, der in beiden Listen ist
+			if(!Collections.disjoint(s.getUsers(), allyMembers))
 			{
-				max = Math.max(max, s);
+				return s;
 			}
-			//und machen eine neue Seite auf
-			side = max +1;
-			//dann legen wir mal die Hashs an
-			ships.put(user, null);
-			shipTypeCount.put(user, null);
-
 		}
-		users.put(user, side);
 
-		return side;
+		//dann suchen wir mal die groesste Seitennummer raus
+		int max = -1;
+		for(BattleSide s : sides)
+		{
+			if (max < s.getSide_id())
+			{
+				max = s.getSide_id();
+			}
+		}
+		//und machen eine neue Seite auf
+		side = max +1;
+		//dann legen wir mal die neue BattleSide an
+		BattleSide neu = new BattleSide(side, user, this);
+		sides.add(neu);
+
+		return neu;
 	}
 
 	/**
@@ -841,31 +734,33 @@ public class Battle implements Locatable
 				- Update der Schiffe, falls ein Spieler nicht mehr einer der beiden Seiten angehoert (und ggf auch update der Kommandanten)
 		*/
 
-		int forceSide;
-
+		BattleSide forceSide;
+		forceSide = this.getSideForUser(user);
 		if( forcejoin == 0 ) {
-			forceSide = this.getSchlachtMitglied(user);
-			if( forceSide == -1 )
+			if( forceSide == null )
 			{
 						context.addError("Sie verf&uuml;gen &uuml;ber kein geeignetes Schiff im Sektor um die Schlacht zu verfolgen");
 						return false;
 			}
 		}
 		//ungueltiger Gegner
-		if(!users.containsKey(enemy))
+		BattleSide enemySide = null;
+		for(BattleSide s : sides)
+		{
+			if(s.getUsers().contains(enemy))
+			{
+				enemySide = s;
+			}
+		}
+		// Gegner nicht gefunden oder Gegner auf eigener Schlachtseite
+		if (enemySide == null || enemySide.getUsers().contains(user))
 		{
 			return false;
 		}
 
-
 		//
 		// Liste aller Schiffe in der Schlacht erstellen
 		//
-
-		this.ships.clear();
-
-		this.shipTypeCount.clear();
-		this.users.clear();
 
 		List<BattleShip> ships = Common.cast(db.createQuery("from BattleShip bs inner join fetch bs.ship as s " +
                 "where s.id>0 and bs.battle=:battle " +
@@ -874,15 +769,15 @@ public class Battle implements Locatable
                 .list());
 
 								//ToDo... hier muss noch etwas Hirnschmalz reinfliessen
-		int side = -1;
+		BattleSide side = null;
 		List<BattleShip> schiffe = new ArrayList<>();
 		for (BattleShip ship : ships) {
-			if (!users.containsKey(ship.getOwner()))
+			if (forceSide == null)
 			{
 				side = getSideOrCreateNewSide(user);
 			}
 
-			if(users.get(ship.getOwner()) == side)
+			if(forceSide.getSide_id() == side.getSide_id())
 			{
 				schiffe.add(ship);
 				if (!ship.getShip().isLanded()) {
@@ -931,62 +826,57 @@ public class Battle implements Locatable
 	}
 
 
-	//ToDo: Da man ja auch die Schiffe der Ally steuern kann, muss man hier die ganze Seite durchlaufen. Weiterhin muss ich mal gucken, ob ich nicht die Indizes loswerde.
-	// Die werden naemlich kompliziert
     public void setFiringShip(User user, Ship ownShip)
     {
-			if(users.containsKey(user))
+			if(ownShip != null)
 			{
-        if(ownShip != null)
-        {
-            for(int i=0; i < ships.get(user).size(); i++)
-            {
-                if(ships.get(user).get(i).getId() == ownShip.getId())
-                {
-                    this.activeShip.put(user,i);
-                    break;
-                }
-            }
-        }
+				if(user.getId() != ownShip.getOwner().getId())
+				{
+					return;
+				}
+				for(BattleSide s : sides)
+				{
+					if(s.getUsers().contains(user))
+					{
+						BattleShip ship = new BattleShip(this, ownShip);
+						s.setActiveShipForUser(user, ship);
+					}
+				}
 			}
     }
 
-			//ToDo: Da man ja auch die Schiffe der Ally steuern kann, muss man hier die ganze Seite durchlaufen. Weiterhin muss ich mal gucken, ob ich nicht die Indizes loswerde.
-	// Die werden naemlich kompliziert
 	public void setFiringShip(Ship ownShip)
 	{
-		User user = ownShip.getOwner();
-		if(users.containsKey(user))
+		if(ownShip != null)
 		{
-			if(ownShip != null)
+			User user = ownShip.getOwner();
+			for(BattleSide s : sides)
 			{
-					for(int i=0; i < ships.get(user).size(); i++)
-					{
-							if(ships.get(user).get(i).getId() == ownShip.getId())
-							{
-									this.activeShip.put(user,i);
-									break;
-							}
-					}
+				if(s.getUsers().contains(user))
+				{
+					BattleShip ship = new BattleShip(this, ownShip);
+					s.setActiveShipForUser(user, ship);
+				}
 			}
 		}
 	}
 
     public void setAttackedShip(User user, Ship enemyShip)
     {
-			if(users.containsKey(user))
+			if(enemyShip != null)
 			{
-        if(enemyShip != null)
-        {
-            for(int i = 0; i < ships.get(user).size(); i++)
-            {
-                if(ships.get(user).get(i).getId() == enemyShip.getId())
-                {
-                    this.activeShip.put(user, i);
-                    break;
-                }
-            }
-        }
+				if(user.getId() != enemyShip.getOwner().getId())
+				{
+					return;
+				}
+				for(BattleSide s : sides)
+				{
+					if(s.getUsers().contains(user))
+					{
+						BattleShip ship = new BattleShip(this, enemyShip);
+						s.setActiveShipForUser(user, ship);
+					}
+				}
 			}
     }
 
@@ -1045,110 +935,109 @@ public class Battle implements Locatable
 		//
 		// Zuerst die Schiffe berechnen
 		//
-		for( User u: users.keySet() )
+		for(BattleSide s : sides)
 		{
-			List<BattleShip> shipsSecond = new ArrayList<>();
-
-			// Liste kopieren um Probleme beim Entfernen von Schiffen aus der Ursprungsliste zu vermeiden
-			List<BattleShip> shiplist = new ArrayList<>(ships.get(u));
-			for (BattleShip ship : shiplist)
+			for( User u: s.getUsers() )
 			{
-					if (ship.hasFlag(BattleShipFlag.HIT))
-					{
-							ship.getShip().setAblativeArmor(ship.getAblativeArmor());
-							ship.getShip().setHull(ship.getHull());
-							ship.getShip().setShields(ship.getShields());
-							ship.getShip().setEngine(ship.getEngine());
-							ship.getShip().setWeapons(ship.getWeapons());
-							ship.getShip().setComm(ship.getComm());
-							ship.getShip().setSensors(ship.getSensors());
-							ship.removeFlag(BattleShipFlag.HIT);
+				List<BattleShip> shipsSecond = new ArrayList<>();
+
+				// Liste kopieren um Probleme beim Entfernen von Schiffen aus der Ursprungsliste zu vermeiden
+				List<BattleShip> shiplist = new ArrayList<>(s.getBattleShipForUser(u));
+				for (BattleShip ship : shiplist)
+				{
+						if (ship.hasFlag(BattleShipFlag.HIT))
+						{
+								ship.getShip().setAblativeArmor(ship.getAblativeArmor());
+								ship.getShip().setHull(ship.getHull());
+								ship.getShip().setShields(ship.getShields());
+								ship.getShip().setEngine(ship.getEngine());
+								ship.getShip().setWeapons(ship.getWeapons());
+								ship.getShip().setComm(ship.getComm());
+								ship.getShip().setSensors(ship.getSensors());
+								ship.removeFlag(BattleShipFlag.HIT);
+						}
+						else if (ship.hasFlag(BattleShipFlag.DESTROYED))
+						{
+								if ( new ConfigService().getValue(WellKnownConfigValue.DESTROYABLE_SHIPS) )
+								{
+										//
+										// Verluste verbuchen (zerstoerte/verlorene Schiffe)
+										//
+										User destroyer = (User) db.get(User.class, ship.getDestroyer());
+										Ally destroyerAlly = destroyer.getAlly();
+										if (destroyerAlly != null) {
+												destroyerAlly.setDestroyedShips(destroyerAlly.getDestroyedShips() + 1);
+										}
+										destroyer.setDestroyedShips(destroyer.getDestroyedShips() + 1);
+
+										Ally looserAlly = ship.getOwner().getAlly();
+										if (looserAlly != null) {
+												looserAlly.setLostShips(looserAlly.getLostShips() + 1);
+										}
+										u.setLostShips(u.getLostShips() + 1);
+
+										ShipLost lost = new ShipLost(ship.getShip());
+										lost.setDestAlly(destroyerAlly);
+										lost.setDestOwner(destroyer);
+										db.save(lost);
+
+										destroyShip(ship);
+										continue;
+								}
+								else
+								{
+										ship.removeFlag(BattleShipFlag.DESTROYED);
+										continue; //Das Schiff kann nicht zerstoert werden
+								}
+						}
+
+
+						if ( ship.hasFlag(BattleShipFlag.FLUCHT)) {
+								ShipTypeData ashipType = ship.getTypeData();
+								if (ashipType.getCost() > 0) {
+										removeShip(ship, true);
+								}
+						}
+
+						ship.removeFlag(BattleShipFlag.SHOT);
+						ship.removeFlag(BattleShipFlag.SECONDROW_BLOCKED);
+
+						if (ship.hasFlag(BattleShipFlag.BLOCK_WEAPONS)) {
+								if (!((ship.getTypeData().getShipClass() == ShipClasses.GESCHUETZ) && ship.getShip().isDocked())) {
+										ship.removeFlag(BattleShipFlag.BLOCK_WEAPONS);
+								}
+						}
+
+						if (s.hasFlag(BattleFlag.DROP_SECONDROW)) {
+								ship.removeFlag(BattleShipFlag.SECONDROW);
+						}
+
+
+						if (ship.hasFlag(BattleShipFlag.JOIN)) {
+								ShipTypeData ashipType = ship.getTypeData();
+								if (ashipType.hasFlag(ShipTypeFlag.SECONDROW) && ship.getShip().getEinstellungen().gotoSecondrow()) {
+									shipsSecond.add(ship);
+								}
+								ship.removeFlag(BattleShipFlag.JOIN);
+						}
+
+						Map<String, Integer> heat = ship.getWeaponHeat();
+
+						heat.replaceAll((n, v) -> 0);
+
+						if (ship.hasFlag(BattleShipFlag.FLUCHTNEXT)) {
+							ship.removeFlag(BattleShipFlag.FLUCHTNEXT);
+							ship.addFlag(BattleShipFlag.FLUCHT);
+						}
+
+						ship.getShip().setWeaponHeat(heat);
+						ship.getShip().setBattleAction(false);
+				}
+
+				for(BattleShip second : shipsSecond){
+					if(s.isSecondRowStable(second)){
+						second.addFlag(BattleShipFlag.SECONDROW);
 					}
-					else if (ship.hasFlag(BattleShipFlag.DESTROYED))
-					{
-							if ( new ConfigService().getValue(WellKnownConfigValue.DESTROYABLE_SHIPS) )
-							{
-									//
-									// Verluste verbuchen (zerstoerte/verlorene Schiffe)
-									//
-									User destroyer = (User) db.get(User.class, ship.getDestroyer());
-									Ally destroyerAlly = destroyer.getAlly();
-									if (destroyerAlly != null) {
-											destroyerAlly.setDestroyedShips(destroyerAlly.getDestroyedShips() + 1);
-									}
-									destroyer.setDestroyedShips(destroyer.getDestroyedShips() + 1);
-
-									Ally looserAlly = ship.getOwner().getAlly();
-									if (looserAlly != null) {
-											looserAlly.setLostShips(looserAlly.getLostShips() + 1);
-									}
-									u.setLostShips(u.getLostShips() + 1);
-
-									ShipLost lost = new ShipLost(ship.getShip());
-									lost.setDestAlly(destroyerAlly);
-									lost.setDestOwner(destroyer);
-									db.save(lost);
-
-									destroyShip(ship);
-									continue;
-							}
-							else
-							{
-									ship.removeFlag(BattleShipFlag.DESTROYED);
-									continue; //Das Schiff kann nicht zerstoert werden
-							}
-					}
-
-
-					if ( ship.hasFlag(BattleShipFlag.FLUCHT)) {
-							ShipTypeData ashipType = ship.getTypeData();
-							if (ashipType.getCost() > 0) {
-									removeShip(ship, true);
-							}
-							else
-							{
-									removeShip(ship, false);
-							}
-					}
-
-					ship.removeFlag(BattleShipFlag.SHOT);
-					ship.removeFlag(BattleShipFlag.SECONDROW_BLOCKED);
-
-					if (ship.hasFlag(BattleShipFlag.BLOCK_WEAPONS)) {
-							if (!((ship.getTypeData().getShipClass() == ShipClasses.GESCHUETZ) && ship.getShip().isDocked())) {
-									ship.removeFlag(BattleShipFlag.BLOCK_WEAPONS);
-							}
-					}
-
-					if (this.hasSideFlag(users.get(u), BattleFlag.DROP_SECONDROW)) {
-							ship.removeFlag(BattleShipFlag.SECONDROW);
-					}
-
-
-					if (ship.hasFlag(BattleShipFlag.JOIN)) {
-							ShipTypeData ashipType = ship.getTypeData();
-							if (ashipType.hasFlag(ShipTypeFlag.SECONDROW) && ship.getShip().getEinstellungen().gotoSecondrow()) {
-								shipsSecond.add(ship);
-							}
-							ship.removeFlag(BattleShipFlag.JOIN);
-					}
-
-					Map<String, Integer> heat = ship.getWeaponHeat();
-
-					heat.replaceAll((n, v) -> 0);
-
-					if (ship.hasFlag(BattleShipFlag.FLUCHTNEXT)) {
-						ship.removeFlag(BattleShipFlag.FLUCHTNEXT);
-						ship.addFlag(BattleShipFlag.FLUCHT);
-					}
-
-					ship.getShip().setWeaponHeat(heat);
-					ship.getShip().setBattleAction(false);
-			}
-
-			for(BattleShip second : shipsSecond){
-				if(this.isSecondRowStable(users.get(u), second)){
-					second.addFlag(BattleShipFlag.SECONDROW);
 				}
 			}
 		}
@@ -1159,31 +1048,26 @@ public class Battle implements Locatable
 
 		//pruefen wir zuerst mal den Trivialfall: existieren ueberhaupt noch Schiffe?
 		int count = 0;
-		List<Integer> seiten = getSides();
 		User niemand = (User)db.get(User.class, -2);
-		for(int side : seiten)
+		for(BattleSide s : sides)
 		{
-			count +=getShipCount(side);
+			count +=s.getShipCount();
 		}
 		//ok, alle Schiffe zerstoert, dann ist es ein unendschieden
 		if(count == 0)
 		{
 
 			Map<User,Integer> winner_map = new HashMap<>();
-			for(User user : users.keySet())
+			for(BattleSide s : sides)
 			{
-				PM.send(niemand, user.getId(), "Schlacht unentschieden", "Die Schlacht bei "+this.getLocation().displayCoordinates(false)+" wurde mit einem Unentschieden beendet!");
-				winner_map.put(user,0);
+				for(User u : s.getUsers())
+				{
+					PM.send(niemand, u.getId(), "Schlacht unentschieden", "Die Schlacht bei "+this.getLocation().displayCoordinates(false)+" wurde mit einem Unentschieden beendet!");
+					winner_map.put(u,0);
+				}
 			}
 			this.endBattle(winner_map);
-			this.ships.clear();
-			this.users.clear();
-			this.activeShip.clear();
-			this.shipGroup.clear();
-			this.shipTypeCount.clear();
-			this.shipGroup.clear();
-			this.side_flags.clear();
-
+			sides.clear();
 			if( calledByUser ) {
 				try
 				{
@@ -1202,12 +1086,12 @@ public class Battle implements Locatable
 		//Trivialfall durch... dann gehen wir jetzt mal die nicht so trivialen Faelle durch
 
 		//erstens: Seiten ohne Schiffe haben dann wohl verloren
-		for(int seite : seiten)
+		for(BattleSide s : sides)
 		{
-			if(getShipCount(seite) == 0)
+			if(s.getShipCount() == 0)
 			{
 				List<Ally> ally_ready = new ArrayList<>();
-				List<User> users = getUserPerSide(seite);
+				List<User> users = s.getUsers();
 				for(User user : users)
 				{
 					PM.send(niemand, user.getId(), "Schlacht verloren", "Du hast die Schlacht bei "+this.getLocation().displayCoordinates(false)+" verloren!");
@@ -1223,21 +1107,21 @@ public class Battle implements Locatable
 					user.setLostBattles((short)( user.getLostBattles()+1));
 					this.remove(user);
 				}
-				this.side_flags.remove(seite);
-				this.ready.remove(seite);
 
-				this.log(new SchlachtLogAktion(seite, "[Automatisch] Die Schlachtpartei "+seite+" wurde besiegt."));
+				this.log(new SchlachtLogAktion(s.getSide_id(), "[Automatisch] Die Schlachtpartei "+s.getSide_id()+" wurde besiegt."));
 			}
 		}
-		//Seiten ohne Schiffe sind jetzt nicht mehr in der users-Map, werden also auch nicht mehr in feindbeziehungen aufgefuehrt
+		//besiegte Schlachtseiten entfernen
+		sides.removeIf(o->o.getShipCount() == 0);
+		//Seiten ohne Schiffe sind jetzt nicht mehr in sides, werden also auch nicht mehr in feindbeziehungen aufgefuehrt
 		//Dann laden wir mal die Relations der Seiten
-		Map<Integer,List<Integer>> feindbeziehungen = this.getEnemySides();
+		Map<BattleSide,List<BattleSide>> feindbeziehungen = this.getEnemySides();
 		boolean enemy_on_sight = false;
-		for(Map.Entry<Integer,List<Integer>> seite : feindbeziehungen.entrySet())
+		for(Map.Entry<BattleSide,List<BattleSide>> seite : feindbeziehungen.entrySet())
 		{
 			if(seite.getValue() != null && !seite.getValue().isEmpty())
 			{
-				if(getShipCount(seite.getKey()) > 0 && getShipCount(seite.getValue().get(0)) > 0)
+				if(seite.getKey().getShipCount() > 0 && seite.getValue().get(0).getShipCount() > 0)
 				//wir haben also noch 2 verfeindete Seiten mit Schiffen gefunden, dann ist die Schlacht noch nicht vorbei
 				{
 					enemy_on_sight = true;
@@ -1249,19 +1133,15 @@ public class Battle implements Locatable
 		//wir haben wohl keine Feinde mehr... dann erklaeren wir alle verbliebenen User zu gewinnern
 		{
 			Map<User,Integer> winner_map =new HashMap<>();
-			for(User u: users.keySet())
+			for(BattleSide s : sides)
 			{
-				winner_map.put(u,1);
+				for(User u: s.getUsers())
+				{
+					winner_map.put(u,1);
+				}
 			}
 			this.endBattle(winner_map);
-			this.ships.clear();
-			this.users.clear();
-			this.activeShip.clear();
-			this.shipGroup.clear();
-			this.shipTypeCount.clear();
-			this.shipGroup.clear();
-			this.side_flags.clear();
-			this.ready.clear();
+			sides.clear();
 			if( calledByUser ) {
 				try
 				{
@@ -1281,16 +1161,15 @@ public class Battle implements Locatable
 			return false;
 		}
 
-		seiten = getSides();
-		for(int seite : seiten)
+		for(BattleSide s : sides)
 		{
-			this.ready.put(seite, false);
-			this.setSideFlag(seite,BattleFlag.BLOCK_SECONDROW, false);
+			s.setReady(false);
+			s.setFlag(BattleFlag.BLOCK_SECONDROW, false);
 
-			if(this.hasSideFlag(seite,BattleFlag.DROP_SECONDROW))
+			if(s.hasFlag(BattleFlag.DROP_SECONDROW))
 			{
-				this.setSideFlag(seite,BattleFlag.DROP_SECONDROW, false);
-				this.setSideFlag(seite,BattleFlag.BLOCK_SECONDROW, true);
+				s.setFlag(BattleFlag.DROP_SECONDROW, false);
+				s.setFlag(BattleFlag.BLOCK_SECONDROW, true);
 			}
 		}
 
@@ -1331,6 +1210,7 @@ public class Battle implements Locatable
 	 */
 	public void remove(User user)
 	{
+
 		if(users.containsKey(user))
 		{
 			this.users.remove(user);

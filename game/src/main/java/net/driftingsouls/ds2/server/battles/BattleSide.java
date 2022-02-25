@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.ships.ShipType;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
@@ -44,22 +46,17 @@ public class BattleSide
   private List<String> battleShipGroup;
   private boolean ready;
   private HashMap<User,BattleShip> activeShipMap;
-  private HashMap<User,HashMap<Integer,Integer>> shipTypeCountUserMap;
   private Battle battle;
-
-
-
-
 
   public BattleSide(int side, User commander, Battle battle)
   {
     this.side_id = side;
     this.commander = commander;
-    this.users.add(commander);
     this.battleShipMap = new HashMap<>();
     this.activeShipMap = new HashMap<>();
-    this.shipTypeCountUserMap = new HashMap<>();
+    addUser(commander);
     setFlag(BattleFlag.FIRSTROUND, true);
+    this.ready = false;
     this.battle = battle;
   }
 
@@ -71,41 +68,54 @@ public class BattleSide
     this.battle = battle;
   }
 
-  public int getShipTypeCount(int shipType) {
+  public int getShipTypeCount(ShipType shipType) {
     int i = 0;
-    for(HashMap<Integer, Integer> map : shipTypeCountUserMap.values())
+    for(BattleShip ship : getBattleShipList())
     {
-      i += map.get(shipType);
-    }
-    return i;
-  }
-
-  public int getShipTypeCountForUser(User user, int shipType)
-  {
-    HashMap<Integer,Integer> map = shipTypeCountUserMap.get(user);
-    int i = 0;
-    if(map != null)
-    {
-      i = map.get(shipType);
-    }
-    return i;
-  }
-
-  public void updateShipTypeCountForUser(User user, List<BattleShip> shiplist)
-  {
-    if(users.contains(user))
-    {
-      HashMap<Integer,Integer> map = shipTypeCountUserMap.get(user);
-      for(BattleShip b : shiplist)
+      if(ship.getShip().getBaseType().getId() == shipType.getId())
       {
-        map.put(b.getShip().getType(),map.get(b.getShip().getType()));
+        i++;
       }
-      shipTypeCountUserMap.put(user,map);
     }
+    return i;
   }
 
-  public void setShipTypeCountUserMap(HashMap<User, HashMap<Integer, Integer>> shipTypeCountUserMap) {
-    this.shipTypeCountUserMap = shipTypeCountUserMap;
+  public List<BattleShip> getBattleShipList()
+  {
+    List<BattleShip> res = new ArrayList<>();
+    for(User u : getUsers())
+    {
+      res.addAll(getBattleShipForUser(u));
+    }
+    return res;
+  }
+
+  public void addShip(BattleShip ship)
+  {
+    if(ship == null)
+    {
+      return;
+    }
+    User user = ship.getOwner();
+    if(!getUsers().contains(user))
+    {
+      addUser(user);
+    }
+    List<BattleShip> ships = getBattleShipForUser(user);
+    ships.add(ship);
+  }
+
+  public int getShipTypeCountForUser(User user, ShipType shipType)
+  {
+    int i = 0;
+    for(BattleShip ship : getBattleShipForUser(user))
+    {
+      if(ship.getShip().getBaseType().getId() == shipType.getId())
+      {
+        i++;
+      }
+    }
+    return i;
   }
 
   public HashMap<User, BattleShip> getActiveShipMap() {
@@ -164,11 +174,23 @@ public class BattleSide
   public void addUser(User user)
   {
     this.users.add(user);
+    this.battleShipMap.put(user, new ArrayList<BattleShip>());
+    this.activeShipMap.put(user, null);
   }
 
   public int getFlags() {
     return flags;
   }
+
+	/**
+	 * Prueft, ob das angegebene Flag fuer die Schlachtseite gesetzt ist.
+	 * @param flag Das Flag
+	 * @return <code>true</code>, falls dem so ist
+	 */
+	public boolean hasFlag(@Nonnull BattleFlag flag)
+	{
+		return (this.flags & flag.getBit()) != 0;
+	}
 
   public List<String> getBattleShipGroup() {
     return battleShipGroup;
@@ -283,11 +305,10 @@ public class BattleSide
 	 * auch eine Liste von Schiffen, welche der Schlacht noch nicht begetreten sind
 	 * (unter der Annahme, dass gemaess Flags die Schiffe in der ersten bzw zweiten
 	 * Reihe landen wuerden).
-	 * @param side Die Seite deren zweite Reihe geprueft werden soll
 	 * @param added Eine Liste zusaetzlicher Schiffe, welche sich noch nicht in der Schlacht befinden oder <code>null</code>
 	 * @return <code>true</code>, falls die zweite Reihe unter den Bedingungen stabil ist
 	 */
-	public boolean isSecondRowStable( int side, BattleShip ... added ) {
+	public boolean isSecondRowStable( BattleShip ... added ) {
 		List<BattleShip> shiplist = new ArrayList<>();
     for(List<BattleShip> l : battleShipMap.values())
     {
@@ -336,6 +357,32 @@ public class BattleSide
 
     return Double.valueOf(secondrowcaps).intValue() == 0 || Double.valueOf(owncaps).intValue() >= Double.valueOf(secondrowcaps).intValue() * 2;
 
+  }
+
+  	/**
+	 * Gibt die Anzahl der Schiffe eines Users zurueck.
+	 * @return die Anzahl
+	 */
+	public int getShipCount(User user) {
+    if(getUsers().contains(user))
+    {
+      return getBattleships().get(user).size();
+    }
+		return 0;
+	}
+
+  /**
+   * Gibt die Anzahl der Schiffe der Schlachtseite zurueck
+   * @return die Anzahl
+   */
+  public int getShipCount()
+  {
+    int count = 0;
+    for(User u : getUsers())
+    {
+      count += getShipCount(u);
+    }
+    return count;
   }
 
 
