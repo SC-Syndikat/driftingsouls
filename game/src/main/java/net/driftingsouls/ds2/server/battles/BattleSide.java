@@ -21,6 +21,7 @@ package net.driftingsouls.ds2.server.battles;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 
@@ -43,10 +44,12 @@ public class BattleSide
   private List<User> users;
   private int flags;
   private HashMap<User,List<BattleShip>> battleShipMap;
+  private HashMap<User,ShipType> targetShipGroup;
   private List<String> battleShipGroup;
   private boolean ready;
   private HashMap<User,BattleShip> activeShipMap;
   private Battle battle;
+  private User takeCommand;
 
   public BattleSide(int side, User commander, Battle battle)
   {
@@ -58,6 +61,7 @@ public class BattleSide
     setFlag(BattleFlag.FIRSTROUND, true);
     this.ready = false;
     this.battle = battle;
+    this.targetShipGroup = new HashMap<>();
   }
 
   public Battle getBattle() {
@@ -78,6 +82,39 @@ public class BattleSide
       }
     }
     return i;
+  }
+
+
+	/**
+	 * Ermittelt den Kampfstärke einer Seite.
+	 *
+	 * @return Die Kampfstärke einer Seite
+	 */
+	public int getBattleValue()
+	{
+		int battleValue = 0;
+		List<BattleShip> ships = getBattleShipList();
+
+		for(BattleShip ship: ships)
+		{
+			battleValue += ship.getBattleValue();
+		}
+
+		return battleValue;
+	}
+
+  public void removeUser(User user)
+  {
+    if (getUsers().contains(user))
+    {
+      this.users.remove(user);
+      this.activeShipMap.remove(user);
+      this.battleShipMap.remove(user);
+      if(takeCommand.getId() == user.getId())
+      {
+        takeCommand = null;
+      }
+    }
   }
 
   public List<BattleShip> getBattleShipList()
@@ -104,6 +141,57 @@ public class BattleSide
     List<BattleShip> ships = getBattleShipForUser(user);
     ships.add(ship);
   }
+
+  	/**
+	 * Prueft, ob ein Spieler auf einer Seite Mitglied ist.
+	 * @param user Der Spieler
+	 * @return <code>true</code>, falls er Mitglied ist
+	 */
+	public boolean isMitglied( User user) {
+		if(users.contains(user))
+		{
+			return true;
+		}
+    return false;
+	}
+
+  	/**
+	 * Gibt eine Map fuer eine Seite zurueck, welche als Schluessel Schiffstypen und als zugeordnete
+	 * Werte die Anzahl der vorkommenden Schiffes des Typs auf der Seite hat.
+	 * @return Eine Map, welche angibt, wie haeufig ein Schiffstyp auf einer Seite vorkommt
+	 */
+	public Map<Integer,Integer> getShipTypeCount() {
+		Map<Integer,Integer> shipTypeCount = new HashMap<>();
+		for(BattleShip ship : getBattleShipList())
+		{
+			int shipTypeId = ship.getShip().getBaseType().getId();
+      int count = shipTypeCount.containsKey(shipTypeId)? shipTypeCount.get(shipTypeId) : 0;
+			shipTypeCount.put(shipTypeId, count + 1 );
+		}
+		return shipTypeCount;
+	}
+
+  /**
+	 * Setzt die ID der aktuell ausgewaehlten Schiffsgruppe des Users.
+	 * @param User der User
+	 * @param enemyShipGroup Die neue Schiffsgruppen-ID
+	 */
+	public void setShipGroup(User user, ShipType enemyShipGroup) {
+		if(users.contains(user))
+			this.targetShipGroup.put(user, enemyShipGroup);
+	}
+
+  /**
+	 * Gibt die ID der aktuell ausgewaehlten Schiffsgruppe des Users zurueck.
+	 * @param User der User
+	 * @return Die ID der aktuellen gegnerischen Schiffsgruppe
+	 */
+	public ShipType getShipGroup(User user) {
+		if(users.contains(user))
+			return targetShipGroup.get(user);
+		else
+			return null;
+	}
 
   public int getShipTypeCountForUser(User user, ShipType shipType)
   {
@@ -162,6 +250,61 @@ public class BattleSide
   public void setCommander(User commander) {
     this.commander = commander;
   }
+
+  	/**
+	 * Gibt den Spieler zurueck, der das Kommando uebernehmen will. Sollte
+	 * kein solcher Spieler existieren, so wird <code>null</code> zurueckgegeben.
+	 * @return Den Spieler oder <codeNULL</code>
+	 */
+	public User getTakeCommand() {
+			return takeCommand;
+	}
+  /**
+	 * Setzt den Spieler, welcher das Kommando uebernehmen will.
+	 * @param user Der Spieler
+	 */
+	public void setTakeCommand(User user) {
+		//pruefen, ob die Seite gueltig ist
+		if (getUsers().contains(user))
+		{
+			takeCommand = user;
+		}
+
+	}
+
+  	/**
+	 * Liefert das naechste Schiff des Users nach dem aktuell ausgewaehlten.
+	 * @param User der User
+	 * @return Das naechste passende BattleShip
+	 */
+	public BattleShip getNextBattleShip(User user) {
+    List<BattleShip> bs = getBattleShipForUser(user);
+    BattleShip activeShip = getActiveShipForUser(user);
+    int index = bs.indexOf(activeShip);
+    // alle Schiffe ab dem aktiven durchlaufen
+    for(int i = index + 1; i < bs.size(); i++)
+    {
+      BattleShip aship = bs.get(i);
+      if( !aship.getShip().isLanded() &&
+          !aship.hasFlag(BattleShipFlag.FLUCHT) &&
+          !aship.hasFlag(BattleShipFlag.JOIN) ) {
+        return aship;
+      }
+    }
+    // nichts gefunden, dann von vorne bis zum aktiven
+    for( int i= 0; i < index; i++){
+
+      BattleShip aship = bs.get(i);
+      if( !aship.getShip().isLanded() &&
+          !aship.hasFlag(BattleShipFlag.FLUCHT) &&
+          !aship.hasFlag(BattleShipFlag.JOIN) ) {
+        return aship;
+      }
+    }
+    // immer noch nichts gefunden, dann bleibt es beim aktuellen
+    return getActiveShipForUser(user);
+	}
+
 
   public List<User> getUsers() {
     return users;
