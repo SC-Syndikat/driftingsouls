@@ -122,7 +122,7 @@ public class BattleSide
     List<BattleShip> res = new ArrayList<>();
     for(User u : getUsers())
     {
-      res.addAll(getBattleShipForUser(u));
+      res.addAll(getBattleShipsForUser(u));
     }
     return res;
   }
@@ -138,7 +138,7 @@ public class BattleSide
     {
       addUser(user);
     }
-    List<BattleShip> ships = getBattleShipForUser(user);
+    List<BattleShip> ships = getBattleShipsForUser(user);
     ships.add(ship);
   }
 
@@ -196,7 +196,7 @@ public class BattleSide
   public int getShipTypeCountForUser(User user, ShipType shipType)
   {
     int i = 0;
-    for(BattleShip ship : getBattleShipForUser(user))
+    for(BattleShip ship : getBattleShipsForUser(user))
     {
       if(ship.getShip().getBaseType().getId() == shipType.getId())
       {
@@ -278,7 +278,7 @@ public class BattleSide
 	 * @return Das naechste passende BattleShip
 	 */
 	public BattleShip getNextBattleShip(User user) {
-    List<BattleShip> bs = getBattleShipForUser(user);
+    List<BattleShip> bs = getBattleShipsForUser(user);
     BattleShip activeShip = getActiveShipForUser(user);
     int index = bs.indexOf(activeShip);
     // alle Schiffe ab dem aktiven durchlaufen
@@ -356,7 +356,7 @@ public class BattleSide
     battleShipMap.put(user, shiplist);
   }
 
-  public List<BattleShip> getBattleShipForUser(User user)
+  public List<BattleShip> getBattleShipsForUser(User user)
   {
     return battleShipMap.get(user);
   }
