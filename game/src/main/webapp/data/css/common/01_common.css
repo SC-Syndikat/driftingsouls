@@ -10,3 +10,53 @@ form br { /* Alle Zeilenumbrueche in Formularen auswaehlen */
 
 form	{ padding:1px; margin:0px }
 
+.container{
+	max-width: 1400px;
+	display:block;
+}
+
+.row{
+	display: -webkit-box;
+	display: -ms-flexbox;
+	display: flex;
+	-ms-flex-wrap: wrap;
+	flex-wrap: wrap;
+}
+
+.col{
+	-ms-flex-preferred-size: 0;
+	flex-basis: 0;
+	-webkit-box-flex: 1;
+	-ms-flex-positive: 1;
+	flex-grow: 1;
+	max-width: 100%;
+	
+	position: relative;
+    width: 100%;
+    min-height: 1px;
+    padding-right: 15px;
+    padding-left: 15px;
+}
+
+.wsm{
+    max-width: 400px;
+}
+
+.wmd{
+    max-width: 800px;
+}
+
+.wlg{
+    max-width: 800px;
+}
+
+.col.gfxbox
+{
+	margin: 5px;
+}
+
+.p-5
+{
+	padding: 5px;
+}
+
