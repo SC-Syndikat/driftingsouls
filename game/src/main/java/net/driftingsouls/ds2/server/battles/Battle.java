@@ -254,69 +254,6 @@ public class Battle implements Locatable
 		return false;
 	}
 
-
-
-	/**
-	 * Liefert den Index des naechsten Zielschiffes eines Users nach dem aktuell ausgewaehlten.
-	 * Bevorzugt werden Schiffe gleichen Typs
-	 * @param User der User
-	 * @return Der Index des naechsten passenden Schiffes
-	 */
-	public int getNewTargetIndex(User user) {
-		// Falls das aktuelle Schiff ungueltig, dann das erstbeste in der Liste zurueckgeben
-		BattleSide s = getSideForUser(user);
-		if (s == null)
-		{
-			return -1;
-		}
-
-		if( !this.isValidTarget(user) ) {
-			for( int i=0; i < s.getBattleShipsForUser(user).size(); i++ ) {
-				BattleShip aship = s.getBattleShipsForUser(user).get(i);
-
-				if( !aship.getShip().isLanded() &&
-						!aship.hasFlag(BattleShipFlag.DESTROYED) && !aship.hasFlag(BattleShipFlag.SECONDROW) ) {
-					return i;
-				}
-			}
-
-			return -1;
-		}
-
-		boolean foundOld = false;
-
-		BattleShip enemyShip = s.getBattleShipsForUser(user).get(s.getBattleShipsForUser(user).indexOf(s.getActiveShipForUser(user)));
-
-		// Schiff gleichen Typs hinter dem aktuellen Schiff suchen
-		List<BattleShip> enemyShips = s.getBattleShipsForUser(user);
-		for( int i=0; i < enemyShips.size(); i++ ) {
-			BattleShip aship = enemyShips.get(i);
-			if( !foundOld && (aship.getId() == enemyShip.getId()) ) {
-				foundOld = true;
-			}
-			else if( foundOld && (aship.getShip().getType() == enemyShip.getShip().getType()) &&
-					!aship.getShip().isLanded() &&
-					!aship.hasFlag(BattleShipFlag.DESTROYED) && !aship.hasFlag(BattleShipFlag.SECONDROW) ) {
-				return i;
-			}
-		}
-
-		// Schiff gleichen Typs vor dem aktuellen Schiff suchen
-		for( int i=0; i < enemyShips.size(); i++ ) {
-			BattleShip aship = enemyShips.get(i);
-			if( aship.getId() == enemyShip.getId() ) {
-				break;
-			}
-			if( (aship.getShip().getType() == enemyShip.getShip().getType()) &&
-					!aship.getShip().isLanded() &&
-					!aship.hasFlag(BattleShipFlag.DESTROYED) && !aship.hasFlag(BattleShipFlag.SECONDROW) ) {
-				return i;
-			}
-		}
-		return -1;
-	}
-
-
 	/**
 	 * Laesst eines oder mehrere Schiffe (in einer Flotte) der Schlacht beitreten.
 	 * @param id Die ID des Besitzers der Schiffe

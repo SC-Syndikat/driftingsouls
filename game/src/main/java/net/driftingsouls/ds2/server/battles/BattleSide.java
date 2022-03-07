@@ -20,12 +20,14 @@ package net.driftingsouls.ds2.server.battles;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
 
 import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.entities.User.Relation;
 import net.driftingsouls.ds2.server.ships.ShipType;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.ships.ShipTypeFlag;
@@ -82,6 +84,47 @@ public class BattleSide
       }
     }
     return i;
+  }
+
+  /**
+   * Gibt das naechste Schiff dieser Seite zurueck.
+   * @param sameShipType soll es aus der gleichen Gruppe sein?
+   * @param validTarget soll es ein gueltiges Ziel sein (Stichwort Gruppenfeuer)?
+   * @param battleSide die aufrufende Seite, da es sein kann, dass diese Seite noch keine Info hat, ob das Schiff bereits zerstoert ist
+   * @return das naechste Schiff. Als Default geben wir sonst das aktuelle Schiff des Commanders zurueck
+   */
+  public BattleShip getNextBattleShip(BattleShip actualShip,boolean sameShipType, boolean validTarget, BattleSide battleSide)
+  {
+    if(actualShip == null)
+    {
+      return getActiveShipForUser(getCommander());
+    }
+    List<BattleShip> ships = getBattleShipList();
+    if(!ships.contains(actualShip))
+    {
+      return getActiveShipForUser(getCommander());
+    }
+    ShipType actualType = actualShip.getShip().getBaseType();
+    int index = ships.indexOf(actualShip);
+    for(int i = index+1;i<ships.size();i++)
+    {
+      BattleShip aship = ships.get(i);
+      if((!sameShipType || aship.getShip().getBaseType() == actualType) && (!validTarget || aship.isValidTarget(battleSide)))
+      {
+        return aship;
+      }
+    }
+    //leider noch eine Schleife, um den Teil vor dem aktuellen Schiff zu durchlaufen
+    for(int i = 0;i<index;i++)
+    {
+      BattleShip aship = ships.get(i);
+      if((!sameShipType || aship.getShip().getBaseType() == actualType) && (!validTarget || aship.isValidTarget(battleSide)))
+      {
+        return aship;
+      }
+    }
+    return getActiveShipForUser(getCommander());
+
   }
 
 
@@ -526,6 +569,30 @@ public class BattleSide
       count += getShipCount(u);
     }
     return count;
+  }
+
+  /**
+   * Prueft, ob die uebergebene Seite feindlich ist
+   * @param side die zu pruefende Seite
+   * @return
+   */
+  public boolean isEnemy(BattleSide side)
+  {
+    if(side == null)
+    {
+      return false;
+    }
+    for(User own : getUsers())
+    {
+      for(User tocheck : side.getUsers())
+      {
+        if(own.getRelation(tocheck) == Relation.ENEMY)
+        {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
 

@@ -23,6 +23,7 @@ import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.entities.Offizier;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.ConfigService;
+import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
@@ -43,6 +44,8 @@ import javax.persistence.OneToOne;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.Table;
 import javax.persistence.Version;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -75,7 +78,7 @@ public class BattleShip {
 	private int weapons;
 	private int comm;
 	private int sensors;
-	private int action;
+	private HashMap<BattleSide,Integer> action;
 	private int destroyer;
 	private int ablativeArmor;
 	@Version
@@ -254,31 +257,64 @@ public class BattleShip {
 	/**
 	 * Prueft, ob das angegebene Flag fuer das Schiff gesetzt ist.
 	 * @param flag Das Flag
+	 * @param battleSide die Seite, fuer die das Flag angezeigt werden soll.
 	 * @return <code>true</code>, falls dem so ist
 	 */
-	public boolean hasFlag(@Nonnull BattleShipFlag flag)
+	public boolean hasFlag(@Nonnull BattleShipFlag flag, BattleSide battleSide)
 	{
-		return (this.action & flag.getBit()) != 0;
+		if(action.containsKey(battleSide))
+		{
+			return (this.action.get(battleSide) & flag.getBit()) != 0;
+		}
+		return false;
 	}
 
 	/**
 	 * Fuegt das angegebene Flag zum Schiff hinzu.
 	 * @param flag das Flag
+	 * @param battleSide die Seite, fuer die das Flag gesetzt werden soll. <code>NULL</code> setzt fuer alle
 	 */
-	public void addFlag(@Nonnull BattleShipFlag flag)
+	public void addFlag(@Nonnull BattleShipFlag flag, BattleSide battleSide)
 	{
-		this.action |= flag.getBit();
+		if(battleSide == null)
+		{
+			for(BattleSide side : action.keySet())
+			{
+				int act = action.get(side) | flag.getBit();
+				action.put(side,act);
+			}
+		}
+		else if(action.containsKey(battleSide))
+		{
+			int act = action.get(battleSide) | flag.getBit();
+			action.put(battleSide,act);
+		}
 	}
 
 	/**
 	 * Entfernt das angegebene Flag vom Schiff.
 	 * @param flag das Flag
+	 * @param battleSide die Seite, fuer die das Flag entfernt werden soll. <code>NULL</code> entfernt fuer alle
 	 */
-	public void removeFlag(@Nonnull BattleShipFlag flag)
+	public void removeFlag(@Nonnull BattleShipFlag flag, BattleSide battleSide)
 	{
-		if( hasFlag(flag) )
+		if(battleSide == null)
 		{
-			this.action ^= flag.getBit();
+			for(BattleSide side : action.keySet())
+			{
+				if(hasFlag(flag, battleSide))
+				{
+					int act = action.get(side);
+					act ^= flag.getBit();
+					action.put(side,act);
+				}
+			}
+		}
+		else if(action.containsKey(battleSide))
+		{
+			int act = action.get(battleSide);
+			act ^= flag.getBit();
+			action.put(battleSide,act);
 		}
 	}
 
@@ -287,7 +323,10 @@ public class BattleShip {
 	 */
 	public void removeAllFlags()
 	{
-		this.action = 0;
+		for(BattleSide side : action.keySet())
+		{
+			this.action.put(side, 0);
+		}
 	}
 
 	/**
@@ -575,12 +614,10 @@ public class BattleShip {
 			{
 				int shipid = baseShip.getId();
 				//Schiffe zum durchsuchen laden
-				//dazu erstmal die Seite bestimmen
-				int side = this.getSide();
 				List<BattleShip> ships;
-				Battle battle = this.getBattle();
+				BattleSide side = battle.getSideForUser(ship.getOwner());
 
-				ships = battle.getShips(side);
+				ships = side.getBattleShipList();
 
 				for (BattleShip aship : ships) {
 						if (aship.getId() == shipid) {
@@ -598,5 +635,17 @@ public class BattleShip {
 	private Session getDB()
 	{
 		return ContextMap.getContext().getDB();
+	}
+
+	/**
+	 * Gibt zurueck, ob es dieses Schiff fuer eine Seite noch ein valides Ziel sein kann.
+	 * Es kann sein, dass bereits zerstoerte Schiffe ein valides Target sind, wenn die Seite noch keine Info darueber hat,
+	 * dass eine nicht befreundete Seite dieses Schiff bereits zerstoert hat
+	 * @param battleSide die Seite
+	 * @return
+	 */
+	public boolean isValidTarget(BattleSide battleSide)
+	{
+			return !hasFlag(BattleShipFlag.DESTROYED, battleSide) && !isJoining() && !isSecondRow() && !getShip().isLanded();
 	}
 }
