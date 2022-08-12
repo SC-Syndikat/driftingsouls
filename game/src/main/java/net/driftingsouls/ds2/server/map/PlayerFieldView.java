@@ -52,9 +52,10 @@ public class PlayerFieldView implements FieldView
 	public PlayerFieldView(User user, Location position, PublicStarmap starmap, EntityManager em)
 	{
 		this.user = user;
-        this.location = position;
-		this.starmap = starmap;
-		this.em = em;
+		this.scanShip = scanShip;
+		this.db = db;
+		this.location = position;
+		this.inScanRange = this.isInScanRange();
 	}
 
 	/**
@@ -233,6 +234,11 @@ public class PlayerFieldView implements FieldView
 
 	public Location getLocation()
 	{
+		return location;
+	}
+
+	@Override
+	public Location getLocation(){
 		return location;
 	}
 }

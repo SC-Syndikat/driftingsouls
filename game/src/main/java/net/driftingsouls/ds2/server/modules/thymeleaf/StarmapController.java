@@ -439,7 +439,7 @@ public class StarmapController implements DSController, PermissionResolver {
 		for (Map.Entry<UserData, Map<net.driftingsouls.ds2.server.map.ShipTypeData, List<ShipData>>> owner : ships.entrySet())
 		{
 			int count = 0;
-                        MapController.SectorViewModel.UserWithShips jsonUser = new MapController.SectorViewModel.UserWithShips();
+            MapController.SectorViewModel.UserWithShips jsonUser = new MapController.SectorViewModel.UserWithShips();
 			jsonUser.name = Common._text(owner.getKey().getName());
 			jsonUser.id = owner.getKey().getId();
 			jsonUser.race = owner.getKey().getRace();
@@ -464,8 +464,9 @@ public class StarmapController implements DSController, PermissionResolver {
 						MapController.SectorViewModel.OwnShipViewModel ownShip = new MapController.SectorViewModel.OwnShipViewModel();
 						ownShip.gelandet = ship.getLandedCount();
 						ownShip.maxGelandet = typeData.getJDocks();
-                                                ownShip.x = field.loc.x;
-                                                ownShip.y = field.loc.y;
+                        ownShip.x = field.getLocation().getX();
+                        ownShip.y = field.getLocation().getY();
+                        ownShip.isOwner = true;
 
                             for (var landedShip: ship.landedShips) {
                                 if(!landedShipTypes.containsKey(landedShip.type)) landedShipTypes.put(landedShip.type, new ArrayList<>());
@@ -481,11 +482,15 @@ public class StarmapController implements DSController, PermissionResolver {
 					else
 					{
 						shipObj = new MapController.SectorViewModel.ShipViewModel();
+                        shipObj.isOwner = false;
 					}
+					shipObj.id = ship.getId();
+					shipObj.name = ship.getName();
+					shipObj.gedockt = ship.getDockedCount();
+					shipObj.maxGedockt = typeData.getADocks();
+                    shipObj.race = ship.getOwner().getRace();
 
-                    addCommonDataToViewModel(shipObj, ship, typeData);
-
-					if (ship.fleetId != null)
+					if (ship.getFleet() != null)
 					{
 						shipObj.fleet = new ShipFleetViewModel(ship.fleetId, ship.fleetName);
 					}
@@ -494,9 +499,9 @@ public class StarmapController implements DSController, PermissionResolver {
 				}
                 jsonShiptype.count = jsonShiptype.ships.size();
 				jsonUser.shiptypes.add(jsonShiptype);
-                                count += jsonShiptype.count;
-	                }
-                        jsonUser.count = count;
+                count += jsonShiptype.count;
+            }
+            jsonUser.count = count;
 			users.add(jsonUser);
 		}
 		return users;
