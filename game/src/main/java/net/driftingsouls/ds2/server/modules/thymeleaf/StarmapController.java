@@ -438,11 +438,11 @@ public class StarmapController implements DSController, PermissionResolver {
         //ShipsRepository.getShipTypes();
 		for (Map.Entry<UserData, Map<net.driftingsouls.ds2.server.map.ShipTypeData, List<ShipData>>> owner : ships.entrySet())
 		{
-			int count = 0;
-                        MapController.SectorViewModel.UserWithShips jsonUser = new MapController.SectorViewModel.UserWithShips();
-			jsonUser.name = Common._text(owner.getKey().getName());
-			jsonUser.id = owner.getKey().getId();
-			jsonUser.race = owner.getKey().getRace();
+            var ownerInformation = owner.getKey();
+			MapController.SectorViewModel.UserWithShips jsonUser = new MapController.SectorViewModel.UserWithShips();
+			jsonUser.name = Common._text(ownerInformation.name);
+			jsonUser.id = ownerInformation.id;
+			jsonUser.race = ownerInformation.raceId;
 
 			boolean ownFleet = ownerInformation.id == context.getActiveUser().getId();
 			jsonUser.eigener = ownFleet;
@@ -461,11 +461,11 @@ public class StarmapController implements DSController, PermissionResolver {
 					MapController.SectorViewModel.ShipViewModel shipObj;
 					if (ownFleet)
 					{
-						MapController.SectorViewModel.OwnShipViewModel ownShip = new MapController.SectorViewModel.OwnShipViewModel();
-						ownShip.gelandet = ship.getLandedCount();
-						ownShip.maxGelandet = typeData.getJDocks();
-                                                ownShip.x = field.loc.x;
-                                                ownShip.y = field.loc.y;
+						var ownShip = ownShipToViewModel(ship, field, typeData);
+                        if(ship.landedShips.size() > 0)
+                        {
+                            var minResultLandedShip = ship.landedShips.get(0);
+                            var landedShipTypes = new HashMap<Integer, List<ShipData>>();
 
                             for (var landedShip: ship.landedShips) {
                                 if(!landedShipTypes.containsKey(landedShip.type)) landedShipTypes.put(landedShip.type, new ArrayList<>());
@@ -494,9 +494,7 @@ public class StarmapController implements DSController, PermissionResolver {
 				}
                 jsonShiptype.count = jsonShiptype.ships.size();
 				jsonUser.shiptypes.add(jsonShiptype);
-                                count += jsonShiptype.count;
-	                }
-                        jsonUser.count = count;
+			}
 			users.add(jsonUser);
 		}
 		return users;
