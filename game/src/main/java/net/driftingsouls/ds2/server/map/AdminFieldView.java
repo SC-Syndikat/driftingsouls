@@ -14,9 +14,8 @@ import java.util.Map;
  */
 public class AdminFieldView extends PlayerFieldView
 {
-	private final Field field;
-	private final Session db;
 	private final Location location;
+	private final PublicStarmap starmap;
 
 	/**
 	 * Legt eine neue Sicht an.
@@ -25,18 +24,14 @@ public class AdminFieldView extends PlayerFieldView
 	 */
 	public AdminFieldView(User user, Location position, PublicStarmap starmap, EntityManager em)
 	{
-		this.field = new Field(db, position);
-		this.db = db;
+		super(user, position, starmap, em);
+		//this.field = new Field(db, position);
 		this.location = position;
+		this.starmap = starmap;
 	}
 
 	protected int getMinSize()
 	{
 		return 0;
-	}
-
-	@Override
-	public Location getLocation(){
-		return location;
 	}
 }
