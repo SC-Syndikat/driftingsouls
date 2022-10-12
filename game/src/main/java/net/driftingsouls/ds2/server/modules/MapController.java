@@ -526,7 +526,6 @@ public class MapController extends Controller
 			public int race;
 			public boolean eigener;
 			public final List<ShipTypeViewModel> shiptypes = new ArrayList<>();
-                        public int count;
 		}
 
 		public static class ShipTypeViewModel
@@ -548,8 +547,6 @@ public class MapController extends Controller
 			public ShipFleetViewModel fleet;
 			public boolean isOwner;
 			public int race;
-                        public int x;
-                        public int y;
 		}
 
 		public static class OwnShipViewModel extends ShipViewModel
