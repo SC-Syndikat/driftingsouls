@@ -135,6 +135,8 @@ public class ErsteigernController extends Controller
 			t.setVar(
 					"user.konto", Common.ln(user.getKonto()),
 					"user.faction.lp", Common.ln(user.getLoyalitaetspunkteTotalBeiNpc(factionuser)),
+					"user.openlp", user.getOpenLoyalitaetspunkte(factionuser),
+					"user.destcount", user.getOpenDestShips(factionuser),
 					"global.faction", faction.getUser().getId(),
 					"global.faction.name", Common._title(factionuser.getName()));
 		}
@@ -2259,6 +2261,28 @@ public class ErsteigernController extends Controller
 	}
 
 	/**
+	 * Zeigt die Meldeseite fuer Abschuesse der Fraktion an.
+	 *
+	 * @param faction Die ID der anzuzeigenden Fraktion
+	 */
+	@Action(ActionType.DEFAULT)
+	public Object abschuesseMeldenAction(User faction, RedirectViewResult redirect)
+	{
+		FraktionsGuiEintrag factionObj = ermittleFraktion(faction);
+
+		if (!factionObj.getSeiten().contains(FraktionsGuiEintrag.Seite.ABSCHUESSE_MELDEN))
+		{
+			return new RedirectViewResult("default");
+		}
+
+		TemplateEngine t = templateViewResultFactory.createFor(this);
+		erstelleMenue(t, factionObj);
+		t.setVar("show.message", redirect != null ? redirect.getMessage() : null);
+		t.setVar("show.abschuesseMeldung", 1);
+		return t;
+	}
+
+	/**
 	 * Erstellt eine LP-Meldung bei der momentanen Fraktion.
 	 *
 	 * @param faction Die ID der anzuzeigenden Fraktion
@@ -2288,12 +2312,61 @@ public class ErsteigernController extends Controller
 		FraktionAktionsMeldung meldung = new FraktionAktionsMeldung(user, factionUser);
 		meldung.setMeldungstext(meldungstext);
 		db.persist(meldung);
-
-        PM.send(user, factionUser.getId(), "LP Meldung", "Es ist eine neue Meldung zum Erhalt von Loyalitätspunkten eingegangen.");
-
+		
+		PM.send(user, factionUser.getId(), "LP Meldung", "Es ist eine neue Meldung zum Erhalt von Loyalitätspunkten eingegangen.");
+		
 		return new RedirectViewResult("aktionMelden").withMessage("Die Aktionsmeldung wurde der Fraktion erfolgreich übermittelt.");
 	}
+	
+	/**
+	 * Erstellt eine LP-Meldung bei der momentanen Fraktion.
+	 *
+	 * @param faction Die ID der anzuzeigenden Fraktion
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult abschuesseMeldungErstellenAction(User faction)
+	{
+		
+		org.hibernate.Session db = getDB();
+		User user = (User) getUser();
 
+		
+		FraktionsGuiEintrag factionObj = ermittleFraktion(faction);
+
+		if (!factionObj.getSeiten().contains(FraktionsGuiEintrag.Seite.ABSCHUESSE_MELDEN))
+		{
+			return new RedirectViewResult("default");
+		}
+
+		User factionUser = factionObj.getUser();
+		int loyalitaetspunkte = user.getOpenLoyalitaetspunkte(factionUser);
+
+		if(loyalitaetspunkte > 0){
+			FraktionAktionsMeldung meldung = new FraktionAktionsMeldung(user, factionUser);
+			meldung.setMeldungstext("Automatische Abschussmeldung");
+		
+			Loyalitaetspunkte lp = new Loyalitaetspunkte(user, factionUser, "Automatische Abschussmeldung", loyalitaetspunkte);
+			lp.setAnmerkungen("Automatische Vergabe");
+			user.getLoyalitaetspunkte().add(lp);
+
+			db.persist(lp);
+			db.createQuery("UPDATE ShipLost SET eingereicht= :eingereicht WHERE  owner!=:owner and eingereicht = null and owner < 0")
+						.setInteger("eingereicht", factionUser.getId())
+						.setEntity("owner", factionUser);
+
+			String pmText = "[Automatische Mitteilung]\n" +
+							"Du hast soeben " + loyalitaetspunkte + " Loyalitätspunkte erhalten. " +
+							"Du verfügst nun insgesamt über " + user.getLoyalitaetspunkteTotalBeiNpc(factionUser) + " Loyalitätspunkte bei mir.\n\n";
+			pmText += "Grund für die Vergabe: Abschussmeldung";
+			PM.send(factionUser, user.getId(), "Loyalitätspunkte erhalten", pmText, PM.FLAGS_AUTOMATIC);
+			
+			meldung.setBearbeitetAm(new Date());
+
+			db.persist(meldung);
+			return new RedirectViewResult("abschuesseMeldung").withMessage("Die Abschussmeldung wurde der Fraktion erfolgreich übermittelt. Du hast "+loyalitaetspunkte+" Loyalitätspunkte erhalten.");
+		}
+		return new RedirectViewResult("abschuesseMeldung").withMessage("Du musst Schiffe abschießen, um Loyalitätspunkte zu erhalten. Aktuell hast du keine Abschüsse, die du bei dieser Fraktion einreichen kannst.");
+	}
 	/**
 	 * Leitet zur Default-Seite einer Fraktion weiter.
 	 *

@@ -40,6 +40,7 @@ public class FraktionsGuiEintrag
 		AUSBAU("ausbau"),
 		BANK("bank"),
 		AKTION_MELDEN("aktionmelden"),
+		ABSCHUESSE_MELDEN("abschuessemelden"),
 		SONSTIGES("other");
 
 		private final String id;

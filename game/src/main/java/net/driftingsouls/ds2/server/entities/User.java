@@ -1655,6 +1655,28 @@ public class User extends BasicUser {
 		return total;
 	}
 
+	public int getOpenLoyalitaetspunkte(User npc){
+		org.hibernate.Session db = ContextMap.getContext().getDB();
+		int total = ((Long)db
+			.createQuery("SELECT sum(lp) FROM ShipLost WHERE destOwner=:user and eingereicht = null and owner!=:owner and owner < 0")
+			.setEntity("user", this)
+			.setEntity("owner", npc)
+			.uniqueResult()).intValue();
+
+		return total;
+	}
+
+	public int getOpenDestShips(User npc){
+		org.hibernate.Session db = ContextMap.getContext().getDB();
+		int total = ((Long)db
+			.createQuery("SELECT count(autoid) FROM ShipLost WHERE destOwner=:user and eingereicht = null and  owner!=:owner and owner < 0")
+			.setEntity("user", this)
+			.setEntity("owner", npc)
+			.uniqueResult()).intValue();
+
+		return total;
+	}
+
 	/**
 	 * <p>Ermittelt zu einem gegebenen Identifier den Benutzer. Ein Identifier
 	 * kann die ID des Benutzers oder sein (unformatierter) Name sein.
