@@ -109,6 +109,7 @@ public class EditShiptypes implements EntityEditor<ShipType>
 		form.field("Mindest-Crew", Integer.class, ShipType::getMinCrew, ShipType::setMinCrew);
 		form.field("EMP verfliegen", Double.class, ShipType::getLostInEmpChance, ShipType::setLostInEmpChance);
 		form.field("Kopfgeld", BigInteger.class, ShipType::getBounty, ShipType::setBounty);
+		form.field("Loyalitätspunkte", Integer.class, ShipType::getLp, ShipType::setLp);
 
 		form.postUpdateTask("Schiffe aktualisieren",
 				(ShipType shiptype) -> Common.cast(ContextMap.getContext().getDB()

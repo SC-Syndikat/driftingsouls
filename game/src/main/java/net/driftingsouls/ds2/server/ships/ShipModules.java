@@ -114,6 +114,7 @@ public class ShipModules implements ShipTypeData {
 	private boolean versorger;
 	@Column(nullable = false)
     private BigInteger bounty = BigInteger.ZERO;
+	private int lp;
 
 	@Version
 	private int version;
@@ -736,6 +737,23 @@ public class ShipModules implements ShipTypeData {
 		return this.version;
 	}
 
+	/**
+	 * Gibt die LP fuer die Zerstoerung eines Schiffes diesen Typs zurueck
+	 * @return die Lp
+	 */
+	public int getLp(){
+		return this.lp;
+	}
+
+	/**
+	 * Setzt die LP, die fuer die Zerstoerung eines Schiffs diesen Typs vergeben werden
+	 * @param lp die LP
+	 */
+	public void setLp(int lp){
+		this.lp = lp;
+	}
+
+
     /**
      * Klont die Moduldaten des Schiffes.
      * @return Der Klon
@@ -783,6 +801,7 @@ public class ShipModules implements ShipTypeData {
         clone.versorger = this.versorger;
         clone.bounty = this.bounty;
         clone.version = this.version;
+		clone.lp = this.lp;
         return clone;
     }
 }

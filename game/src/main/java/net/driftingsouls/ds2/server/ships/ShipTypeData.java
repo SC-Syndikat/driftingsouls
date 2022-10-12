@@ -315,6 +315,12 @@ public interface ShipTypeData extends Cloneable {
     double getLostInEmpChance();
 
 	/**
+	 * Die LP, welche fuer die Zerstoerung eines Schiffs verteilt werden
+	 * @return die LP
+	 */
+	int getLp();
+
+	/**
 	 * Zusaetzlich zu den Bedingungen von {@link Object#clone()} gilt folgende Bedingung:
 	 * Eine Klasse soll nur dann eine <code>CloneNotSupportedException</code> werfen,
 	 * wenn sie Immutable ist, also sich die Werte der Instanz nie aendern (und sich die Klone

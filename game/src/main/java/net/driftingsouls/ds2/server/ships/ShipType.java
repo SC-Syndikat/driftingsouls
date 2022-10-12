@@ -122,6 +122,7 @@ public class ShipType implements ShipTypeData {
 	private boolean versorger;
 	@Column(nullable = false)
 	private BigInteger bounty = BigInteger.ZERO;
+	private int lp;
 
 	@Version
 	private int version;
@@ -157,6 +158,11 @@ public class ShipType implements ShipTypeData {
     public BigInteger getBounty()
     {
         return bounty;
+    }
+	@Override
+    public int getLp()
+    {
+        return lp;
     }
 
 	@Override
@@ -438,6 +444,14 @@ public class ShipType implements ShipTypeData {
     public void setBounty(BigInteger bounty)
     {
         this.bounty = bounty;
+    }
+
+	/**
+     * @param lp Setzt die Loyalitaetspunkte fuer den Abschuss dieses Schiffes.
+     */
+    public void setLp(int lp)
+    {
+        this.lp = lp;
     }
 
 	/**

@@ -70,6 +70,8 @@ public class ShipLost {
 	@JoinColumn
 	@ForeignKey(name="shiplost_fk_schlachtlog")
 	private SchlachtLog schlachtLog;
+	private int lp;
+	private Integer eingereicht;
 	
 	@Version
 	private int version;
@@ -100,6 +102,8 @@ public class ShipLost {
 			setBattle(ship.getBattle().getId());
 			this.schlachtLog = ship.getBattle().getSchlachtLog();
 		}
+		this.lp = ship.getTypeData().getLp();
+		this.eingereicht = null;
 	}
 
 	/**
@@ -264,4 +268,41 @@ public class ShipLost {
 	public int getVersion() {
 		return this.version;
 	}	
+
+	/**
+	 * Gibt die LP fuer das Schiff zurueck
+	 * @return Die LP
+	 */
+	public int getLp(){
+		return this.lp;
+	}
+
+	/**
+	 * Gibt die ID zurueck, bei dem die Zerstoerung des Schiffs eingereicht wurde bzw <code>null<code>, falls es noch nicht eingereicht wurde
+	 * @return
+	 */
+	public Integer getEingereicht(){
+		return this.eingereicht;
+	}
+
+	public boolean isEingereicht(){
+		return this.eingereicht != null;
+	}
+
+	/**
+	 * Setzt die LP fuer die Zerstoerung des Schiffes
+	 * @param lp die LP fuer die Zerstoerung
+	 */
+	public void setLp(int lp){
+		this.lp = lp;
+	}
+
+	/**
+	 * Setzt die Fraktion, bei der die Zerstoerung eingereicht wurde
+	 * @param id die ID der Fraktion
+	 */
+	public void setEingereichtBei(int id){
+		this.eingereicht = id;
+	}
+
 }

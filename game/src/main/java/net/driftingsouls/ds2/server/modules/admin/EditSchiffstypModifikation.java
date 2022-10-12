@@ -69,6 +69,7 @@ public class EditSchiffstypModifikation implements EntityEditor<SchiffstypModifi
 		form.field("Mindest-Crew", Integer.class, SchiffstypModifikation::getMinCrew, SchiffstypModifikation::setMinCrew);
 		form.field("EMP verfliegen", Double.class, SchiffstypModifikation::getLostInEmpChance, SchiffstypModifikation::setLostInEmpChance);
 		form.field("Kopfgeld", BigInteger.class, SchiffstypModifikation::getBounty, SchiffstypModifikation::setBounty);
+		form.field("Loyalitätspunkte", Integer.class, SchiffstypModifikation::getLp, SchiffstypModifikation::setLp);
 		form.collection("Waffen",
 				Schiffswaffenkonfiguration.class,
 				SchiffstypModifikation::getWaffen,

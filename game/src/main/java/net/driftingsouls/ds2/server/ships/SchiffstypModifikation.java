@@ -90,6 +90,7 @@ public class SchiffstypModifikation
 	private int maxunitsize;
 	private int unitspace;
     private BigInteger bounty;
+	private int lp;
 
 	/**
 	 * Leerer Konstruktor.
@@ -141,6 +142,22 @@ public class SchiffstypModifikation
 	public void setBounty(BigInteger bounty)
 	{
 		this.bounty = bounty;
+	}
+	
+	/**
+	 * Gibt die LP fuer die Zerstoerung eines Schiffes diesen Typs zurueck
+	 * @return die Lp
+	 */
+	public int getLp(){
+		return this.lp;
+	}
+
+	/**
+	 * Setzt die LP, die fuer die Zerstoerung eines Schiffs diesen Typs vergeben werden
+	 * @param lp die LP
+	 */
+	public void setLp(int lp){
+		this.lp = lp;
 	}
 
 	/**
@@ -1267,6 +1284,10 @@ public class SchiffstypModifikation
             return SchiffstypModifikation.this.getBounty().add(inner.getBounty());
         }
 
+		@Override
+		public int getLp(){
+			return SchiffstypModifikation.this.getLp()+(inner.getLp());
+		}
 		/**
 		 * Wahrscheinlichkeit, dass das Schiff sich in einem EMP-Nebel verfliegt.
 		 *
@@ -1277,5 +1298,7 @@ public class SchiffstypModifikation
 		{
 			return SchiffstypModifikation.this.getLostInEmpChance() + inner.getLostInEmpChance();
 		}
+
+
 	}
 }
