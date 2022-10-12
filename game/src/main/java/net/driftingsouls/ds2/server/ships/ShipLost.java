@@ -102,7 +102,12 @@ public class ShipLost {
 			setBattle(ship.getBattle().getId());
 			this.schlachtLog = ship.getBattle().getSchlachtLog();
 		}
-		this.lp = ship.getTypeData().getLp();
+		if(ship.getOwner().isNPC()){
+			this.lp = ship.getTypeData().getLp();
+		}
+		else{
+			this.lp = 0;
+		}
 		this.eingereicht = null;
 	}
 
