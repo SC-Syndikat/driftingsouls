@@ -2278,7 +2278,7 @@ public class ErsteigernController extends Controller
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 		erstelleMenue(t, factionObj);
 		t.setVar("show.message", redirect != null ? redirect.getMessage() : null);
-		t.setVar("show.abschuesseMeldung", 1);
+		t.setVar("show.abschuessemelden", 1);
 		return t;
 	}
 
