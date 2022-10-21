@@ -81,5 +81,11 @@ public class ModuleContainerShip extends Module {
 		public long getCargo() {
 			return this.getInner().getCargo()+this.cargo;
 		}
+
+		@Override
+		public int getLp() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
 	}
 }

@@ -73,5 +73,11 @@ public class BeamWeapon extends Weapon
 		public int getSize() {
 			return this.size;
 		}
+
+		@Override
+		public int getLp() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
 	}
 }
