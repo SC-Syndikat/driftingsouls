@@ -915,9 +915,9 @@
 {if show.abschuessemelden}
 	<div class="gfxbox" style="width:600px">
 		<h3>Abschüsse bei Fraktion melden</h3>
+		<p>Zerstörung von {user.destcount} Schiffen bei {global.faction.name} für {user.openlp} melden</p>
 		<form action="./ds" method="post">
 			{!form_create_hidden abschuesseMeldungErstellen, faction:$global.faction}
-			<p>Zerstörung von {user.destcount} Schiffen bei {global.faction.name} für {user.openlp} melden</p>
 			<input type="submit" value="Abschüsse melden" />
 		</form>
 		<p>Achtung: Abschüsse können nur bei einer Fraktion gemeldet werden.</p>
