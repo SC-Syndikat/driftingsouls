@@ -76,5 +76,11 @@ public class ModuleShipPicture extends Module {
 		public String getPicture() {
 			return this.picture;
 		}
+
+		@Override
+		public int getLp() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
 	}
 }
