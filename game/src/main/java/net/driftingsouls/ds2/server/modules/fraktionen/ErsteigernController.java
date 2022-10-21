@@ -2350,7 +2350,7 @@ public class ErsteigernController extends Controller
 			user.getLoyalitaetspunkte().add(lp);
 
 			db.persist(lp);
-			db.createQuery("UPDATE ShipLost SET eingereicht= :eingereicht WHERE  owner!=:owner and eingereicht = null and owner < 0")
+			db.createQuery("UPDATE ShipLost SET eingereicht= :eingereicht WHERE  owner!=:owner and (eingereicht = null or eingereicht = 0) and owner < 0")
 						.setInteger("eingereicht", factionUser.getId())
 						.setEntity("owner", factionUser);
 
