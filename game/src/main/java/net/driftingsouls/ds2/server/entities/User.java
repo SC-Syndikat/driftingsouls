@@ -1657,24 +1657,29 @@ public class User extends BasicUser {
 
 	public int getOpenLoyalitaetspunkte(User npc){
 		org.hibernate.Session db = ContextMap.getContext().getDB();
-		int total = ((Long)db
-			.createQuery("SELECT sum(lp) FROM ShipLost WHERE destOwner=:user and eingereicht = null and owner!=:owner and owner < 0")
+		var total = ((Long)db
+			.createQuery("SELECT sum(lp) FROM ShipLost WHERE destOwner=:user and (eingereicht = null or eingereicht = 0) and owner!=:owner and owner < 0")
 			.setEntity("user", this)
 			.setEntity("owner", npc)
-			.uniqueResult()).intValue();
-
-		return total;
+			.uniqueResult());
+		if(total != null){
+			return total.intValue();
+		}
+		return 0;
 	}
 
 	public int getOpenDestShips(User npc){
 		org.hibernate.Session db = ContextMap.getContext().getDB();
-		int total = ((Long)db
-			.createQuery("SELECT count(autoid) FROM ShipLost WHERE destOwner=:user and eingereicht = null and  owner!=:owner and owner < 0")
+		var total = ((Long)db
+			.createQuery("SELECT count(id) FROM ShipLost WHERE destOwner=:user and (eingereicht = null or eingereicht = 0) and  owner!=:owner and owner < 0")
 			.setEntity("user", this)
 			.setEntity("owner", npc)
-			.uniqueResult()).intValue();
+			.uniqueResult()); 
+		if(total != null){
+			return total.intValue();
+		}
 
-		return total;
+		return 0;
 	}
 
 	/**
