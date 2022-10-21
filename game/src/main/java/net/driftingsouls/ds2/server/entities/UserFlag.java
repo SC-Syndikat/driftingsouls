@@ -79,7 +79,11 @@ public enum UserFlag
 	/**
 	 * Dieser Spieler braucht keine Nahrung.
 	 */
-	NO_FOOD_CONSUMPTION("nofoodconsumption");
+	NO_FOOD_CONSUMPTION("nofoodconsumption"),
+	/**
+	 * Abschuesse geben LP.
+	 */
+	GIVES_LP("giveslp");
 
 	private final String flag;
 
