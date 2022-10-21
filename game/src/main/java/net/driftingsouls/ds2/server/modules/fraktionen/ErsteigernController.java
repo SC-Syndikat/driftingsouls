@@ -2326,10 +2326,9 @@ public class ErsteigernController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult abschuesseMeldungErstellenAction(User faction)
 	{
-		
+	
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
-
 		
 		FraktionsGuiEintrag factionObj = ermittleFraktion(faction);
 
@@ -2363,9 +2362,9 @@ public class ErsteigernController extends Controller
 			meldung.setBearbeitetAm(new Date());
 
 			db.persist(meldung);
-			return new RedirectViewResult("abschuesseMeldung").withMessage("Die Abschussmeldung wurde der Fraktion erfolgreich übermittelt. Du hast "+loyalitaetspunkte+" Loyalitätspunkte erhalten.");
+			return new RedirectViewResult("abschuesseMelden").withMessage("Die Abschussmeldung wurde der Fraktion erfolgreich übermittelt. Du hast "+loyalitaetspunkte+" Loyalitätspunkte erhalten.");
 		}
-		return new RedirectViewResult("abschuesseMeldung").withMessage("Du musst Schiffe abschießen, um Loyalitätspunkte zu erhalten. Aktuell hast du keine Abschüsse, die du bei dieser Fraktion einreichen kannst.");
+		return new RedirectViewResult("abschuesseMelden").withMessage("Du musst Schiffe abschießen, um Loyalitätspunkte zu erhalten. Aktuell hast du keine Abschüsse, die du bei dieser Fraktion einreichen kannst.");
 	}
 	/**
 	 * Leitet zur Default-Seite einer Fraktion weiter.
