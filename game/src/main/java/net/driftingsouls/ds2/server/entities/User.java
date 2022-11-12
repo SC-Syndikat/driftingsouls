@@ -1353,40 +1353,66 @@ public class User extends BasicUser {
 	public long getReBalance()
 	{
 
+		int baseRe = getBaseBalance();
+
+		// Kosten der Schiffe ermitteln
+		Long schiffsKosten = getSchiffsKosten();
+
+		// Kosten der auf den Schiffen stationierten Einheiten ermitteln
+		Long einheitenKosten = getEinheitenKosten();
+
+		return baseRe - SchiffsReKosten.berecheKosten(schiffsKosten, einheitenKosten).longValue();
+	}
+
+	public BigInteger getHandelsinseratKosten(){
+		org.hibernate.Session db = ContextMap.getContext().getDB();
+		long adCount = (Long)db.createQuery("select count(*) from Handel where who=:who")
+				.setParameter("who", this)
+				.uniqueResult();
+		int adCost = new ConfigService().getValue(WellKnownConfigValue.AD_COST);
+		return BigInteger.valueOf(adCost*adCount);
+	}
+
+	public int getBaseBalance(){
 		int baseRe = 0;
 		for(Base base: this.bases)
 		{
 			baseRe += base.getBalance();
 		}
+		return baseRe;
+	}
 
+	public Long getSchiffsKosten(){
 		org.hibernate.Session db = ContextMap.getContext().getDB();
 
 		// Kosten der Schiffe ermitteln
 		Long schiffsKosten = (Long)db
-			.createQuery("select sum(coalesce(sm.reCost,st.reCost)) " +
-				"from Ship s join s.shiptype st left join s.modules sm " +
-				"where s.owner=:user and s.docked not like 'l %'")
-			.setParameter("user", this)
-			.iterate().next();
-
-		// Kosten der auf den Schiffen stationierten Einheiten ermitteln
-		Long einheitenKosten = (Long)db
-			.createQuery("select sum(ceil(u.amount*u.unittype.recost)) " +
-				"from Ship s join s.units u "+
-				"where s.owner=:user and s.docked not like 'l %'")
-			.setParameter("user", this)
-			.iterate().next();
-
+				.createQuery("select sum(coalesce(sm.reCost,st.reCost)) " +
+						"from Ship s join s.shiptype st left join s.modules sm " +
+						"where s.owner=:user and s.docked not like 'l %'")
+				.setParameter("user", this)
+				.iterate().next();
 		if( schiffsKosten == null )
 		{
 			schiffsKosten = 0L;
 		}
+		return schiffsKosten;
+
+	}
+
+	public Long getEinheitenKosten(){
+		org.hibernate.Session db = ContextMap.getContext().getDB();
+		Long einheitenKosten = (Long)db
+				.createQuery("select sum(ceil(u.amount*u.unittype.recost)) " +
+						"from Ship s join s.units u "+
+						"where s.owner=:user and s.docked not like 'l %'")
+				.setParameter("user", this)
+				.iterate().next();
 		if( einheitenKosten == null )
 		{
 			einheitenKosten = 0L;
 		}
-
-		return baseRe - SchiffsReKosten.berecheKosten(schiffsKosten, einheitenKosten).longValue();
+		return einheitenKosten;
 	}
 
 	private long getNahrungBalance()
@@ -1658,9 +1684,13 @@ public class User extends BasicUser {
 	public int getOpenLoyalitaetspunkte(User npc){
 		org.hibernate.Session db = ContextMap.getContext().getDB();
 		var total = ((Long)db
-			.createQuery("SELECT sum(lp) FROM ShipLost WHERE destOwner=:user and (eingereicht = null or eingereicht = 0) and owner!=:owner and owner < 0")
+			.createQuery(
+					"SELECT sum(lp) FROM ShipLost ships " +
+						"inner join users on ships.owner = user.id and user.id <-1 and user.ally !=:ally " +
+						"WHERE destOwner=:user and (eingereicht = null or eingereicht = 0) and owner!=:owner")
 			.setEntity("user", this)
 			.setEntity("owner", npc)
+			.setEntity("ally", npc.getAlly() != null ? npc.getAlly().getId(): null)
 			.uniqueResult());
 		if(total != null){
 			return total.intValue();
@@ -1671,10 +1701,14 @@ public class User extends BasicUser {
 	public int getOpenDestShips(User npc){
 		org.hibernate.Session db = ContextMap.getContext().getDB();
 		var total = ((Long)db
-			.createQuery("SELECT count(id) FROM ShipLost WHERE destOwner=:user and (eingereicht = null or eingereicht = 0) and  owner!=:owner and owner < 0")
-			.setEntity("user", this)
-			.setEntity("owner", npc)
-			.uniqueResult()); 
+			.createQuery(
+					"SELECT count(id) FROM ShipLost ships " +
+						"inner join users on ships.owner = user.id and user.id <-1 and user.ally !=:ally " +
+						"WHERE destOwner=:user and (eingereicht = null or eingereicht = 0) and owner!=:owner")
+				.setEntity("user", this)
+				.setEntity("owner", npc)
+				.setEntity("ally", npc.getAlly() != null ? npc.getAlly().getId(): null)
+				.uniqueResult());
 		if(total != null){
 			return total.intValue();
 		}

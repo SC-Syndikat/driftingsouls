@@ -117,7 +117,7 @@ var SearchBox = {
 		for( var i=0; i < response.bases.length; i++ ) {
 			var base = response.bases[i];
 			out += '<tr><td><img src="./data/starmap/asti/asti.png" alt="Basis" title="Basis" /></td>';
-			out += '<td><a href="'+getDsUrl()+'?module=base&col='+base.id+'&action=default" target="main">'+base.name+'</a></td>';
+			out += '<td><a href="'+DS.getBaseUrl()+'base?col='+base.id+'&action=default" target="main">'+base.name+'</a></td>';
 			out += '<td>'+base.location+'</td></tr>';
 		}
 

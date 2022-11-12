@@ -4,10 +4,10 @@ const templatebuildingActions = (data,baseid) => /*html*/ `
     <li class="buildingAction" data-on="true" data-off="true">
         ${data.name}
         <span>
-            <a title="Gebäude deaktivieren" class="action deaktivieren" style="${data.deaktivierbar ? "" : "display:none;"}" href="/sds/base?action=changeBuildingStatus&amp;col=${baseid}&amp;buildingonoff=${data.buildingTypeId}&amp;act=0">
+            <a title="Gebäude deaktivieren" class="action deaktivieren" style="${data.deaktivierbar ? "" : "display:none;"}" href="/base?action=changeBuildingStatus&amp;col=${baseid}&amp;buildingonoff=${data.buildingTypeId}&amp;act=0">
                 <img alt="" src="./data/interface/nenergie.gif">
             </a>
-            <a title="Gebäude aktivieren" class="action aktivieren" style="${data.aktivierbar ? "" : "display:none;"}" href="/sds/base?action=changeBuildingStatus&amp;col=${baseid}&amp;buildingonoff=${data.buildingTypeId}&amp;act=1">
+            <a title="Gebäude aktivieren" class="action aktivieren" style="${data.aktivierbar ? "" : "display:none;"}" href="/base?action=changeBuildingStatus&amp;col=${baseid}&amp;buildingonoff=${data.buildingTypeId}&amp;act=1">
                 <img alt="" src="./data/interface/energie.gif">
             </a>
         </span>
