@@ -21,6 +21,7 @@ package net.driftingsouls.ds2.server.ships;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.SchlachtLog;
 import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.entities.UserFlag;
 import net.driftingsouls.ds2.server.entities.ally.Ally;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import org.hibernate.annotations.ForeignKey;
@@ -45,7 +46,7 @@ import javax.persistence.Version;
 public class ShipLost {
 	// Hinweis: Foreign Keys/Assoziationen sind hier nur begrenzt sinnvoll,
 	// da z.B. ein Eintrag in dieser Tabelle laenger existiert als ggf eine Allianz
-	
+
 	@Id @GeneratedValue
 	private int id;
 	private int type;
@@ -72,10 +73,10 @@ public class ShipLost {
 	private SchlachtLog schlachtLog;
 	private int lp;
 	private Integer eingereicht;
-	
+
 	@Version
 	private int version;
-	
+
 	/**
 	 * Konstruktor.
 	 *
@@ -83,9 +84,9 @@ public class ShipLost {
 	public ShipLost() {
 		// EMPTY
 	}
-	
+
 	/**
-	 * Erstellt einen Eintrag fuer das angegebene Schiff. Alle Felder mit Ausnahme von 
+	 * Erstellt einen Eintrag fuer das angegebene Schiff. Alle Felder mit Ausnahme von
 	 * <code>battleLog</code>, <code>destOwner</code> und <code>destAlly</code> werden gesetzt
 	 * @param ship Das Schiff, fuer das der Eintrag angelegt werden soll
 	 */
@@ -97,12 +98,12 @@ public class ShipLost {
 		if( ship.getOwner().getAlly() != null ) {
 			this.ally = ship.getOwner().getAlly().getId();
 		}
-		
+
 		if( ship.getBattle() != null ) {
 			setBattle(ship.getBattle().getId());
 			this.schlachtLog = ship.getBattle().getSchlachtLog();
 		}
-		if(ship.getOwner().isNPC()){
+		if(ship.getOwner().hasFlag(UserFlag.GIVES_LP)){
 			this.lp = ship.getTypeData().getLp();
 		}
 		else{
@@ -272,7 +273,7 @@ public class ShipLost {
 	 */
 	public int getVersion() {
 		return this.version;
-	}	
+	}
 
 	/**
 	 * Gibt die LP fuer das Schiff zurueck

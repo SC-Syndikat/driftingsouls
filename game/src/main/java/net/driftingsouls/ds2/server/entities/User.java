@@ -1686,7 +1686,7 @@ public class User extends BasicUser {
 		var total = ((Long)db
 			.createQuery(
 					"SELECT sum(lp) FROM ShipLost ships " +
-						"inner join users on ships.owner = user.id and user.id <-1 and user.ally !=:ally " +
+						"inner join users u on ships.owner = u.id and u.id <-1 and u.ally !=:ally " +
 						"WHERE destOwner=:user and (eingereicht = null or eingereicht = 0) and owner!=:owner")
 			.setEntity("user", this)
 			.setEntity("owner", npc)
@@ -1703,7 +1703,7 @@ public class User extends BasicUser {
 		var total = ((Long)db
 			.createQuery(
 					"SELECT count(id) FROM ShipLost ships " +
-						"inner join users on ships.owner = user.id and user.id <-1 and user.ally !=:ally " +
+						"inner join users u on ships.owner = u.id and u.id <-1 and u.ally !=:ally " +
 						"WHERE destOwner=:user and (eingereicht = null or eingereicht = 0) and owner!=:owner")
 				.setEntity("user", this)
 				.setEntity("owner", npc)
@@ -1927,6 +1927,6 @@ public class User extends BasicUser {
 	{
 		this.ApiKey = ApiKey;
 		this.setUserValue(WellKnownUserValue.APIKEY, ApiKey);
-		
+
 	}
 }
