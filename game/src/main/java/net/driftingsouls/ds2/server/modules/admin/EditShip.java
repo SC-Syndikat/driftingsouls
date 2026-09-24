@@ -18,6 +18,7 @@
  */
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.entities.User;
@@ -47,6 +48,13 @@ public class EditShip implements EntityEditor<Ship>
 	@Override
 	public void configureFor(@Nonnull EditorForm8<Ship> form)
 	{
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		if (restriction.applies())
+		{
+			form.allowUpdate(ship -> restriction.isAllowed(ship.getSystem(), ship.getOwner().getId()));
+			form.validateUpdate((before, after) -> restriction.check(after.getSystem(), after.getOwner().getId()));
+		}
+
 		form.field("Name", String.class, Ship::getName, Ship::setName);
 		form.field("Besitzer", User.class, Ship::getOwner, Ship::setOwner).dbColumn(Ship_.owner);
 		form.field("System", Integer.class, Ship::getSystem, Ship::setSystem).dbColumn(Ship_.system);

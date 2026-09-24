@@ -17,6 +17,7 @@ public enum WellKnownAdminPermission implements PermissionDescriptor
 	BATTLE_END("BattleEnd"),
 	CAMPAIGN_JUMPNODES("CampaignJumpNodes"),
 	CAMPAIGN_PARTICIPANTS("CampaignParticipants"),
+	CAMPAIGN_SHIPGROUPS("CampaignShipGroups"),
 	CAMPAIGN_SYSTEMS("CampaignSystems"),
 	CREATE_OBJECTS("CreateObjects"),
 	CREATE_OBJECTS_FROM_IMAGE("CreateObjectsFromImage"),

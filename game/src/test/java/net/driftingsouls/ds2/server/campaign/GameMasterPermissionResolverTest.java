@@ -18,6 +18,8 @@ public class GameMasterPermissionResolverTest
 
 		assertTrue(resolver.hasPermission(WellKnownAdminPermission.SICHTBAR));
 		assertTrue(resolver.hasPermission(WellKnownAdminPermission.CAMPAIGN_PARTICIPANTS));
+		assertTrue(resolver.hasPermission(WellKnownAdminPermission.ADD_SHIPS));
+		assertTrue(resolver.hasPermission(WellKnownAdminPermission.PLAYER_LOGIN_SUPER));
 	}
 
 	@Test
@@ -27,7 +29,8 @@ public class GameMasterPermissionResolverTest
 
 		assertFalse(resolver.hasPermission(WellKnownAdminPermission.CONSOLE));
 		assertFalse(resolver.hasPermission(WellKnownAdminPermission.EDIT_USER));
-		assertFalse(resolver.hasPermission(WellKnownAdminPermission.PLAYER_LOGIN_SUPER));
+		assertFalse(resolver.hasPermission(WellKnownAdminPermission.EDIT_SHIPTYPES));
+		assertFalse(resolver.hasPermission(WellKnownAdminPermission.PLAYER_DELETE));
 	}
 
 	@Test

@@ -128,6 +128,13 @@ public abstract class BasicUser {
 	}
 
 	/**
+	 * @return The user behind a master login into this account, or {@code null}
+	 */
+	public BasicUser getAttachedUser() {
+		return this.attachedUser;
+	}
+
+	/**
 	 * Macht alle geladenen Benutzereigenschaften dem Templateengine bekannt.
 	 * Die daraus resultierenden Template-Variablen haben die Form "user."+Datenbankname.
 	 * Die Eigenschaft Wait4Vacation, welche den Datenbanknamen "wait4vac" hat, wuerde sich

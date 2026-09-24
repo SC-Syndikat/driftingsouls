@@ -25,6 +25,7 @@ public class EditorForm8<E> implements FormElementCreator<E>
 	private final List<Job<E,?>> postAddTasks = new ArrayList<>();
 	private final List<Job<E,?>> updateTasks = new ArrayList<>();
 	private final List<Job<E,?>> deleteTasks = new ArrayList<>();
+	private final List<BiConsumer<E,E>> updateValidators = new ArrayList<>();
 	private Class<? extends E> defaultEntityClass = null;
 
 	public EditorForm8(EditorMode modus, Class<?> plugin)
@@ -67,6 +68,27 @@ public class EditorForm8<E> implements FormElementCreator<E>
 	public void allowUpdate(Function<E,Boolean> allowUpdateCondition)
 	{
 		this.allowUpdate = allowUpdateCondition;
+	}
+
+	/**
+	 * Adds a check on the updated entity, run before anything is saved. The validator throws a
+	 * {@link RuntimeException} to reject the update; the changes are then discarded.
+	 * @param validator Receives the entity before and after the update
+	 */
+	public void validateUpdate(BiConsumer<E, E> validator)
+	{
+		this.updateValidators.add(validator);
+	}
+
+	/**
+	 * Runs the checks added by {@link #validateUpdate(BiConsumer)}.
+	 */
+	public void validateUpdate(E before, E after)
+	{
+		for (BiConsumer<E, E> validator : updateValidators)
+		{
+			validator.accept(before, after);
+		}
 	}
 
 	/**

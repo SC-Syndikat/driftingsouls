@@ -77,6 +77,16 @@ public class EditPlugin8<T> implements AdminPlugin
 					db.evict(entity);
 					@SuppressWarnings("unchecked") T updatedEntity = (T) db.get(this.baseClass, toEntityId(this.baseClass, entityId));
 					form.applyRequestValues(request, updatedEntity);
+					try
+					{
+						form.validateUpdate(entity, updatedEntity);
+					}
+					catch (RuntimeException e)
+					{
+						// Nothing may reach the database: detach the changed entity before the request commits
+						db.evict(updatedEntity);
+						throw e;
+					}
 					processJobs(echo, entity, updatedEntity, form.getUpdateTasks());
 					echo.append("<p>Update abgeschlossen.</p>");
 				}

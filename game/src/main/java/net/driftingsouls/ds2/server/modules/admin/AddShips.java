@@ -20,6 +20,8 @@ package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ItemID;
 import net.driftingsouls.ds2.server.cargo.Resources;
@@ -249,6 +251,14 @@ public class AddShips implements AdminPlugin {
 			int inteliid = context.getRequest().getParameterInt("inteliid");
 			int lowid = context.getRequest().getParameterInt("lowid");
 			int jlowid = context.getRequest().getParameterInt("jlowid");
+
+			try {
+				GameMasterRestriction.forActiveUser().check(system, ownerId);
+			}
+			catch( CampaignException e ) {
+				echo.append("<div class='gfxbox' style='width:560px'><span class='error'>").append(e.getMessage()).append("</span></div>");
+				return;
+			}
 
 			String currentTime = Common.getIngameTime(context.get(ContextCommon.class).getTick());
 

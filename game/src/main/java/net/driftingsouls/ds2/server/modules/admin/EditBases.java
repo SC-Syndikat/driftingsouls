@@ -18,6 +18,7 @@
  */
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.AutoGTUAction;
 import net.driftingsouls.ds2.server.bases.Base;
@@ -55,6 +56,13 @@ public class EditBases implements EntityEditor<Base>
 	@Override
 	public void configureFor(@Nonnull EditorForm8<Base> form)
 	{
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		if (restriction.applies())
+		{
+			form.allowUpdate(base -> restriction.isAllowed(base.getSystem(), ownerId(base)));
+			form.validateUpdate((before, after) -> restriction.check(after.getSystem(), ownerId(after)));
+		}
+
 		form.field("Name", String.class, Base::getName, Base::setName);
 		form.field("Besitzer", User.class, Base::getOwner, Base::setOwner).dbColumn(Base_.owner);
 		form.field("System", Integer.class, Base::getSystem, Base::setSystem).dbColumn(Base_.system);
@@ -109,5 +117,10 @@ public class EditBases implements EntityEditor<Base>
 			return newTiles;
 		}
 		return tiles;
+	}
+
+	private static int ownerId(Base base)
+	{
+		return base.getOwner() != null ? base.getOwner().getId() : 0;
 	}
 }

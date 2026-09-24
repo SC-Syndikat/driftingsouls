@@ -20,6 +20,7 @@ package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.Location;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.MutableLocation;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.Base;
@@ -56,8 +57,10 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -225,6 +228,7 @@ public class CreateObjects implements AdminPlugin {
 	}
 	
 	private static final Map<String,DialogEntry[]> OPTIONS = new LinkedHashMap<>();
+	private static final Set<String> GAMEMASTER_OPTIONS = new LinkedHashSet<>(List.of("Base", "Nebel"));
 	static {
 		OPTIONS.put("Base", new DialogEntry[] {
 				new TextEntry("Anzahl", "anzahl", 18, "0"),
@@ -269,9 +273,14 @@ public class CreateObjects implements AdminPlugin {
 
 		String objekt = context.getRequest().getParameterString("objekt");
 		int system = context.getRequest().getParameterInt("system");
-		
-		if( !OPTIONS.containsKey(objekt) ) {
-			objekt = OPTIONS.keySet().iterator().next();
+
+		// A game master may only place asteroids and nebulae, and only in campaign star systems. Jump
+		// nodes into campaign systems are managed as campaign jump nodes.
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		Set<String> options = restriction.applies() ? GAMEMASTER_OPTIONS : OPTIONS.keySet();
+
+		if( !options.contains(objekt) ) {
+			objekt = options.iterator().next();
 		}
 		
 		echo.append("<script type=\"text/javascript\">\n");
@@ -288,7 +297,7 @@ public class CreateObjects implements AdminPlugin {
 		echo.append("<td class=\"noBorderX\">Objekt</td>\n");
 		echo.append("<td class=\"noBorderX\">\n");
 		echo.append("<select name=\"objekt\" onChange=\"Go(this.form.objekt.options[this.form.objekt.options.selectedIndex].value)\">\n");
-		for( String key : OPTIONS.keySet() ) {
+		for( String key : options ) {
 			if( objekt.equals(key) ) {
 				echo.append("<option selected=\"selected\" value=\"").append(key).append("\">").append(key).append("</option>\n");
 			}
@@ -315,6 +324,11 @@ public class CreateObjects implements AdminPlugin {
 		
 		echo.append("</div>");
 		
+		if( system != 0 && !restriction.isSystemAllowed(system) ) {
+			echo.append("<span class=\"error\">Als GameMaster kannst du nur in Kampagnensystemen Objekte erstellen.</span><br />\n");
+			return;
+		}
+
 		if( system != 0 ) {
 			echo.append("Bearbeite System: ").append(system).append("<br />\n");
 
