@@ -22,7 +22,9 @@ public class GameMasterPermissionResolver implements PermissionResolver
 {
 	static final Set<WellKnownAdminPermission> GRANTED = EnumSet.of(
 			WellKnownAdminPermission.SICHTBAR,
-			WellKnownAdminPermission.CAMPAIGN_PARTICIPANTS
+			WellKnownAdminPermission.CAMPAIGN_PARTICIPANTS,
+			WellKnownAdminPermission.CAMPAIGN_SYSTEMS,
+			WellKnownAdminPermission.CAMPAIGN_JUMPNODES
 	);
 
 	private final PermissionResolver inner;

@@ -1,16 +1,12 @@
 package net.driftingsouls.ds2.server.campaign;
 
 import net.driftingsouls.ds2.server.entities.jooq.tables.records.CampaignRecord;
-import net.driftingsouls.ds2.server.framework.ContextMap;
-import net.driftingsouls.ds2.server.framework.db.DBUtil;
-import org.jooq.DSLContext;
 
-import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 
+import static net.driftingsouls.ds2.server.campaign.CampaignDb.withDb;
 import static net.driftingsouls.ds2.server.entities.jooq.Tables.CAMPAIGN;
 import static net.driftingsouls.ds2.server.entities.jooq.Tables.CAMPAIGN_PARTICIPANT;
 
@@ -116,17 +112,5 @@ public class CampaignRepository
 				record.getStartedAt(),
 				record.getEndedAt(),
 				record.getTickCount());
-	}
-
-	private static <T> T withDb(Function<DSLContext, T> work)
-	{
-		try (var conn = DBUtil.getConnection(ContextMap.getContext().getEM()))
-		{
-			return work.apply(DBUtil.getDSLContext(conn));
-		}
-		catch (SQLException e)
-		{
-			throw new RuntimeException(e);
-		}
 	}
 }

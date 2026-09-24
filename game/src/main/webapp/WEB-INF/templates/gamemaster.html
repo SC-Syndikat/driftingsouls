@@ -74,15 +74,20 @@
           <input type="hidden" name="show" value="tick">
           <ul class="systems" >
             <li th:each="system: ${starsystems}">
-              <input type="checkbox"
-                  th:field="'System_'+${system.id}"
+              <input type="checkbox" checked="checked"
+                  th:id="'System_'+${system.id}"
                   th:value="${system.id}"
-                  th:name="systemcheckbox" />
+                  name="systemcheckbox" />
               <label
                   th:for="'System_'+${system.id}"
                   th:text="${system.name}"></label>
             </li>
           </ul>
+          <div th:if="${#lists.isEmpty(starsystems)}" class="error">Die Kampagne hat keine Systeme. <a class="forschinfo" th:href="${participantsPlugin}">Kampagne einrichten</a></div>
+          <div th:if="${allReady != null and not allReady}">
+            <span class="error">Nicht alle Teilnehmer sind bereit.</span><br />
+            <label><input type="checkbox" name="confirm" value="1"> Kampagnentick trotzdem ausf&uuml;hren</label>
+          </div>
           <input type="submit" value="Kampagnentick ausf&uuml;hren">
         </form>
       </div>
@@ -119,6 +124,21 @@
               </tr>
             </tbody>
           </table>
+          <div class="smallfont">
+            <span th:text="${campaignSystemCount} + ' Kampagnensystem(e), ' + ${campaignJumpNodeCount} + ' Kampagnen-Sprungpunkt(e). Beim Start werden alle Kampagnen-Sprungpunkte aktiv.'"></span>
+          </div>
+          <div th:if="${not #lists.isEmpty(foreignObjects)}">
+            <div class="error">Objekte von Spielern, die nicht teilnehmen, befinden sich in Kampagnensystemen. Ihre Besitzer k&ouml;nnen dort w&auml;hrend der Kampagne nichts tun:</div>
+            <table class="noBorderX" cellpadding="2">
+              <tr th:each="object: ${foreignObjects}">
+                <td class="noBorderX" th:text="${object.type.label}"></td>
+                <td class="noBorderX" th:text="${object.id}"></td>
+                <td class="noBorderX" th:text="${object.name}"></td>
+                <td class="noBorderX" th:text="${object.location}"></td>
+                <td class="noBorderX" th:text="${object.ownerName} + ' (' + ${object.ownerId} + ')'"></td>
+              </tr>
+            </table>
+          </div>
           <ul th:if="${not #lists.isEmpty(startBlockers)}">
             <li th:each="blocker: ${startBlockers}" class="error" th:text="${blocker}"></li>
           </ul>
@@ -160,10 +180,43 @@
             </tbody>
           </table>
 
+          <div th:if="${leftBehind != null and not #lists.isEmpty(leftBehind)}">
+            <br />Spielerobjekte in Kampagnensystemen &ndash; die Kampagnen-Sprungpunkte werden beim Beenden wieder gesperrt:
+            <table class="noBorderX" cellpadding="2">
+              <tr th:each="object: ${leftBehind}">
+                <td class="noBorderX" th:text="${object.type.label}"></td>
+                <td class="noBorderX" th:text="${object.id}"></td>
+                <td class="noBorderX" th:text="${object.name}"></td>
+                <td class="noBorderX" th:text="${object.location}"></td>
+                <td class="noBorderX" th:text="${object.ownerName} + ' (' + ${object.ownerId} + ')'"></td>
+                <td class="noBorderX">
+                  <form th:if="${object.type.name() == 'SHIP' and not #lists.isEmpty(exits)}" action="./gamemaster" method="post" style="display:inline">
+                    <input type="hidden" name="action" value="relocate">
+                    <input type="hidden" name="show" value="end">
+                    <input type="hidden" name="ship" th:value="${object.id}">
+                    <select name="exit"><option th:each="exit: ${exits}" th:value="${exit.value}" th:text="${exit.label}"></option></select>
+                    <input type="submit" value="versetzen">
+                  </form>
+                </td>
+              </tr>
+            </table>
+            <form th:if="${not #lists.isEmpty(exits)}" action="./gamemaster" method="post">
+              <input type="hidden" name="action" value="relocate">
+              <input type="hidden" name="show" value="end">
+              <input type="hidden" name="ship" value="all">
+              Alle Schiffe versetzen nach
+              <select name="exit"><option th:each="exit: ${exits}" th:value="${exit.value}" th:text="${exit.label}"></option></select>
+              <input type="submit" value="alle versetzen">
+            </form>
+            <div th:if="${#lists.isEmpty(exits)}" class="smallfont">Es gibt keinen Kampagnen-Sprungpunkt aus einem Kampagnensystem hinaus, daher kein Ziel zum Versetzen.</div>
+            Nicht versetzte Objekte bleiben, wo sie sind.
+          </div>
+
           <form action="./gamemaster" method="post">
             <input type="hidden" name="action" value="end">
             <input type="hidden" name="module" value="gamemaster">
             <input type="hidden" name="show" value="end">
+            <label><input type="checkbox" name="confirm" value="1"> Kampagne wirklich beenden</label><br />
             <input type="submit" value="Kampagne beenden">
           </form>
         </div>

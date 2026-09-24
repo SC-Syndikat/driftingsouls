@@ -24,6 +24,8 @@ import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.bases.Werft;
 import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeState;
+import net.driftingsouls.ds2.server.campaign.CampaignMapRepository;
 import net.driftingsouls.ds2.server.config.Rassen;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.config.StarSystem.Access;
@@ -967,8 +969,16 @@ public class SensorsDefault implements SchiffPlugin {
 			.setParameter("sys", ship.getSystem())
 			.getResultList();
 
+		Map<Integer, CampaignJumpNodeState> campaignNodes = new CampaignMapRepository().findJumpNodeStates();
+		boolean seesPreparedNodes = user.isNPC() || user.hasFlag(UserFlag.GAMEMASTER);
+
 		for( JumpNode node : nodes )
 		{
+			if( !seesPreparedNodes && campaignNodes.get(node.getId()) == CampaignJumpNodeState.PREPARED )
+			{
+				continue;
+			}
+
 			int blocked = 0;
 			if( node.isGcpColonistBlock() && Rassen.get().rasse(user.getRace()).isMemberIn( 0 ) )
 			{

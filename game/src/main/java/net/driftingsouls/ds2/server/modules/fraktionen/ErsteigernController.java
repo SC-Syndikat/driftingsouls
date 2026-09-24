@@ -22,6 +22,7 @@ import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.bases.Base;
+import net.driftingsouls.ds2.server.campaign.CampaignMapRepository;
 import net.driftingsouls.ds2.server.cargo.*;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.config.Faction;
@@ -1127,9 +1128,15 @@ public class ErsteigernController extends Controller
 				.setInteger("source", sourcesystem)
 				.list();
 
+		// GTU routes never lead through the temporary accesses of a campaign
+		Set<Integer> campaignJumpNodes = new CampaignMapRepository().findJumpNodeStates().keySet();
 		for (Object obj : jnList)
 		{
 			JumpNode jn = (JumpNode) obj;
+			if (campaignJumpNodes.contains(jn.getId()))
+			{
+				continue;
+			}
 			if (!jumpnodes.containsKey(jn.getSystem()))
 			{
 				jumpnodes.put(jn.getSystem(), new ArrayList<>());

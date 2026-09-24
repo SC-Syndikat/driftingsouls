@@ -2,6 +2,7 @@ package net.driftingsouls.ds2.server.ships;
 
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.bases.Base;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.config.Rassen;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.entities.User;
@@ -15,6 +16,7 @@ import javax.annotation.Nonnull;
 import javax.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -107,6 +109,13 @@ public class SchiffSprungService
 		if (!shipLoc.sameSector(0, nodeLoc, 0))
 		{
 			outputbuffer.append("<span style=\"color:red\">Fehler: ").append(nodetypename).append(" befindet sich nicht im selben Sektor wie das Schiff.</span><br />\n");
+			return new SprungErgebnis(outputbuffer.toString(), false);
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), node.getId());
+		if (campaignDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(campaignDenial.get()).append("</span><br />\n");
 			return new SprungErgebnis(outputbuffer.toString(), false);
 		}
 
@@ -339,6 +348,13 @@ public class SchiffSprungService
 		if (!shipLoc.sameSector(0, nodeLoc, 0))
 		{
 			outputbuffer.append("<span style=\"color:red\">Fehler: ").append(nodetypename).append(" befindet sich nicht im selben Sektor wie das Schiff.</span><br />\n");
+			return new SprungErgebnis(outputbuffer.toString(), false);
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), null);
+		if (campaignDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(campaignDenial.get()).append("</span><br />\n");
 			return new SprungErgebnis(outputbuffer.toString(), false);
 		}
 

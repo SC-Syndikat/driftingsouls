@@ -4,6 +4,8 @@ import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.CampaignObject;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.CampaignUserView;
 import net.driftingsouls.ds2.server.entities.User;
@@ -96,6 +98,20 @@ public class CampaignParticipants implements AdminPlugin
 		message(echo, "Teilnehmer gespeichert: " + change.added.size() + " hinzugefügt, "
 				+ change.removed.size() + " entfernt."
 				+ (campaign.isRunning() && changed ? " Die Kampagne läuft, die Änderung gilt sofort." : ""));
+
+		if (!change.removed.isEmpty())
+		{
+			List<CampaignObject> leftBehind = new CampaignMapService(em).findPlayerObjects(campaign).stream()
+					.filter(o -> change.removed.contains(o.ownerId))
+					.collect(Collectors.toList());
+			if (!leftBehind.isEmpty())
+			{
+				echo.append("<div class='gfxbox' style='width:700px'><p class='error'>Entfernte Teilnehmer haben noch Objekte in Kampagnensystemen. ")
+						.append("Sie können dort nichts mehr tun, solange die Kampagne läuft:</p>");
+				CampaignSystems.objectTable(echo, leftBehind);
+				echo.append("</div><br />");
+			}
+		}
 	}
 
 	private void prepareForm(StringBuilder echo)

@@ -19,6 +19,7 @@
 package net.driftingsouls.ds2.server.modules;
 
 import net.driftingsouls.ds2.server.WellKnownPermission;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.cargo.Resources;
@@ -652,6 +653,12 @@ public class SchiffController extends Controller
 		if (!user.hasFlag(UserFlag.NPC_ISLAND))
 		{
 			return new RedirectViewResult("default");
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, ship.getSystem(), 99, null);
+		if (campaignDenial.isPresent())
+		{
+			return new RedirectViewResult("default").withMessage("<span style=\"color:red\">" + campaignDenial.get() + "</span><br />");
 		}
 
 		ship.setX(10);

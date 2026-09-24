@@ -161,6 +161,7 @@ public class CampaignService
 			user.setCampaignParticipant(true);
 			user.setTickReady(false);
 		}
+		new CampaignMapService(em).setAllJumpNodeStates(CampaignJumpNodeState.ACTIVE);
 	}
 
 	public void end(Campaign campaign)
@@ -171,6 +172,7 @@ public class CampaignService
 		}
 
 		repository.markEnded(campaign.getId(), Common.time());
+		new CampaignMapService(em).setAllJumpNodeStates(CampaignJumpNodeState.PREPARED);
 		List<User> flagged = em.createQuery("select u from User u where u.campaign_participant = true", User.class)
 				.getResultList();
 		for (User user : flagged)
