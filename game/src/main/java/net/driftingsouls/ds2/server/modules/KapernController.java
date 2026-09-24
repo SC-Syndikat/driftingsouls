@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.Battle;
@@ -189,6 +191,7 @@ public class KapernController extends Controller
 		User user = (User) this.getUser();
 
 		validiereEigenesUndZielschiff(eigenesSchiff, zielSchiff);
+		new CampaignActionGuard().check(user, eigenesSchiff.getSystem(), CampaignAction.BOARD);
 
 		t.setVar(
 				"ownship.id", eigenesSchiff.getId(),

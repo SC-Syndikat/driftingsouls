@@ -18,6 +18,7 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.cargo.Cargo;
@@ -400,6 +401,7 @@ public class SchiffController extends Controller
 	public RedirectViewResult landAction(Ship ship, @UrlParam(name = "shiplist") String shipIdList)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.LAND);
 
 		if (shipIdList.equals(""))
 		{
@@ -433,6 +435,7 @@ public class SchiffController extends Controller
 	public RedirectViewResult startAction(Ship ship, @UrlParam(name = "shiplist") String shipIdList)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.LAND);
 
 		if (shipIdList.equals(""))
 		{
@@ -466,6 +469,7 @@ public class SchiffController extends Controller
 	public RedirectViewResult aufladenAction(Ship ship, @UrlParam(name = "tar") String shipIdList)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.DOCK);
 
 		User user = (User) getUser();
 
@@ -521,6 +525,7 @@ public class SchiffController extends Controller
 	public RedirectViewResult abladenAction(Ship ship, @UrlParam(name = "tar") String shipIdList)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.DOCK);
 
 		if (shipIdList.equals(""))
 		{
@@ -1141,5 +1146,10 @@ public class SchiffController extends Controller
 		}
 
 		return t;
+	}
+
+	private void pruefeKampagne(Ship ship, CampaignAction action)
+	{
+		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), action);
 	}
 }

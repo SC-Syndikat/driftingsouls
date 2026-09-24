@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.cargo.Cargo;
@@ -706,6 +708,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult undockAction(ShipFleet fleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.DOCK);
 
 		fleet.undockContainers();
 
@@ -719,6 +722,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult redockAction(ShipFleet fleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.DOCK);
 
 		User user = (User) getUser();
 
@@ -734,6 +738,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult redock2Action(ShipFleet fleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.DOCK);
 
 		User user = (User) getUser();
 
@@ -749,6 +754,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult jstartAction(ShipFleet fleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.LAND);
 
 		fleet.startFighters();
 
@@ -762,6 +768,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult jlandAction(ShipFleet fleet, int jaegertype)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.LAND);
 
 		User user = (User) getUser();
 
@@ -1761,5 +1768,14 @@ public class FleetMgntController extends Controller
 				.setParameter("x", aship.getX())
 				.setParameter("y", aship.getY())
 				.uniqueResult();
+	}
+
+	private void pruefeKampagne(ShipFleet fleet, CampaignAction action)
+	{
+		List<Ship> ships = fleet.getShips();
+		if (!ships.isEmpty())
+		{
+			new CampaignActionGuard().check((User) getUser(), ships.get(0).getSystem(), action);
+		}
 	}
 }

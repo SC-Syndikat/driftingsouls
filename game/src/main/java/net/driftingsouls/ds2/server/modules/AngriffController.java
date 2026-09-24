@@ -23,6 +23,9 @@ import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleFlag;
 import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignBattleNotifier;
 import net.driftingsouls.ds2.server.battles.BattleShipFlag;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ItemCargoEntry;
@@ -533,6 +536,10 @@ public class AngriffController extends Controller
 
 		Battle battle;
 		if( battleID == 0 ) {
+			Ship attackingShip = (Ship)db.get(Ship.class, ownShipID);
+			if( attackingShip != null ) {
+				new CampaignActionGuard().check(user, attackingShip.getSystem(), CampaignAction.START_BATTLE);
+			}
 			try {
 				battle = schlachtErstellenService.erstelle(user, ownShipID, enemyShipID);
 			}
@@ -563,11 +570,15 @@ public class AngriffController extends Controller
 		// Schiff zur Schlacht hinzufgen
 		//
 		if( (!battleCreated) && addShipID != 0 && !battle.isGuest() ) {
+			new CampaignActionGuard().check(user, battle.getSystem(), CampaignAction.JOIN_BATTLE);
 			if( !battle.addShip( user.getId(), addShipID ) ) {
 				// Wenn das Schiff offenbar von jemandem ausserhalb der Kriegfhrenden Allys stammt - Laden abbrechen bei fehlschlag
 				if( forcejoin != 0 ) {
 					return null;
 				}
+			}
+			else {
+				new CampaignBattleNotifier(getEM()).onJoined(battle);
 			}
 		}
 

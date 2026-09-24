@@ -3,6 +3,7 @@ package net.driftingsouls.ds2.server.services;
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.*;
+import net.driftingsouls.ds2.server.campaign.CampaignBattleNotifier;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.User;
@@ -401,6 +402,8 @@ public class SchlachtErstellenService
 			}
 
 		}
+
+		new CampaignBattleNotifier(db).onAttacked(enemyUsers, ownShip.getSystem());
 
 		return battle;
 	}

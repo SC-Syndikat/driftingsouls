@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.cargo.ResourceList;
@@ -182,6 +184,7 @@ public class PluendernController extends Controller
 		org.hibernate.Session db = getDB();
 
 		validiereEigenesUndZielschiff(shipFrom, shipTo);
+		new CampaignActionGuard().check(user, shipFrom.getSystem(), CampaignAction.TRANSFER);
 
 		Cargo cargofrom = shipFrom.getCargo();
 		Cargo cargoto = shipTo.getCargo();

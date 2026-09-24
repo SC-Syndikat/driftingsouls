@@ -49,6 +49,7 @@ import net.driftingsouls.ds2.server.repositories.ShipsRepository;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipFleet;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
+import org.apache.commons.text.StringEscapeUtils;
 import org.hibernate.Query;
 import org.hibernate.Session;
 import org.slf4j.Logger;
@@ -149,6 +150,29 @@ public class UeberController extends Controller
 	{
 		User user = (User)getUser();
 		user.setTickReady(true);
+		user.setUserValue(WellKnownUserValue.CAMPAIGN_ATTACK_NOTICE, "");
+		return new RedirectViewResult("default");
+	}
+
+	/**
+	 * Nimmt die Bereitschaft fuer den Kampagnentick zurueck, damit der Spieler weiter handeln kann.
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult resumeTurnAction()
+	{
+		User user = (User)getUser();
+		user.setTickReady(false);
+		return new RedirectViewResult("default");
+	}
+
+	/**
+	 * Quittiert den Hinweis, dass der Spieler waehrend seiner beendeten Runde angegriffen wurde.
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult dismissAttackNoticeAction()
+	{
+		User user = (User)getUser();
+		user.setUserValue(WellKnownUserValue.CAMPAIGN_ATTACK_NOTICE, "");
 		return new RedirectViewResult("default");
 	}
 
@@ -187,7 +211,8 @@ public class UeberController extends Controller
 				//"user.specpoints", user.getFreeSpecializationPoints(),
 				//"user.maxspecpoints", user.getSpecializationPoints(),
 				"global.ticks", ticks,
-				"global.ticktime", ticktime);
+				"global.ticktime", ticktime,
+				"campaign.attacknotice", StringEscapeUtils.escapeHtml4(user.getUserValue(WellKnownUserValue.CAMPAIGN_ATTACK_NOTICE)));
 
 		//
 		// Ingame-Zeit setzen

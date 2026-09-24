@@ -61,6 +61,14 @@ public class CampaignRepository
 				.execute());
 	}
 
+	public void incrementTickCount(int campaignId)
+	{
+		withDb(db -> db.update(CAMPAIGN)
+				.set(CAMPAIGN.TICK_COUNT, CAMPAIGN.TICK_COUNT.plus(1))
+				.where(CAMPAIGN.ID.eq(campaignId))
+				.execute());
+	}
+
 	public Set<Integer> findParticipantIds(int campaignId)
 	{
 		return withDb(db -> new HashSet<>(db.select(CAMPAIGN_PARTICIPANT.USER_ID)

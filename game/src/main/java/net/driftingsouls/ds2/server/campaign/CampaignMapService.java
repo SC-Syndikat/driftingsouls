@@ -48,6 +48,17 @@ public class CampaignMapService
 	}
 
 	/**
+	 * Star systems of a running campaign; empty while none runs.
+	 */
+	public Set<Integer> getRunningCampaignSystemIds()
+	{
+		return campaigns.findOpen()
+				.filter(Campaign::isRunning)
+				.map(c -> map.findSystemIds(c.getId()))
+				.orElse(Set.of());
+	}
+
+	/**
 	 * Ships and bases of non-participating players in the campaign's star systems.
 	 */
 	public List<CampaignObject> findForeignObjects(Campaign campaign)
