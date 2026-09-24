@@ -1,17 +1,21 @@
 package net.driftingsouls.ds2.server.modules.thymeleaf;
 
 import net.driftingsouls.ds2.server.AdminCommands;
+import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.CampaignUserView;
+import net.driftingsouls.ds2.server.modules.admin.CampaignParticipants;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
-import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.repositories.StarsystemRepository;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.KeineTicksperre;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
-import net.driftingsouls.ds2.server.WellKnownPermission;
 
+import org.springframework.web.util.HtmlUtils;
 import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.WebContext;
 
@@ -20,7 +24,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 @KeineTicksperre
@@ -112,62 +116,48 @@ public class GameMasterController implements DSController {
 
 
     /**
-     * Startet die Kampagne fuer die ausgewaehlten Spieler
+     * Startet die vorbereitete Kampagne. Die Teilnehmer werden vorher im Admin-Plugin
+     * "Kampagne / Teilnehmer" ausgewaehlt; hier werden sie nur noch geprueft und freigegeben.
      * @param ctx der WebContext
      * @param request der HttpServletRequest (enthaelt die uebergebenen Parameter)
      */
-    private void startAction(WebContext ctx, HttpServletRequest request, User user) throws ClassNotFoundException {
-
-      String query = "select u from User u where campaign_participant > 0";
-      org.hibernate.Session db = context.getDB();
-      List<User> userlist = Common.cast(db.createQuery(query).list());
-
-      if(!userlist.isEmpty()){
-          Error error = new Error("Es wurde bereits eine Kampagne gestartet", "./gamemaster");
-          ctx.setVariable("error",error);
-          defaultAction(ctx, request, user, Show.START);
-          return;
+    private void startAction(WebContext ctx, HttpServletRequest request, User user) {
+      CampaignService service = new CampaignService(context.getEM());
+      Optional<Campaign> campaign = service.findOpenCampaign();
+      if(campaign.isEmpty() || !campaign.get().isPreparing()){
+        ctx.setVariable("error", new Error("Es wird keine Kampagne vorbereitet.", "./gamemaster"));
+        defaultAction(ctx, request, user, Show.START);
+        return;
       }
-
-      String[] users = request.getParameterValues("usercheckbox");
-      if(users.length == 0){
-        Error error = new Error("Ohne Spieler keine Kampagne.", "./gamemaster");
-        ctx.setVariable("error",error);
-        ctx.setVariable("link","./gamemaster");
+      if(!"1".equals(request.getParameter("confirm"))){
+        ctx.setVariable("error", new Error("Bitte best&auml;tige die Teilnehmerliste.", "./gamemaster?show=start"));
         defaultAction(ctx, request, user, Show.START);
         return;
       }
 
-      Set<Integer> selectedUsers = new HashSet<>();
-      for(String u : users) {
-          selectedUsers.add(Integer.valueOf(u));
+      try {
+        service.start(campaign.get());
+        ctx.setVariable("out", "Kampagne gestartet.");
+      } catch(CampaignException e) {
+        ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster?show=start"));
       }
-      query = "select u from User u where u.id in (:ids)";
-      userlist = Common.cast(db.createQuery(query).setParameterList("ids", selectedUsers).list());
-      for(User u: userlist){
-        u.setCampaignParticipant(true);
-      }
-      ctx.setVariable("out", "Kampagne fuuml;r User "+String.join(", ",users)+" gestartet");
       defaultAction(ctx, request, user, Show.START);
-
     }
 
     /**
-     * Beendet die Kampagne fuer die ausgewaehlten Spieler
+     * Beendet die laufende Kampagne und setzt den Teilnehmer- und Bereit-Status aller Spieler zurueck.
      * @param ctx der WebContext
      * @param request der HttpServletRequest (enthaelt die uebergebenen Parameter)
      */
-    private void endAction(WebContext ctx, HttpServletRequest request, User user) throws ClassNotFoundException {
-
-
-      //Iterate over all Users and set campaign_participant = false
-      String query = "select u from User u ";
-      org.hibernate.Session db = context.getDB();
-      List<User> userlist = Common.cast(db.createQuery(query).list());
-      for(User u: userlist){
-        u.setCampaignParticipant(false);
+    private void endAction(WebContext ctx, HttpServletRequest request, User user) {
+      CampaignService service = new CampaignService(context.getEM());
+      Optional<Campaign> campaign = service.findOpenCampaign();
+      try {
+        service.end(campaign.orElseThrow(() -> new CampaignException("Es läuft keine Kampagne.")));
+        ctx.setVariable("out", "Kampagne beendet. Teilnehmerstatus zur&uuml;ckgesetzt.");
+      } catch(CampaignException e) {
+        ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster"));
       }
-      ctx.setVariable("out", "Kampagne beendet. Teilnehmerstatus zur&uuml;ckgesetzt.");
       defaultAction(ctx, request, user, Show.END);
     }
 
@@ -180,51 +170,57 @@ public class GameMasterController implements DSController {
     private void defaultAction(WebContext ctx, HttpServletRequest request, User user, Show show){
 
       var db = context.getEM();
-      String query;
-      List<User> userlist;
+      CampaignService service = new CampaignService(db);
+      Optional<Campaign> campaign = service.findOpenCampaign();
+      boolean running = campaign.isPresent() && campaign.get().isRunning();
+      boolean preparing = campaign.isPresent() && campaign.get().isPreparing();
+
       switch(show){
         case START:
-          if( (user == null) || !context.hasPermission(WellKnownPermission.STATISTIK_ERWEITERTE_SPIELERLISTE) ) {
-            query = "select u from User u where locate('hide',u.flags)=0 and vaccount=0 order by u.id";
+          if(preparing){
+            ctx.setVariable("participants", CampaignUserView.of(participants(db, service.getParticipantIds(campaign.get())), db));
+            ctx.setVariable("startBlockers", service.findStartBlockers(campaign.get()));
           }
-          else{
-            query = "select u from User u where vaccount=0 order by u.id";
-          }
-          //Liste aller Spieler
-          userlist = db.createQuery(query, User.class).getResultList();
-          ctx.setVariable("users", userlist);
           break;
         case TICK:
-          //Liste aller Teilnehmer
-          query = "select u from User u where u.campaign_participant = true order by u.id";
-            userlist = db.createQuery(query, User.class).getResultList();
-          ctx.setVariable("participants", userlist);
-
-          List<StarsystemsList> systemsViewModel = new ArrayList<>();
-          var starsystems = StarsystemRepository.getInstance().getStarsystemsData();
-          //keine Teilnehmer = keine Kampagne, also lassen wir auch keine Systeme fuer den Tick auswaehlen
-          if(!userlist.isEmpty()){
-            for (var starsystem: starsystems) {
-                if(!starsystem.isVisibleFor(user)) {
-                    continue;
-                }
-                systemsViewModel.add(new StarsystemsList(starsystem.id, starsystem.name + " ("+ starsystem.id +")"));
-            }
-          }
-          ctx.setVariable("starsystems", systemsViewModel);
-          break;
         case END:
           //Liste aller Teilnehmer
-          query = "select u from User u where u.campaign_participant = true order by u.id";
-            userlist = db.createQuery(query, User.class).getResultList();
-          ctx.setVariable("participants", userlist);
+          List<User> userlist = db.createQuery("select u from User u where u.campaign_participant = true order by u.id", User.class)
+              .getResultList();
+          ctx.setVariable("participants", CampaignUserView.of(userlist, db));
+
+          if(show == Show.TICK){
+            List<StarsystemsList> systemsViewModel = new ArrayList<>();
+            var starsystems = StarsystemRepository.getInstance().getStarsystemsData();
+            //keine Teilnehmer = keine Kampagne, also lassen wir auch keine Systeme fuer den Tick auswaehlen
+            if(!userlist.isEmpty()){
+              for (var starsystem: starsystems) {
+                  if(!starsystem.isVisibleFor(user)) {
+                      continue;
+                  }
+                  systemsViewModel.add(new StarsystemsList(starsystem.id, starsystem.name + " ("+ starsystem.id +")"));
+              }
+            }
+            ctx.setVariable("starsystems", systemsViewModel);
+          }
           break;
         default:
           break;
       }
-      query = "select count(*) from User u where u.campaign_participant = true";
-      ctx.setVariable("campaign", ((Long) db.createQuery(query).getSingleResult()) > 0);
+      ctx.setVariable("campaign", running);
+      ctx.setVariable("preparing", preparing);
+      ctx.setVariable("campaignName", campaign.map(Campaign::getName).orElse(null));
+      ctx.setVariable("participantsPlugin", "./ds?module=admin&namedplugin=" + CampaignParticipants.class.getName());
       ctx.setVariable("show", show.name());
+    }
+
+    private static List<User> participants(javax.persistence.EntityManager db, Set<Integer> ids){
+      if(ids.isEmpty()){
+        return new ArrayList<>();
+      }
+      return db.createQuery("select u from User u where u.id in (:ids) order by u.id", User.class)
+          .setParameter("ids", ids)
+          .getResultList();
     }
 
     private static class Error{

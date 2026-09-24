@@ -102,6 +102,10 @@ public class WellKnownConfigValue<T> implements ConfigValueDescriptor<T>
 	 */
 	public static final ConfigValueDescriptor<Integer> TICK = new WellKnownConfigValue<>(Integer.class, "tick", "0", "Sperrt Accounts waehrend des Ticks. 0 fuer keine Sperre, 1 fuer Sperre.");
 	/**
+	 * How long after their last request a user still counts as online, in seconds.
+	 */
+	public static final ConfigValueDescriptor<Integer> ONLINE_THRESHOLD_SECONDS = new WellKnownConfigValue<>(Integer.class, "online_threshold_seconds", "300", "Wie lange ein Spieler nach seinem letzten Seitenaufruf als online gilt, in Sekunden");
+	/**
 	 * Automatisches Feuern fuer NPCs im Tick ein- oder ausschalten.
 	 */
 	public static final ConfigValueDescriptor<Boolean> AUTOFIRE = new WellKnownConfigValue<>(Boolean.class, "autofire", "false", "Automatisches Feuern fuer NPCs im Tick ein- oder ausschalten");

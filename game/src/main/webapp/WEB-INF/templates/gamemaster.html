@@ -26,7 +26,9 @@
   <div id="admin">
     <div class="gfxbox treemenu">
       <ul style="display: block;">
-        <li><img src="data/interface/admin/editor.png"><a th:class="${not campaign ? 'forschinfo' : 'error'}" th:href="${not campaign ? './gamemaster?show=start': '#'}" >Kampagne starten</a></li>
+        <li th:if="${campaignName}" class="smallfont" th:text="${campaignName} + ${campaign ? ' (läuft)' : ' (in Vorbereitung)'}"></li>
+        <li><img src="data/interface/admin/editor.png"><a class="forschinfo" th:href="${participantsPlugin}" th:text="${campaignName == null ? 'Kampagne vorbereiten' : 'Teilnehmer bearbeiten'}">Kampagne vorbereiten</a></li>
+        <li><img src="data/interface/admin/editor.png"><a th:class="${preparing ? 'forschinfo' : 'error'}" th:href="${preparing ? './gamemaster?show=start': '#'}" >Kampagne starten</a></li>
         <li><img src="data/interface/admin/editor.png"><a th:class="${    campaign ? 'forschinfo' : 'error'}" th:href="${    campaign ? './gamemaster?show=tick' : '#'}" >Kampagnentick</a></li>
         <li><img src="data/interface/admin/editor.png"><a th:class="${    campaign ? 'forschinfo' : 'error'}" th:href="${    campaign ? './gamemaster?show=end'  : '#'}" >Kampagne beenden</a></li>
       </ul>
@@ -46,16 +48,20 @@
                 <td class="noBorderX" >ID</td>
                 <td class="noBorderX" >Name</td>
                 <td class="noBorderX" >Status</td>
+                <td class="noBorderX" >Online</td>
               </tr>
             </thead>
             <tbody>
               <tr th:each="user: ${participants}">
-                <td th:text="${user.getId()}" class="noBorderX" align="center"></td>
-                <td th:utext="${user.getFormatedName()}"></td>
+                <td th:text="${user.id}" class="noBorderX" align="center"></td>
+                <td th:utext="${user.formattedName}"></td>
                 <td class="noBorderX" align="center">
                   <span class="nobr">
-                    <img th:src="'./data/interface/diplomacy/' + ${user.isTickReady() ? 'friend' : 'enemy' } + '1.png'" alt="" th:title="${user.isTickReady() ? 'bereit' : 'spielt' }"><img th:src="'./data/interface/diplomacy/' + ${user.isTickReady() ? 'friend' : 'enemy' } + '2.png'" alt="" th:title="${user.isTickReady() ? 'bereit' : 'spielt' }">
+                    <img th:src="'./data/interface/diplomacy/' + ${user.tickReady ? 'friend' : 'enemy' } + '1.png'" alt="" th:title="${user.tickReady ? 'bereit' : 'spielt' }"><img th:src="'./data/interface/diplomacy/' + ${user.tickReady ? 'friend' : 'enemy' } + '2.png'" alt="" th:title="${user.tickReady ? 'bereit' : 'spielt' }">
                   </span>
+                </td>
+                <td class="noBorderX" align="center" th:title="${user.lastSeen}">
+                  <span th:style="${user.online ? 'color:#33dd33' : 'color:#888888'}">&#9679;</span>
                 </td>
               </tr>
             </tbody>
@@ -81,25 +87,49 @@
         </form>
       </div>
 
-      <div id="startbox" class="gfxbox gmbox" th:style="'display: '+${show=='START' ? 'flex' :  'none'} + '; flex-direction: row'">
-        <form action="./gamemaster" method="post">
-          <div>Teilnehmende Spieler ausw&auml;hlen:</div>
-          <ul class="users" >
-            <li th:each="user: ${users}">
-              <input type="checkbox"
-                  th:field="'User_'+${user.getId()}"
-                  th:value="${user.getId()}"
-                  th:name="usercheckbox" />
-              <label
-                  th:for="'User_'+${user.getId()}"
-                  th:utext="${user.getFormatedName()} + ' (' + ${user.getId()} + ')'"></label>
-            </li>
+      <div id="startbox" class="gfxbox gmbox" th:style="'display: '+${show=='START' ? 'flex' :  'none'} + '; flex-direction: column'">
+        <div th:if="${not preparing}">Es wird keine Kampagne vorbereitet. <a class="forschinfo" th:href="${participantsPlugin}">Kampagne vorbereiten</a></div>
+        <div th:if="${preparing}">
+          <div>Teilnehmer pr&uuml;fen und freigeben (<a class="forschinfo" th:href="${participantsPlugin}">Teilnehmer bearbeiten</a>):</div>
+          <table class="noBorderX" width="100%" cellspacing="2" cellpadding="2">
+            <thead>
+              <tr>
+                <td class="noBorderX" >ID</td>
+                <td class="noBorderX" >Name</td>
+                <td class="noBorderX" >Allianz</td>
+                <td class="noBorderX" >Inaktiv</td>
+                <td class="noBorderX" >Online</td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="user: ${participants}">
+                <td th:text="${user.id}" class="noBorderX" align="center"></td>
+                <td>
+                  <span th:utext="${user.formattedName}"></span>
+                  <span th:if="${user.npc}" class="smallfont"> (NPC)</span>
+                  <span th:if="${user.gamemaster}" class="smallfont"> (GM)</span>
+                  <span th:if="${not user.eligible}" class="error"> (Urlaubsmodus)</span>
+                </td>
+                <td class="noBorderX" th:text="${user.allianceName}"></td>
+                <td class="noBorderX" align="center" th:text="${user.inactivity}"></td>
+                <td class="noBorderX" align="center" th:title="${user.lastSeen}">
+                  <span th:style="${user.online ? 'color:#33dd33' : 'color:#888888'}">&#9679;</span>
+                  <span class="smallfont" th:text="${user.lastSeen}"></span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <ul th:if="${not #lists.isEmpty(startBlockers)}">
+            <li th:each="blocker: ${startBlockers}" class="error" th:text="${blocker}"></li>
           </ul>
-          <input type="hidden" name="action" value="start">
-          <input type="hidden" name="module" value="gamemaster">
-          <input type="hidden" name="show" value="start">
-          <input type="submit" value="Kampagne starten">
-        </form>
+          <form th:if="${#lists.isEmpty(startBlockers)}" action="./gamemaster" method="post">
+            <input type="hidden" name="action" value="start">
+            <input type="hidden" name="module" value="gamemaster">
+            <input type="hidden" name="show" value="start">
+            <label><input type="checkbox" name="confirm" value="1"> Teilnehmerliste gepr&uuml;ft und freigegeben</label><br />
+            <input type="submit" value="Kampagne starten">
+          </form>
+        </div>
       </div>
 
       <div id="endbox" class="gfxbox gmbox" th:style="'display: '+${show=='END' ? 'flex' :  'none'} + '; flex-direction: row'">
@@ -111,16 +141,20 @@
                 <td class="noBorderX" >ID</td>
                 <td class="noBorderX" >Name</td>
                 <td class="noBorderX" >Status</td>
+                <td class="noBorderX" >Online</td>
               </tr>
             </thead>
             <tbody>
               <tr th:each="user: ${participants}">
-                <td th:text="${user.getId()}" class="noBorderX" align="center"></td>
-                <td th:utext="${user.getFormatedName()}"></td>
+                <td th:text="${user.id}" class="noBorderX" align="center"></td>
+                <td th:utext="${user.formattedName}"></td>
                 <td class="noBorderX" align="center">
                   <span class="nobr">
-                    <img th:src="'./data/interface/diplomacy/' + ${user.isTickReady() ? 'friend' : 'enemy' } + '1.png'" alt="" th:title="${user.isTickReady() ? 'bereit' : 'spielt' }"><img th:src="'./data/interface/diplomacy/' + ${user.isTickReady() ? 'friend' : 'enemy' } + '2.png'" alt="" th:title="${user.isTickReady() ? 'bereit' : 'spielt' }">
+                    <img th:src="'./data/interface/diplomacy/' + ${user.tickReady ? 'friend' : 'enemy' } + '1.png'" alt="" th:title="${user.tickReady ? 'bereit' : 'spielt' }"><img th:src="'./data/interface/diplomacy/' + ${user.tickReady ? 'friend' : 'enemy' } + '2.png'" alt="" th:title="${user.tickReady ? 'bereit' : 'spielt' }">
                   </span>
+                </td>
+                <td class="noBorderX" align="center" th:title="${user.lastSeen}">
+                  <span th:style="${user.online ? 'color:#33dd33' : 'color:#888888'}">&#9679;</span>
                 </td>
               </tr>
             </tbody>

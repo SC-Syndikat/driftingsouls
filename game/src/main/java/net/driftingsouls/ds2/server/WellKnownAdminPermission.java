@@ -15,6 +15,7 @@ public enum WellKnownAdminPermission implements PermissionDescriptor
 	ADD_SHIPS("AddShips"),
 	BASES_MAP("BasesMap"),
 	BATTLE_END("BattleEnd"),
+	CAMPAIGN_PARTICIPANTS("CampaignParticipants"),
 	CREATE_OBJECTS("CreateObjects"),
 	CREATE_OBJECTS_FROM_IMAGE("CreateObjectsFromImage"),
 	EDIT_AMMO("EditAmmo"),

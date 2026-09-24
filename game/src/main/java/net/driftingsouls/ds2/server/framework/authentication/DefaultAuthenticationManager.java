@@ -19,6 +19,7 @@
 package net.driftingsouls.ds2.server.framework.authentication;
 
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
+import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.*;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
@@ -249,6 +250,9 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 			listener.onAuthenticate(user);
 		}
 
+		// Under a master login this is the account taken over, not the admin behind it
+		UserActivityTracker.getInstance().recordActivity(user.getId());
+
 		if( jsession.getAttach() != null )
 		{
 			user.attachToUser(jsession.getAttach());
@@ -268,10 +272,16 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 			permissions.addAll(jsession.getAttach().getPermissions());
 		}
 
+		boolean gameMaster = GameMasterPermissionResolver.isGameMaster(user)
+				|| GameMasterPermissionResolver.isGameMaster(jsession.getAttach());
+
 		context.setPermissionResolver(
-				new PermissionDelegatePermissionResolver(
-						new AccessLevelPermissionResolver(accessLevel),
-						permissions
+				new GameMasterPermissionResolver(
+						new PermissionDelegatePermissionResolver(
+								new AccessLevelPermissionResolver(accessLevel),
+								permissions
+						),
+						gameMaster
 				)
 		);
 
