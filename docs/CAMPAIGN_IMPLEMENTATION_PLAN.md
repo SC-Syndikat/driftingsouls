@@ -194,7 +194,11 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
 
 ### P0 – Voraussetzungen *(auf `develop`, vor dem Branch)*
 
-- **P0.1 Roadmap 3.1–3.3 vorziehen.** Transaktionsgrenze: Transaktionsgrenzen-Tests, Hikari-`DataSource`
+- **P0.1 umgesetzt (minimal, 2026-09-24).** `DBUtil.getConnection(em)` liefert bei aktiver
+  Transaktion die Session-Connection. Nachweis: `DBUtilTest`. Die Details und die Korrektur der
+  Diagnose zu `MapSectorPopupTest` stehen in `docs/roadmap.md`, Schritt 3. Der ursprünglich geplante
+  Weg folgt, er ist bewusst zurückgestellt:
+- ~~P0.1 Roadmap 3.1–3.3 vorziehen.~~ Transaktionsgrenze: Transaktionsgrenzen-Tests, Hikari-`DataSource`
   als eigenständiges Bean, `DataSourceTransactionManager`. Danach sehen jOOQ-Lesezugriffe die
   Hibernate-Schreibzugriffe desselben Requests, und ein Fehler rollt beide zurück.
   *Fertig, wenn:* die Tests aus 3.1 grün sind (inkl. der entfernten `@Ignore` in `MapSectorPopupTest`)
