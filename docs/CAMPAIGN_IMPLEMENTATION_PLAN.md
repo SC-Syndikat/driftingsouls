@@ -21,7 +21,7 @@ Legende: ✅ umgesetzt · ✅* umgesetzt, aber abweichend vom Plan (die Abweichu
 | P6 GM-Objekte, Schiffsgruppen, Masterlogin | ✅* ❓ | `f892c27e0` |
 | P7 Dialog-Kern | ✅* | `6ca36289b` |
 | P8 Interaktionen, Spieler-Dialog | ✅* ❓ | `6ca36289b` |
-| P9 GM-Editor | ✅ | siehe `git log` |
+| P9 GM-Editor | ✅ | `45e8338c8` |
 
 Migrationen: V042 (Kampagne, Teilnehmer), V043 (Systeme, Sprungpunkte), V044 (Schiffsgruppen),
 V045 (Dialoge, Variablen, Vertrauen), V046 (Interaktionen, Sessions, Protokoll).

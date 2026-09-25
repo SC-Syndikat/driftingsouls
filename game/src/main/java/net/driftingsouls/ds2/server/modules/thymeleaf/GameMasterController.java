@@ -63,7 +63,7 @@ public class GameMasterController implements DSController {
         WebContext ctx = new WebContext(request, response, servletContext, request.getLocale());
 
         User user = (User) context.getActiveUser();
-        if(! user.hasFlag(UserFlag.GAMEMASTER)) {
+        if(user == null || ! user.hasFlag(UserFlag.GAMEMASTER)) {
           Error error = new Error("Du hast keine Berechtigung f&uuml;r diese Seite.","./ds?module=ueber&amp;action=default");
           ctx.setVariable("error",error);
           templateEngine.process("gamemaster", ctx, response.getWriter());
