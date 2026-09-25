@@ -111,6 +111,11 @@ public class WellKnownConfigValue<T> implements ConfigValueDescriptor<T>
 	 */
 	public static final ConfigValueDescriptor<Integer> CAMPAIGN_BATTLE_TICK_LOCK_SECONDS = new WellKnownConfigValue<>(Integer.class, "campaign_battle_tick_lock_seconds", "120", "Wie battle_tick_lock_seconds, fuer Schlachten in Systemen einer laufenden Kampagne (regulaerer Tick). Der Kampagnentick rechnet ohne Sperre.");
 	/**
+	 * Share of the alliance members' trust events towards an NPC that counts for a player, unless the NPC
+	 * has its own setting.
+	 */
+	public static final ConfigValueDescriptor<Double> NPC_TRUST_ALLIANCE_FACTOR = new WellKnownConfigValue<>(Double.class, "npc_trust_alliance_factor", "0.5", "Anteil der Vertrauensaenderungen von Allianzmitgliedern gegenueber einem NPC, der fuer einen Spieler zaehlt (sofern der NPC keinen eigenen Wert hat)");
+	/**
 	 * How long after their last request a user still counts as online, in seconds.
 	 */
 	public static final ConfigValueDescriptor<Integer> ONLINE_THRESHOLD_SECONDS = new WellKnownConfigValue<>(Integer.class, "online_threshold_seconds", "300", "Wie lange ein Spieler nach seinem letzten Seitenaufruf als online gilt, in Sekunden");

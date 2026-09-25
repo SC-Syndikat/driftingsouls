@@ -10,14 +10,14 @@ import java.util.function.Function;
 /**
  * Runs jOOQ work on the current request's connection, and so inside its transaction.
  */
-final class CampaignDb
+public final class CampaignDb
 {
 	private CampaignDb()
 	{
 		// static only
 	}
 
-	static <T> T withDb(Function<DSLContext, T> work)
+	public static <T> T withDb(Function<DSLContext, T> work)
 	{
 		try (var conn = DBUtil.getConnection(ContextMap.getContext().getEM()))
 		{

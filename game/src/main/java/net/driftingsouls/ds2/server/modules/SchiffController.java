@@ -118,6 +118,7 @@ public class SchiffController extends Controller
 		Map<String, SchiffPlugin> pluginMapper = new LinkedHashMap<>();
 		pluginMapper.put("navigation", context.getBean(NavigationDefault.class, null));
 		pluginMapper.put("cargo", context.getBean(CargoDefault.class, null));
+		pluginMapper.put("campaigndialog", context.getBean(CampaignDialog.class, null));
 
 		if( communicate != null )
 		{

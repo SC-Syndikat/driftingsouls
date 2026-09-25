@@ -1,0 +1,176 @@
+package net.driftingsouls.ds2.server.campaign.dialog;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Evaluates dialog options and carries out a choice.
+ *
+ * <pre>
+ * available = every condition holds: factor(params) comparison threshold
+ * chance    = clamp(baseChance + sum(modifier.factor * clamp(value, min, max)), 0, 100)
+ * success   = roll &lt; chance, with roll uniform in [0, 100); options without base chance always succeed
+ * </pre>
+ */
+public class DialogEngine
+{
+	private final DialogTypes types;
+
+	public DialogEngine()
+	{
+		this(DialogTypes.get());
+	}
+
+	public DialogEngine(DialogTypes types)
+	{
+		this.types = types;
+	}
+
+	/**
+	 * How an option stands for the player right now.
+	 */
+	public static class Evaluation
+	{
+		public final DialogModel.Option option;
+		public final boolean available;
+		/** Descriptions of the conditions that do not hold. */
+		public final List<String> unmetConditions;
+		/** {@code null} if the option always succeeds. */
+		public final Integer chance;
+		/** How each modifier contributed to the chance. */
+		public final List<String> chanceExplanation;
+
+		Evaluation(DialogModel.Option option, boolean available, List<String> unmetConditions, Integer chance, List<String> chanceExplanation)
+		{
+			this.option = option;
+			this.available = available;
+			this.unmetConditions = unmetConditions;
+			this.chance = chance;
+			this.chanceExplanation = chanceExplanation;
+		}
+	}
+
+	/**
+	 * What a choice led to.
+	 */
+	public static class Result
+	{
+		public final boolean success;
+		/** {@code null} if the option always succeeds. */
+		public final Integer chance;
+		/** {@code null} ends the dialog. */
+		public final Integer nextNodeId;
+		/** What each action did, or in a preview would do. */
+		public final List<String> actions;
+
+		Result(boolean success, Integer chance, Integer nextNodeId, List<String> actions)
+		{
+			this.success = success;
+			this.chance = chance;
+			this.nextNodeId = nextNodeId;
+			this.actions = actions;
+		}
+	}
+
+	public Evaluation evaluate(DialogModel.Option option, DialogContext context)
+	{
+		List<String> unmet = new ArrayList<>();
+		for (DialogModel.Condition condition : option.conditions)
+		{
+			DialogFactor factor = types.factor(condition.type);
+			double value = factor.value(context, condition.params);
+			if (!condition.comparison.test(value, condition.threshold))
+			{
+				unmet.add(factor.describe(condition.params) + " " + condition.comparison.getSymbol() + " "
+						+ format(condition.threshold) + " (ist " + format(value) + ")");
+			}
+		}
+
+		Integer chance = null;
+		List<String> explanation = new ArrayList<>();
+		if (option.baseChance != null)
+		{
+			double total = option.baseChance;
+			explanation.add("Basis " + option.baseChance + " %");
+			for (DialogModel.Modifier modifier : option.modifiers)
+			{
+				DialogFactor factor = types.factor(modifier.type);
+				double value = clamp(factor.value(context, modifier.params), modifier.min, modifier.max);
+				double contribution = modifier.factor * value;
+				total += contribution;
+				explanation.add(factor.describe(modifier.params) + " = " + format(value) + " × " + format(modifier.factor)
+						+ " → " + (contribution >= 0 ? "+" : "") + format(contribution) + " %");
+			}
+			chance = (int) Math.round(Math.max(0, Math.min(100, total)));
+		}
+		return new Evaluation(option, unmet.isEmpty(), unmet, chance, explanation);
+	}
+
+	/**
+	 * Carries out the choice of an option: rolls for success and runs the actions for that outcome.
+	 *
+	 * @param preview Only describe the actions, do not run them
+	 * @param forcedOutcome Succeed ({@code true}) or fail ({@code false}) instead of rolling; for previews
+	 * @throws IllegalStateException if the option is not available
+	 */
+	public Result choose(DialogModel.Option option, DialogContext context, boolean preview, Boolean forcedOutcome)
+	{
+		Evaluation evaluation = evaluate(option, context);
+		if (!evaluation.available)
+		{
+			throw new IllegalStateException("Diese Antwort steht dir nicht zur Verfügung.");
+		}
+
+		boolean success;
+		if (forcedOutcome != null)
+		{
+			success = forcedOutcome;
+		}
+		else
+		{
+			success = evaluation.chance == null || context.random.getAsDouble() < evaluation.chance;
+		}
+
+		List<String> done = new ArrayList<>();
+		for (DialogModel.ActionRef ref : option.actions)
+		{
+			if (!ref.outcome.appliesTo(success))
+			{
+				continue;
+			}
+			DialogAction action = types.action(ref.type);
+			if (!preview)
+			{
+				action.execute(context, ref.params);
+			}
+			done.add(action.describe(ref.params));
+		}
+
+		Integer next = success ? option.nextNodeId : option.failureNodeId;
+		return new Result(success, evaluation.chance, next, done);
+	}
+
+	private static double clamp(double value, Double min, Double max)
+	{
+		double result = value;
+		if (min != null)
+		{
+			result = Math.max(min, result);
+		}
+		if (max != null)
+		{
+			result = Math.min(max, result);
+		}
+		return result;
+	}
+
+	static String format(double value)
+	{
+		if (value == Math.rint(value))
+		{
+			return Long.toString((long) value);
+		}
+		return String.format(Locale.GERMANY, "%.2f", value);
+	}
+}
