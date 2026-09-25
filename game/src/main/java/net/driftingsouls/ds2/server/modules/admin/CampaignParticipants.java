@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
 import static org.apache.commons.text.StringEscapeUtils.escapeHtml4;
 
 /**
@@ -119,7 +120,7 @@ public class CampaignParticipants implements AdminPlugin
 		echo.append("<div class='gfxbox' style='width:590px'>");
 		echo.append("<p>Es wird keine Kampagne vorbereitet und keine läuft.</p>");
 		echo.append("<form action='./ds' method='post'>");
-		hiddenFields(echo, "prepare");
+		hiddenFields(echo, getClass(), "prepare");
 		echo.append("Name der Kampagne: <input type='text' name='name' size='40' maxlength='255' /> ");
 		echo.append("<input type='submit' value='Kampagne vorbereiten' />");
 		echo.append("</form></div>");
@@ -157,7 +158,7 @@ public class CampaignParticipants implements AdminPlugin
 		}
 
 		echo.append("<form action='./ds' method='post' id='campaignParticipantsForm'>");
-		hiddenFields(echo, "save");
+		hiddenFields(echo, getClass(), "save");
 		echo.append("<div style='margin-bottom:6px'>Filter: <input type='text' id='cpFilter' size='25' placeholder='Name oder ID' /> ");
 		echo.append("<label><input type='checkbox' id='cpOnlineOnly' /> nur online</label></div>");
 
@@ -236,13 +237,6 @@ public class CampaignParticipants implements AdminPlugin
 				.append("' style='display:block; width:40px; margin:4px auto'>").append(label).append("</button>");
 	}
 
-	private void hiddenFields(StringBuilder echo, String action)
-	{
-		echo.append("<input type='hidden' name='module' value='admin' />");
-		echo.append("<input type='hidden' name='namedplugin' value='").append(getClass().getName()).append("' />");
-		echo.append("<input type='hidden' name='cpaction' value='").append(action).append("' />");
-	}
-
 	private static void script(StringBuilder echo)
 	{
 		echo.append("<script type='text/javascript'>\n")
@@ -288,15 +282,5 @@ public class CampaignParticipants implements AdminPlugin
 				.append("  };\n")
 				.append("})();\n")
 				.append("</script>");
-	}
-
-	private static void message(StringBuilder echo, String text)
-	{
-		echo.append("<div class='gfxbox' style='width:590px'>").append(escapeHtml4(text)).append("</div><br />");
-	}
-
-	private static void error(StringBuilder echo, String text)
-	{
-		echo.append("<div class='gfxbox' style='width:590px'><span class='error'>").append(escapeHtml4(text)).append("</span></div><br />");
 	}
 }

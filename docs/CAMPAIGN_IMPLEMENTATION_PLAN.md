@@ -1,8 +1,30 @@
 # Kampagnen- und GameMaster-System: Umsetzungsplan
 
-**Status:** Entwurf
+**Status:** Umgesetzt auf `feature/campaign` (P0–P9). Offen sind die Prüfung auf dem Dev-System und die
+Fragen in Abschnitt 8.
 **Bezug:** `docs/CAMPAIGN_SYSTEM_PLAN.md` (Anforderungen v4.0)
-**Erstellt:** 2026-09-24
+**Erstellt:** 2026-09-24, **Stand:** 2026-09-25
+
+## Umsetzungsstand
+
+Legende: ✅ umgesetzt · ✅* umgesetzt, aber abweichend vom Plan (die Abweichung steht bei der Phase) ·
+❓ offene Frage (Abschnitt 8)
+
+| Phase | Stand | Commit |
+|---|---|---|
+| P0 Transaktionsgrenze, Branch | ✅* minimal statt Roadmap 3.1–3.3 | `1bb8c3351` |
+| P1 Kampagne, Teilnehmer, GM-Rechte, Online-Status | ✅* | `2846f36f5` |
+| P2 Kampagnensysteme, Zugangssperre | ✅* | `11073768e` |
+| P3 Kampagnen-Sprungpunkte, Kampagnenende | ✅* | `11073768e` |
+| P4 „Fertig“-Status | ✅* | `cf90871e9` |
+| P5 Schlachtregeln, Kampagnentick | ✅* (P5.2 im Commit von P2/P3) | `cf90871e9` |
+| P6 GM-Objekte, Schiffsgruppen, Masterlogin | ✅* ❓ | `f892c27e0` |
+| P7 Dialog-Kern | ✅* | `6ca36289b` |
+| P8 Interaktionen, Spieler-Dialog | ✅* ❓ | `6ca36289b` |
+| P9 GM-Editor | ✅ | siehe `git log` |
+
+Migrationen: V042 (Kampagne, Teilnehmer), V043 (Systeme, Sprungpunkte), V044 (Schiffsgruppen),
+V045 (Dialoge, Variablen, Vertrauen), V046 (Interaktionen, Sessions, Protokoll).
 
 Vokabular gemäß `CONTEXT.md`. Neuer Code verwendet englische Bezeichner. Bestehende Klassen, in die wir
 nur Hooks einbauen, werden **nicht** umbenannt (das macht Track Zero).
@@ -206,7 +228,12 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
 - **P0.2** Branch `feature/campaign` von `develop` anlegen, regelmäßig mergen oder rebasen
   (parallel zu Track Zero).
 
-### P1 – Kampagne als Objekt und GM-Rechte
+### P1 – Kampagne als Objekt und GM-Rechte ✅*
+
+> **Abweichungen:**
+> - Die Kampagne wird im Plugin „Kampagne / Teilnehmer“ angelegt („Kampagne vorbereiten“), nicht beim
+>   ersten Aufruf von `/gamemaster`. Die GM-Seite verlinkt dorthin.
+> - `UserActivityTracker` ist ein einfaches Singleton und kein Spring-Bean.
 
 - **P1.1** Migration V042 `campaign`, jOOQ-Repository `CampaignRepository`, `CampaignService`.
 - **P1.2** Den `GameMasterController` minimal erweitern. Die Thymeleaf-Seite existiert schon, es
@@ -286,7 +313,13 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
   - `campaign.status` korrekt wechselt;
   - `users.campaign_participant` erst mit dem Start gesetzt wird.
 
-### P2 – Kampagnensysteme und Zugangsregel
+### P2 – Kampagnensysteme und Zugangsregel ✅*
+
+> **Abweichungen:**
+> - Der Guard sperrt das Betreten schon während der **Vorbereitung** für alle außer NPCs und GMs, weil
+>   das System dann gerade hergerichtet wird. Während die Kampagne läuft, gilt „nur Teilnehmer“.
+> - Die Sichtbarkeit wird außerdem aus dem `StarsystemRepository`-Cache entfernt. Dieser Cache wurde
+>   bisher nie geleert, auch nicht von `EditSystem`.
 
 - **P2.1** Migration `campaign_star_system`, Repository, `CampaignService.isCampaignSystem`.
 - **P2.2** AdminPlugin **Kampagne / Systeme**:
@@ -310,7 +343,17 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
 - *Fertig, wenn:* ein Nicht-Teilnehmer nicht in ein Kampagnensystem springen kann, ein Teilnehmer
   schon, und der GM beim Hinzufügen eines Systems mit fremden Schiffen gewarnt wird.
 
-### P3 – Kampagnen-Sprungpunkte
+### P3 – Kampagnen-Sprungpunkte ✅*
+
+> **Abweichungen:**
+> - Eine eigene Extraktion der Jumpnode-Erzeugung war nicht nötig: `new JumpNode(...)` genügt.
+>   Zusätzlich kann der Rückweg gleich mit angelegt werden.
+> - Das Plugin listet auch **normale** Sprungpunkte in und aus Kampagnensystemen und kann sie als
+>   Kampagnenknoten übernehmen.
+> - GTU-Routen (`ErsteigernController`) überspringen alle Kampagnenknoten. `HandleGanyTransport` ist
+>   vollständig auskommentiert und wurde deshalb nicht angepasst.
+> - Beim Kampagnenende versetzt der GM Schiffe zu einem **Ausgang**: einem Kampagnenknoten aus einem
+>   Kampagnensystem heraus, auf Wunsch alle auf einmal.
 
 - **P3.1** Migration `campaign_jump_node`. Die Zustände werden auf `JumpNode.hidden` abgebildet:
   PREPARED → `hidden=true`, VISIBLE und ACTIVE → `hidden=false`. `hidden` wird per Hibernate
@@ -336,7 +379,16 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
   sichtbar, aber gesperrt ist, ab dem Start der Sprung funktioniert und nach dem Ende der
   PREPARED-Zustand wiederhergestellt ist.
 
-### P4 – „Fertig“-Status
+### P4 – „Fertig“-Status ✅*
+
+> **Abweichungen:**
+> - START_BATTLE wird in `AngriffController` geprüft und **nicht** in `checkBattleConditions()`.
+>   Letztere läuft auch beim Rote-Alarm-Autoangriff, und dort ist der wartende Spieler der Angreifer.
+> - DOCK/LAND werden an den Controller-Aktionen geprüft (`SchiffController` land/start/aufladen/abladen,
+>   `FleetMgntController` undock/redock/jstart/jland) und nicht an `Ship.dock/land`, die auch Ticks
+>   aufrufen.
+> - Der Angriffshinweis in der Übersicht wird über „gelesen“ quittiert, weil die Übersicht
+>   `readOnly` ist. Spätestens das nächste „Bereit“ löscht ihn ebenfalls.
 
 - **P4.1** Rücknahme: `UeberController.tickAction()` erhält eine Gegenaktion (`resumeTurnAction`,
   setzt `tickReady=false`). `ueber.html:94-106` zeigt dann „Runde fortsetzen“.
@@ -368,7 +420,13 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
   in anderen Systemen aber weiter funktionieren, und ein Angriff auf ihn den Status zurücksetzt und
   ihn benachrichtigt.
 
-### P5 – Schlachtregeln und Kampagnentick
+### P5 – Schlachtregeln und Kampagnentick ✅*
+
+> **Abweichungen:**
+> - Die Sperre wird pro Schlacht als `lockSeconds(...)` berechnet. Mit 0 Sekunden wird im
+>   Kampagnentick nie übersprungen, ohne die übrige `blockCount`-Logik anzufassen.
+> - Getestet ist die Berechnung als Unit-Test. Die DB-Szenarien mit echten Schlachten fehlen, siehe
+>   Abschnitt 8.
 
 - **P5.1** `BattleTick` parametrisieren. Die Konstante `1800` wird durch eine Sperrzeit pro Schlacht
   ersetzt:
@@ -391,7 +449,19 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
   weiterläuft, eine 1 Minute vor dem regulären Tick gestartete Schlacht in einem Kampagnensystem
   nicht, eine 5 Minuten vorher gestartete aber schon. Das wird mit Tests belegt.
 
-### P6 – Objekte für den GM
+### P6 – Objekte für den GM ✅* ❓
+
+> **Abweichungen:**
+> - `EditorForm8` erhielt `validateUpdate(...)`. Diese Prüfung läuft **vor** dem Commit und
+>   verwirft die Änderung. Die bestehenden Post-Update-Tasks laufen erst nach einem Commit.
+> - Die Listen in `EditShip` und `EditBases` sind für den GM nicht gefiltert. Er sieht alle Objekte,
+>   darf aber nur Kampagnenobjekte ändern. ❓
+> - `CreateObjects` bietet dem GM nur Basis und Nebel an. Jumpnodes laufen über die
+>   Kampagnen-Sprungpunkte, und SystemXML liest Serverpfade.
+> - Die Masterlogin ist auch während der **Vorbereitung** möglich, damit der GM NPC-Objekte
+>   platzieren kann. Sie wird in `login.log` protokolliert. ❓
+> - `ShipGroupSpawner` erzeugt die Schiffe direkt wie `AddShips`, ohne `SchiffHinzufuegenService`.
+>   Dessen Namensgenerator braucht Rassendaten, und der Name kommt ohnehin aus der Vorlage.
 
 - **P6.1** Einschränkung auf Kampagnensysteme in `AddShips`, `CreateObjects`, `EditShip`, `EditBases`,
   wenn der Nutzer kein Admin ist:
@@ -419,7 +489,15 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
 - *Fertig, wenn:* ein GM ohne Admin-Level in Kampagnensystemen Schiffe, Basen und Asteroiden anlegen
   und bearbeiten kann, außerhalb davon nicht, und wenn er eine Vorlage spawnen kann.
 
-### P7 – Dialog-Kern (ohne UI)
+### P7 – Dialog-Kern (ohne UI) ✅*
+
+> **Abweichungen:**
+> - Bedingungen und Einflussgrößen teilen sich eine Schnittstelle `DialogFactor` (liefert eine Zahl).
+>   Eine Bedingung vergleicht diese Zahl mit einer Schwelle (`>= <= > < == !=`), ein Modifikator
+>   gewichtet sie. Ja/Nein-Faktoren liefern 1 oder 0.
+> - Die Spalte `negate` entfällt, der Vergleich `!=` deckt das ab.
+> - Die Faktoren stehen als verschachtelte Klassen in `StandardFactors`, die Aktionen in
+>   `StandardActions`. Gefunden werden sie über `@DialogFactor.Type` bzw. `@DialogAction.Type`.
 
 - **P7.1** Migrationen für `dialog_node`, `dialog_option`, `dialog_option_condition`,
   `dialog_option_modifier`, `dialog_option_action`, `campaign_variable` und `npc_trust_event`, dazu
@@ -472,7 +550,14 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
 - *Fertig, wenn:* Unit-Tests pro Bedingung, Einflussgröße und Aktion grün sind, dazu ein Engine-Test
   über einen dreistufigen Dialog mit Zufall, Variablen und Vertrauen samt Allianzanteil.
 
-### P8 – Interaktionen und Spieler-Erlebnis
+### P8 – Interaktionen und Spieler-Erlebnis ✅* ❓
+
+> **Abweichungen:**
+> - Es gibt keinen Link in der Sensorliste. Das Plugin „Kontakte“ steht oben in der Schiffsansicht und
+>   listet Schiffe und Basen im Sektor sowie „Signale im System“ mit ihren Interaktionen. Es
+>   verschwindet, sobald nichts angeboten wird. ❓
+> - Spieler sehen die Erfolgschance nicht, nur „geklappt“ oder „misslungen“. Die Vorschau zeigt sie
+>   dem GM. ❓
 
 - **P8.1** Migrationen für `interaction`, `interaction_audience`, `dialog_session`, `interaction_log`,
   dazu `DialogService.availableInteractions(user, ship, object)`. Eine Interaktion ist verfügbar, wenn
@@ -498,7 +583,10 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
 - *Fertig, wenn:* der Use Case 7.1 aus den Anforderungen auf dem Dev-System vollständig durchspielbar
   ist.
 
-### P9 – GM-Editor
+### P9 – GM-Editor ✅
+
+> Umgesetzt als Plugins „Dialoge“, „Interaktionen“ (mit Vorschau), „Vertrauen“ und „Protokoll“. Das
+> Protokoll zeigt zusätzlich die Quest-Variablen. Der Formular-Helfer heißt `CampaignAdminHtml`.
 
 Alle Plugins liegen in der Admin-Kategorie „Kampagne“. Ein gemeinsames kleines Formular-Hilfsmodul
 (`CampaignAdminForms`) erzeugt HTML und **escaped jede Ausgabe**. Vorher prüfen, was
@@ -580,7 +668,36 @@ Alle Plugins liegen in der Admin-Kategorie „Kampagne“. Ein gemeinsames klein
    sind Schiffe. Beide werden über die Objekttypen `BASE` und `SHIP` abgedeckt.
 5. **Nebenbefunde** außerhalb dieses Plans, die aufgefallen sind:
    - `TickAdminCommand.runRareTick` startet den Job des regulären Ticks.
-   - `HandleGanyTransport:229-244` fragt die nicht gemappte Property `Ship.scriptData` ab (ein
-     HQL-Laufzeitfehler).
+   - ~~`HandleGanyTransport` fragt die nicht gemappte Property `Ship.scriptData` ab~~: *Korrektur.* Die
+     Stelle liegt in einem vollständig auskommentierten Block (Zeilen 77–260) und läuft nie.
    - Der Parameter `only` und `affectedSystems` lassen sich im `AbstractTickExecuter` nicht
      kombinieren.
+   - Der gesamte Rumpf von `MapController.sectorAction()` ist auskommentiert. Die drei ignorierten
+     `MapSectorPopupTest`s scheitern daran und nicht an ADR-0002 (siehe `docs/roadmap.md`).
+   - Die Caches in `StarsystemRepository` und `JumpNodeRepository` wurden nie geleert. Beide haben
+     jetzt Leer-Methoden, die aber nur die Kampagnen-Plugins aufrufen.
+
+## 8. Offene Fragen
+
+Diese Punkte sind aufgekommen, während die Arbeit selbstständig lief. Sie sind vorläufig wie
+beschrieben entschieden und lassen sich leicht ändern.
+
+1. **Erfolgschance für Spieler anzeigen?** Derzeit sieht der Spieler sie nicht. Soll „(Chance 60 %)“
+   an der Antwort stehen, vielleicht pro Option einstellbar?
+2. **Einstieg über die Sensorliste?** Derzeit gibt es einen eigenen Kasten „Kontakte“ in der
+   Schiffsansicht. Soll zusätzlich ein Link direkt am Schiff bzw. an der Basis in der Sensorliste
+   stehen? Das ist ein Eingriff in das große Legacy-Template `schiff.sensors.default.html`.
+3. **Listen in EditShip/EditBases filtern?** Der GM sieht dort alle Objekte, ändern kann er nur
+   Kampagnenobjekte. Reicht das, oder sollen die Listen gefiltert werden? Dafür braucht
+   `EditPlugin8` einen zusätzlichen Filter-Hook.
+4. **Masterlogin in der Vorbereitung:** Sie ist erlaubt, damit der GM NPC-Objekte vorbereiten kann.
+   Der Plan sah „nur während der laufenden Kampagne“ vor. Ist das so in Ordnung?
+5. **GIVE_CREDITS:** Wählbar ist „vom Konto des NPC“ (scheitert, wenn das Konto nicht reicht) oder „neu
+   geschaffen“. Standard ist das NPC-Konto. Passt das?
+6. **Tests, die noch fehlen:** eine DB-Szenario-Prüfung des `BattleTick` mit echten Schlachten und ein
+   Integrationstest für den Rollback einer fehlgeschlagenen Dialogauswahl. Der Mechanismus selbst ist
+   durch `DBUtilTest` abgedeckt. Auf dem Dev-System prüfen: Use Cases 7.1, 7.2, 8.1, 8.2 und P0.1
+   unter realer Nutzung.
+7. **Weitere Wege für Transfer oder Andocken:** Es sind nicht alle Einstiege nachweislich abgedeckt,
+   etwa Ajax-Varianten oder Basis-Transfers aus der Basisansicht. Nach dem ersten Spieltest gezielt
+   nachziehen.

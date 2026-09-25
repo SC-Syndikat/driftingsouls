@@ -390,6 +390,81 @@ public class DialogService
 		return campaigns.findOpen().filter(Campaign::isRunning);
 	}
 
+	// ---------------------------------------------------------------- preview for the game master
+
+	/**
+	 * A node as the game master sees it in the preview: every option with its evaluation for the chosen
+	 * player and ship.
+	 */
+	public static class PreviewView
+	{
+		public final DialogModel.Node node;
+		public final String textHtml;
+		public final List<DialogEngine.Evaluation> evaluations;
+		/** Why the player could not start the interaction right now; empty if they could. */
+		public final Optional<String> unavailability;
+
+		PreviewView(DialogModel.Node node, String textHtml, List<DialogEngine.Evaluation> evaluations, Optional<String> unavailability)
+		{
+			this.node = node;
+			this.textHtml = textHtml;
+			this.evaluations = evaluations;
+			this.unavailability = unavailability;
+		}
+	}
+
+	/**
+	 * Evaluates a node of the interaction's dialog for a player and ship, without changing anything.
+	 */
+	public PreviewView preview(Interaction interaction, User player, Ship ship, int nodeId, User gamemaster)
+	{
+		DialogModel.Node node = dialogs.findNode(nodeId).orElseThrow(() -> new CampaignException("Unbekannter Dialogknoten " + nodeId + "."));
+		Campaign campaign = campaigns.findOpen().orElse(null);
+		DialogContext context = previewContext(interaction, player, ship, campaign, gamemaster);
+		List<DialogEngine.Evaluation> evaluations = new ArrayList<>();
+		for (DialogModel.Option option : node.options)
+		{
+			evaluations.add(engine.evaluate(option, context));
+		}
+		Optional<String> unavailability = campaign != null && campaign.isRunning()
+				? unavailability(interaction, player, ship, campaign)
+				: Optional.of("Die Kampagne läuft noch nicht.");
+		return new PreviewView(node, Common._text(node.text), evaluations, unavailability);
+	}
+
+	/**
+	 * Plays an option in the preview: rolls (or takes the forced outcome) and describes the actions
+	 * instead of running them.
+	 */
+	public DialogEngine.Result previewChoose(Interaction interaction, User player, Ship ship, int nodeId, int optionId, Boolean forcedOutcome, User gamemaster)
+	{
+		DialogModel.Node node = dialogs.findNode(nodeId).orElseThrow(() -> new CampaignException("Unbekannter Dialogknoten " + nodeId + "."));
+		DialogModel.Option option = node.option(optionId);
+		if (option == null)
+		{
+			throw new CampaignException("Die Antwort gehört nicht zu diesem Knoten.");
+		}
+		DialogContext context = previewContext(interaction, player, ship, campaigns.findOpen().orElse(null), gamemaster);
+		try
+		{
+			return engine.choose(option, context, true, forcedOutcome);
+		}
+		catch (IllegalStateException e)
+		{
+			throw new CampaignException(e.getMessage());
+		}
+	}
+
+	private DialogContext previewContext(Interaction interaction, User player, Ship ship, Campaign campaign, User gamemaster)
+	{
+		User npc = em.find(User.class, interaction.npcUserId);
+		if (npc == null)
+		{
+			throw new CampaignException("Der Gesprächspartner existiert nicht mehr.");
+		}
+		return new DialogContext(em, player, ship, npc, interaction.objectType, interaction.objectId, campaign, interaction.id, gamemaster, random);
+	}
+
 	/**
 	 * @return The labels of all interactions, keyed by id; for editors and the log
 	 */
