@@ -51,6 +51,11 @@ public class EditShip implements EntityEditor<Ship>
 		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
 		if (restriction.applies())
 		{
+			// A game master only sees ships in campaign star systems
+			form.restrictVisible(ship -> restriction.isSystemAllowed(ship.getSystem()),
+					(builder, root) -> restriction.getSystems().isEmpty()
+							? builder.disjunction()
+							: root.get(Ship_.system).in(restriction.getSystems()));
 			form.allowUpdate(ship -> restriction.isAllowed(ship.getSystem(), ship.getOwner().getId()));
 			form.validateUpdate((before, after) -> restriction.check(after.getSystem(), after.getOwner().getId()));
 		}

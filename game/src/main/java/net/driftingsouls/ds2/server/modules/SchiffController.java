@@ -163,6 +163,7 @@ public class SchiffController extends Controller
 	public RedirectViewResult alarmAction(Ship ship, Alarmstufe alarm)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
 
 		User user = (User)getUser();
 		if (user.isNoob())
@@ -199,6 +200,7 @@ public class SchiffController extends Controller
 	public Object consignAction(Ship ship, @UrlParam(name = "newowner") String newownerID, int conf)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
 
 		var db = getEM();
 		User user = (User) getUser();
@@ -265,6 +267,7 @@ public class SchiffController extends Controller
 	public Object destroyAction(Ship ship, int conf)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
 
 		if (ship.isNoSuicide())
 		{
@@ -362,6 +365,11 @@ public class SchiffController extends Controller
 	public Object pluginAction(Ship ship, String plugin, Ship communicate) throws ReflectiveOperationException
 	{
 		validiereSchiff(ship);
+		// The campaign dialog checks the campaign rules itself (INTERACT)
+		if (!CampaignDialog.PLUGIN_ID.equals(plugin))
+		{
+			pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
+		}
 
 		ShipTypeData shiptype = ship.getTypeData();
 		Parameters caller = new Parameters();
@@ -560,6 +568,7 @@ public class SchiffController extends Controller
 	public RedirectViewResult joinAction(Ship ship, int join)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -611,6 +620,7 @@ public class SchiffController extends Controller
 	public RedirectViewResult shupAction(Ship ship, int shup)
 	{
 		validiereSchiff(ship);
+		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
 
 		ShipTypeData shiptype = ship.getTypeData();
 		int shieldfactor = 100;

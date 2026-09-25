@@ -26,6 +26,8 @@ public class EditorForm8<E> implements FormElementCreator<E>
 	private final List<Job<E,?>> updateTasks = new ArrayList<>();
 	private final List<Job<E,?>> deleteTasks = new ArrayList<>();
 	private final List<BiConsumer<E,E>> updateValidators = new ArrayList<>();
+	private Function<E,Boolean> visible = (entity) -> true;
+	private VisibilityQuery<E> visibilityQuery = null;
 	private Class<? extends E> defaultEntityClass = null;
 
 	public EditorForm8(EditorMode modus, Class<?> plugin)
@@ -68,6 +70,37 @@ public class EditorForm8<E> implements FormElementCreator<E>
 	public void allowUpdate(Function<E,Boolean> allowUpdateCondition)
 	{
 		this.allowUpdate = allowUpdateCondition;
+	}
+
+	/**
+	 * A restriction of the entities the plugin lists and shows, as query condition.
+	 */
+	public interface VisibilityQuery<E>
+	{
+		javax.persistence.criteria.Predicate apply(javax.persistence.criteria.CriteriaBuilder builder, javax.persistence.criteria.Root<E> root);
+	}
+
+	/**
+	 * Restricts which entities the plugin lists, shows and updates. Both forms must describe the same
+	 * set: {@code visible} checks a loaded entity, {@code query} restricts database queries.
+	 */
+	public void restrictVisible(Function<E, Boolean> visible, VisibilityQuery<E> query)
+	{
+		this.visible = visible;
+		this.visibilityQuery = query;
+	}
+
+	public boolean isVisible(E entity)
+	{
+		return this.visible.apply(entity);
+	}
+
+	/**
+	 * @return The query restriction, or {@code null} if every entity is visible
+	 */
+	public VisibilityQuery<E> getVisibilityQuery()
+	{
+		return this.visibilityQuery;
 	}
 
 	/**

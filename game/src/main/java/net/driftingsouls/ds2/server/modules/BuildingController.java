@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.cargo.Cargo;
@@ -91,6 +93,7 @@ public class BuildingController extends Controller
 	public BuildingActionViewModel startAjaxAction(@UrlParam(name = "col") Base base, int field)
 	{
 		validiereBasisUndFeld(base, field);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 		Building building = getGebaeudeFuerFeld(base, field);
 
 		BuildingActionViewModel response = new BuildingActionViewModel();
@@ -135,6 +138,7 @@ public class BuildingController extends Controller
 	public RedirectViewResult startAction(@UrlParam(name = "col") Base base, int field) throws IOException
 	{
 		validiereBasisUndFeld(base, field);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 		Building building = getGebaeudeFuerFeld(base, field);
 
 		Writer echo = getResponse().getWriter();
@@ -173,6 +177,7 @@ public class BuildingController extends Controller
 	public BuildingActionViewModel shutdownAjaxAction(@UrlParam(name = "col") Base base, int field)
 	{
 		validiereBasisUndFeld(base, field);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 		Building building = getGebaeudeFuerFeld(base, field);
 
 		BuildingActionViewModel response = new BuildingActionViewModel();
@@ -210,6 +215,7 @@ public class BuildingController extends Controller
 	public RedirectViewResult shutdownAction(@UrlParam(name = "col") Base base, int field) throws IOException
 	{
 		validiereBasisUndFeld(base, field);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 		Building building = getGebaeudeFuerFeld(base, field);
 
 		Writer echo = getResponse().getWriter();
@@ -255,6 +261,7 @@ public class BuildingController extends Controller
 	@Action(ActionType.AJAX)
 	public DemoViewModel demoAjaxAction(@UrlParam(name="col") Base base, int field) {
 		validiereBasisUndFeld(base, field);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 		Building building = getGebaeudeFuerFeld(base, field);
 
 		DemoViewModel response = new DemoViewModel();
@@ -313,6 +320,7 @@ public class BuildingController extends Controller
 	@Action(ActionType.DEFAULT)
 	public void demoAction(@UrlParam(name="col") Base base, int field, String conf) throws IOException {
 		validiereBasisUndFeld(base, field);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 		Building building = getGebaeudeFuerFeld(base, field);
 
 		User user = (User)getUser();
@@ -391,6 +399,7 @@ public class BuildingController extends Controller
 	public AjaxViewModel ajaxAction(@UrlParam(name="col") Base base, int field)
 	{
 		validiereBasisUndFeld(base, field);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 		Building building = getGebaeudeFuerFeld(base, field);
 
 		AjaxViewModel json = new AjaxViewModel();
@@ -419,6 +428,7 @@ public class BuildingController extends Controller
 	public String defaultAction(@UrlParam(name = "col") Base base, int field)
 	{
 		validiereBasisUndFeld(base, field);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 		Building building = getGebaeudeFuerFeld(base, field);
 
 		User user = (User) getUser();

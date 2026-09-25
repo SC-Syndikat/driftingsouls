@@ -194,6 +194,9 @@ public class SensorsDefault implements SchiffPlugin {
 		ShipTypeData shiptype = caller.shiptype;
 		Ship ship = caller.ship;
 
+		// Kampagnen-Interaktionen der Schiffe im Sektor, Key "SHIP:<id>"
+		Map<String, String> campaignContacts = CampaignDialog.contactLinks(user, ship);
+
 		// Cache fuer Jaegerflotten. Key ist die Flotten-ID. Value die Liste der Schiffs-IDs der Flotte
 		Map<ShipFleet,List<Integer>> jaegerFleetCache = new HashMap<>();
 
@@ -559,6 +562,12 @@ public class SensorsDefault implements SchiffPlugin {
 					t.setVar("sships.action.communicate", aShip.getId());
 				}
 
+				// Kontakt im Rahmen einer Kampagne
+				if (campaignContacts.containsKey("SHIP:" + aShip.getId()))
+				{
+					t.setVar("sships.action.campaigncontact", campaignContacts.get("SHIP:" + aShip.getId()));
+				}
+
 				// Springen (Knossosportal)
 				if (!aShip.getJumpTarget().isEmpty())
 				{
@@ -850,9 +859,13 @@ public class SensorsDefault implements SchiffPlugin {
 			.setParameter("y", caller.ship.getY())
 			.getResultList();
 
+		// Kampagnen-Interaktionen der Basen im Sektor, Key "BASE:<id>"
+		Map<String, String> campaignContacts = CampaignDialog.contactLinks(user, caller.ship);
+
 		for (Base base: bases)
 		{
 			t.start_record();
+			t.setVar("base.campaigncontact", campaignContacts.getOrDefault("BASE:" + base.getId(), ""));
 			t.setVar("base.id", base.getId(),
 					"base.owner.id", base.getOwner().getId(),
 					"base.name", base.getName(),

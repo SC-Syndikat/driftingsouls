@@ -59,6 +59,11 @@ public class EditBases implements EntityEditor<Base>
 		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
 		if (restriction.applies())
 		{
+			// A game master only sees bases in campaign star systems
+			form.restrictVisible(base -> restriction.isSystemAllowed(base.getSystem()),
+					(builder, root) -> restriction.getSystems().isEmpty()
+							? builder.disjunction()
+							: root.get(Base_.system).in(restriction.getSystems()));
 			form.allowUpdate(base -> restriction.isAllowed(base.getSystem(), ownerId(base)));
 			form.validateUpdate((before, after) -> restriction.check(after.getSystem(), ownerId(after)));
 		}

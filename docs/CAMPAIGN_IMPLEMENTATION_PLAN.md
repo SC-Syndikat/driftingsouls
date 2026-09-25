@@ -679,25 +679,28 @@ Alle Plugins liegen in der Admin-Kategorie „Kampagne“. Ein gemeinsames klein
 
 ## 8. Offene Fragen
 
-Diese Punkte sind aufgekommen, während die Arbeit selbstständig lief. Sie sind vorläufig wie
-beschrieben entschieden und lassen sich leicht ändern.
+Beantwortet am 2026-09-25:
 
-1. **Erfolgschance für Spieler anzeigen?** Derzeit sieht der Spieler sie nicht. Soll „(Chance 60 %)“
-   an der Antwort stehen, vielleicht pro Option einstellbar?
-2. **Einstieg über die Sensorliste?** Derzeit gibt es einen eigenen Kasten „Kontakte“ in der
-   Schiffsansicht. Soll zusätzlich ein Link direkt am Schiff bzw. an der Basis in der Sensorliste
-   stehen? Das ist ein Eingriff in das große Legacy-Template `schiff.sensors.default.html`.
-3. **Listen in EditShip/EditBases filtern?** Der GM sieht dort alle Objekte, ändern kann er nur
-   Kampagnenobjekte. Reicht das, oder sollen die Listen gefiltert werden? Dafür braucht
-   `EditPlugin8` einen zusätzlichen Filter-Hook.
-4. **Masterlogin in der Vorbereitung:** Sie ist erlaubt, damit der GM NPC-Objekte vorbereiten kann.
-   Der Plan sah „nur während der laufenden Kampagne“ vor. Ist das so in Ordnung?
-5. **GIVE_CREDITS:** Wählbar ist „vom Konto des NPC“ (scheitert, wenn das Konto nicht reicht) oder „neu
-   geschaffen“. Standard ist das NPC-Konto. Passt das?
-6. **Tests, die noch fehlen:** eine DB-Szenario-Prüfung des `BattleTick` mit echten Schlachten und ein
-   Integrationstest für den Rollback einer fehlgeschlagenen Dialogauswahl. Der Mechanismus selbst ist
-   durch `DBUtilTest` abgedeckt. Auf dem Dev-System prüfen: Use Cases 7.1, 7.2, 8.1, 8.2 und P0.1
-   unter realer Nutzung.
-7. **Weitere Wege für Transfer oder Andocken:** Es sind nicht alle Einstiege nachweislich abgedeckt,
-   etwa Ajax-Varianten oder Basis-Transfers aus der Basisansicht. Nach dem ersten Spieltest gezielt
-   nachziehen.
+1. **Erfolgschance anzeigen?** *Entschieden: nein*, sonst wird es zu einfach. So ist es umgesetzt.
+2. **Einstieg über die Sensorliste?** *Entschieden: ja*, mit derselben Mechanik wie beim Handelsposten.
+   ✅ Schiffe und Basen mit Interaktionen tragen das Kontakt-Symbol („Mit … Kontakt aufnehmen“). Bei
+   genau einer Interaktion startet es sie direkt, bei mehreren öffnet es die Auswahl im Kasten
+   „Kontakte“. Der Kasten zeigt sonst nur noch die „Signale im System“ und das laufende Gespräch.
+3. **Listen in EditShip/EditBases filtern?** *Entschieden: ja.* ✅ `EditorForm8.restrictVisible(...)`
+   filtert Auswahlliste, Tabelle und Formular. Auch ein fremdes Objekt, das direkt per `entityId`
+   aufgerufen wird, erscheint nicht.
+4. **Masterlogin in der Vorbereitung:** noch offen, wird später angeschaut.
+5. **GIVE_CREDITS:** bleibt vorerst, wie es ist.
+6. **Fehlende Tests:** vorerst zurückgestellt.
+7. **Weitere Einstiege absichern:** *Entschieden: ja.* ✅ Der Guard prüft jetzt auch:
+   - Schiff: Alarmstufe (auch Ajax), Übergabe, Selbstzerstörung, Flottenbeitritt, Schilde und alle
+     Aktionen der Schiffsplugins außer dem Kampagnendialog;
+   - Flotte: Übergabe, Schilde, Batterien, Zusammenlegen, Alarm, Kampfbereitschaft, Nahrung, Crew,
+     Demontage, Reparatur, Bau;
+   - Crew- und Offizierstausch, Deuterium sammeln, Handel mit Handelsposten, GTU-Zwischenlager,
+     Kolonisieren, Schiffswerft;
+   - Basis: Gebäude (inklusive Anzeige und Ajax, weil Gebäude dort Aktionen ausführen), Bau, Kern
+     und die Aktionen der Seite `/base` (inklusive Scan);
+   - Aktionen in einer laufenden Schlacht;
+   - GTU: Die Dropzone und Ganymed-Transporte dürfen nicht in ein Kampagnensystem führen, das der
+     Spieler nicht betreten darf.

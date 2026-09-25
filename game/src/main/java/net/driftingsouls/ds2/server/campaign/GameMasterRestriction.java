@@ -56,6 +56,14 @@ public class GameMasterRestriction
 		return applies;
 	}
 
+	/**
+	 * @return The star systems a restricted game master may work in
+	 */
+	public Set<Integer> getSystems()
+	{
+		return systems;
+	}
+
 	public boolean isSystemAllowed(int starSystemId)
 	{
 		return !applies || systems.contains(starSystemId);

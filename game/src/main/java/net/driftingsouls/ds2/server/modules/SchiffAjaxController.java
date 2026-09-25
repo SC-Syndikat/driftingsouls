@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.entities.User;
@@ -82,6 +84,7 @@ public class SchiffAjaxController extends Controller
 	public ViewMessage alarmAction(Ship schiff, Alarmstufe alarm)
 	{
 		validiereSchiff(schiff);
+		new CampaignActionGuard().check((User) getUser(), schiff.getSystem(), CampaignAction.SHIP_ACTION);
 
 		User user = (User) getUser();
 		if (user.isNoob())

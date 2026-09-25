@@ -15,5 +15,14 @@ public enum CampaignAction
 	TRANSFER,
 	DOCK,
 	LAND,
-	BOARD
+	BOARD,
+	/** Any other change to a ship or fleet: alarm, shields, batteries, crew, repair, giving it away. */
+	SHIP_ACTION,
+	/** Any change to a base: buildings, core, feeding, name. */
+	BASE_ACTION,
+	/** Acting within a battle one is already in. */
+	BATTLE_ACTION,
+	COLONIZE,
+	/** Buying from or selling to a trading post, using a GTU depot. */
+	TRADE
 }

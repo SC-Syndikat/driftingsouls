@@ -589,6 +589,7 @@ public class AngriffController extends Controller
 		----------------------------------------------------------------*/
 
 		if( (ksaction.length() > 0) && actions.containsKey(ksaction) ) {
+			new CampaignActionGuard().check(user, battle.getSystem(), CampaignAction.BATTLE_ACTION);
 			try {
 				BasicKSAction actionobj = actions.get(ksaction).getDeclaredConstructor().newInstance();
 				actionobj.setController(this);

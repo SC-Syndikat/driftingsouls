@@ -1,6 +1,7 @@
 package net.driftingsouls.ds2.server.modules.schiffplugins;
 
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.campaign.interaction.DialogService;
 import net.driftingsouls.ds2.server.campaign.interaction.Interaction;
 import net.driftingsouls.ds2.server.entities.User;
@@ -11,18 +12,26 @@ import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.ships.Ship;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.commons.text.StringEscapeUtils.escapeHtml4;
 
 /**
- * Campaign dialogs in the ship view: the contacts in the sector and star system that offer an
- * interaction, and the dialog the player is in.
+ * Campaign dialogs in the ship view.
+ *
+ * <p>Ships and bases offering an interaction get a contact icon in the sensor list, as trading posts
+ * do ({@link #contactLinks}). This plugin shows what the icon leads to: the choice between several
+ * interactions of a contact, the dialog in progress, and the signals of the star system itself.
  */
 @Component
 public class CampaignDialog implements SchiffPlugin
 {
+	/** The id {@code SchiffController} registers this plugin under. */
+	public static final String PLUGIN_ID = "campaigndialog";
+
 	@Action(ActionType.DEFAULT)
 	public String action(Parameters caller, String op, int interaction, int session, int option)
 	{
@@ -54,7 +63,7 @@ public class CampaignDialog implements SchiffPlugin
 	}
 
 	@Action(ActionType.DEFAULT)
-	public void output(Parameters caller)
+	public void output(Parameters caller, String contact)
 	{
 		String pluginid = caller.pluginId;
 		Ship ship = caller.ship;
@@ -63,7 +72,22 @@ public class CampaignDialog implements SchiffPlugin
 		DialogService service = new DialogService(ContextMap.getContext().getEM());
 
 		Optional<DialogService.View> view = service.currentView(user, ship);
-		List<DialogService.Offer> offers = view.isPresent() ? List.of() : service.findOffers(user, ship);
+		String offers = "";
+		if (view.isEmpty())
+		{
+			// Without a dialog in progress: the contact the player picked in the sensor list, and the
+			// signals of the star system, which has no entry of its own there
+			List<DialogService.Offer> all = service.findOffers(user, ship);
+			StringBuilder html = new StringBuilder();
+			for (DialogService.Offer offer : all)
+			{
+				if (offer.type == ObjectType.STAR_SYSTEM || (offer.type + ":" + offer.objectId).equals(contact))
+				{
+					appendOffer(html, ship, offer);
+				}
+			}
+			offers = html.toString();
+		}
 		if (view.isEmpty() && offers.isEmpty())
 		{
 			// The plugin list shares one output variable; leave nothing behind for the next plugin
@@ -75,7 +99,7 @@ public class CampaignDialog implements SchiffPlugin
 		t.setVar("global.pluginid", pluginid,
 				"ship.id", ship.getId(),
 				"campaigndialog.active", view.isPresent(),
-				"campaigndialog.offers", offersHtml(pluginid, ship, offers));
+				"campaigndialog.offers", offers);
 
 		t.setBlock("_PLUGIN_" + pluginid, "campaigndialog.option.listitem", "campaigndialog.option.list");
 		if (view.isPresent())
@@ -98,23 +122,43 @@ public class CampaignDialog implements SchiffPlugin
 		t.parse(caller.target, "_PLUGIN_" + pluginid);
 	}
 
-	private static String offersHtml(String pluginid, Ship ship, List<DialogService.Offer> offers)
+	/**
+	 * Links for the contact icon in the sensor list, keyed {@code SHIP:<id>} or {@code BASE:<id>}. A
+	 * contact with one interaction starts it directly; with several the link opens the choice.
+	 */
+	public static Map<String, String> contactLinks(User user, Ship ship)
 	{
-		StringBuilder html = new StringBuilder();
-		for (DialogService.Offer offer : offers)
+		Map<String, String> links = new HashMap<>();
+		for (DialogService.Offer offer : new DialogService(ContextMap.getContext().getEM()).findOffers(user, ship))
 		{
-			html.append("<b>").append(escapeHtml4(offer.name)).append("</b> <span class=\"smallfont\">(")
-					.append(escapeHtml4(offer.type.getLabel())).append(")</span>: ");
-			for (Interaction interaction : offer.interactions)
+			if (offer.type == ObjectType.STAR_SYSTEM)
 			{
-				html.append("<a class=\"forschinfo\" href=\"./ds?module=schiff&amp;ship=").append(ship.getId())
-						.append("&amp;action=plugin&amp;plugin=").append(pluginid)
-						.append("&amp;").append(pluginid).append("_ops[op]=start")
-						.append("&amp;").append(pluginid).append("_ops[interaction]=").append(interaction.id)
-						.append("\">").append(escapeHtml4(interaction.label)).append("</a> ");
+				continue;
 			}
-			html.append("<br />");
+			String key = offer.type + ":" + offer.objectId;
+			String url = offer.interactions.size() == 1
+					? startUrl(ship, offer.interactions.get(0))
+					: "./ds?module=schiff&amp;ship=" + ship.getId() + "&amp;" + PLUGIN_ID + "_ops[contact]=" + key;
+			links.put(key, url);
 		}
-		return html.toString();
+		return links;
+	}
+
+	private static void appendOffer(StringBuilder html, Ship ship, DialogService.Offer offer)
+	{
+		html.append("<b>").append(escapeHtml4(offer.name)).append("</b> <span class=\"smallfont\">(")
+				.append(escapeHtml4(offer.type.getLabel())).append(")</span>: ");
+		for (Interaction interaction : offer.interactions)
+		{
+			html.append("<a class=\"forschinfo\" href=\"").append(startUrl(ship, interaction)).append("\">")
+					.append(escapeHtml4(interaction.label)).append("</a> ");
+		}
+		html.append("<br />");
+	}
+
+	private static String startUrl(Ship ship, Interaction interaction)
+	{
+		return "./ds?module=schiff&amp;ship=" + ship.getId() + "&amp;action=plugin&amp;plugin=" + PLUGIN_ID
+				+ "&amp;" + PLUGIN_ID + "_ops[op]=start&amp;" + PLUGIN_ID + "_ops[interaction]=" + interaction.id;
 	}
 }

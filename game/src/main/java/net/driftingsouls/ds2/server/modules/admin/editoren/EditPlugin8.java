@@ -72,7 +72,7 @@ public class EditPlugin8<T> implements AdminPlugin
 			try
 			{
 				@SuppressWarnings("unchecked") T entity = (T) db.get(this.baseClass, toEntityId(this.baseClass, entityId));
-				if ( entity != null && form.isUpdateAllowed(entity) && isUpdatePossible(entity))
+				if ( entity != null && form.isVisible(entity) && form.isUpdateAllowed(entity) && isUpdatePossible(entity))
 				{
 					db.evict(entity);
 					@SuppressWarnings("unchecked") T updatedEntity = (T) db.get(this.baseClass, toEntityId(this.baseClass, entityId));
@@ -124,7 +124,7 @@ public class EditPlugin8<T> implements AdminPlugin
 		if (entityId != null && !entityId.isEmpty())
 		{
 			@SuppressWarnings("unchecked") T entity = (T) db.get(baseClass, toEntityId(this.baseClass, entityId));
-			if (entity == null)
+			if (entity == null || !form.isVisible(entity))
 			{
 				return;
 			}
@@ -294,7 +294,10 @@ public class EditPlugin8<T> implements AdminPlugin
 		this.entityEditor.configureFor(form);
 
 		EntitySelectionViewModel model = new EntitySelectionViewModel();
-		Long count = db.createQuery("SELECT COUNT(e) FROM " + baseClass.getName() + " e", Long.class).getSingleResult();
+		List<T> visibleEntities = form.getVisibilityQuery() != null ? findVisible(form) : null;
+		Long count = visibleEntities != null
+				? Long.valueOf(visibleEntities.size())
+				: db.createQuery("SELECT COUNT(e) FROM " + baseClass.getName() + " e", Long.class).getSingleResult();
 		if (count != null) {
 			model.allowSelection = true;
             String currentIdStr = ContextMap.getContext().getRequest().getParameter("entityId");
@@ -302,7 +305,7 @@ public class EditPlugin8<T> implements AdminPlugin
 
                 Map<Object, Object> options = new HashMap<>();
 
-				List<T> entities = db.createQuery("FROM " + baseClass.getName(), baseClass).getResultList();
+				List<T> entities = visibleEntities != null ? visibleEntities : db.createQuery("FROM " + baseClass.getName(), baseClass).getResultList();
 				options.putAll(entities.stream().collect(Collectors.toMap(e -> db.getEntityManagerFactory().getPersistenceUnitUtil().getIdentifier(e),
 						(T v) -> new ObjectLabelGenerator().generateFor(null, v))));
 				if (isAddDisplayed()) {
@@ -324,7 +327,10 @@ public class EditPlugin8<T> implements AdminPlugin
 	private void outputEntitySelection(Session db, StringBuilder echo, EditorForm8<T> form) throws IOException
 	{
 		echo.append("<div class='gfxbox adminSelection' style='width:390px'>");
-		Long count = (Long)db.createCriteria(baseClass).setProjection(Projections.rowCount()).uniqueResult();
+		List<T> visibleEntities = form.getVisibilityQuery() != null ? findVisible(form) : null;
+		Long count = visibleEntities != null
+				? Long.valueOf(visibleEntities.size())
+				: (Long)db.createCriteria(baseClass).setProjection(Projections.rowCount()).uniqueResult();
 		if( count != null )
 		{
 			beginSelectionBox(echo, this.getPluginClass());
@@ -339,7 +345,7 @@ public class EditPlugin8<T> implements AdminPlugin
 			{
 				Map<Serializable,Object> options = new HashMap<>();
 
-				List<T> entities = Common.cast(db.createCriteria(baseClass).list());
+				List<T> entities = visibleEntities != null ? visibleEntities : Common.cast(db.createCriteria(baseClass).list());
 				options.putAll(entities.stream().collect(Collectors.toMap(db::getIdentifier, v -> new ObjectLabelGenerator().generateFor(null, v))));
 				if (isAddDisplayed())
 				{
@@ -603,8 +609,24 @@ public class EditPlugin8<T> implements AdminPlugin
 				LOG.warn("Konnte Suchkriterium nicht erzeugen", e);
 			}
 		}
+		if (form.getVisibilityQuery() != null)
+		{
+			predicates.add(form.getVisibilityQuery().apply(builder, entityRoot));
+		}
 		entityQuery.where(predicates.toArray(new Predicate[0]));
 		return entityQuery;
+	}
+
+	/**
+	 * @return The entities the form's visibility restriction lets through
+	 */
+	private List<T> findVisible(EditorForm8<T> form)
+	{
+		CriteriaBuilder builder = getEM().getCriteriaBuilder();
+		CriteriaQuery<T> query = builder.createQuery(baseClass);
+		Root<T> root = query.from(baseClass);
+		query.where(form.getVisibilityQuery().apply(builder, root));
+		return getEM().createQuery(query).getResultList();
 	}
 
 	protected void configureFor(@Nonnull EditorForm8<T> form)

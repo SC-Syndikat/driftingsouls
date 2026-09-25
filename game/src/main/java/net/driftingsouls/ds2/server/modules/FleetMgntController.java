@@ -467,6 +467,7 @@ public class FleetMgntController extends Controller
 	public Object newowner2Action(ShipFleet fleet, @UrlParam(name = "ownerid") User newowner)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		if (newowner != null)
 		{
@@ -497,6 +498,7 @@ public class FleetMgntController extends Controller
 	public Object newowner3Action(ShipFleet fleet, @UrlParam(name = "ownerid") User newowner)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		User user = (User) this.getUser();
 		org.hibernate.Session db = getDB();
@@ -544,6 +546,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult shupAction(ShipFleet fleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 
@@ -587,6 +590,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult dischargeBatteriesAction(ShipFleet fleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 
@@ -632,6 +636,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult chargeBatteriesAction(ShipFleet fleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 
@@ -786,6 +791,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult fleetcombineAction(ShipFleet fleet, @UrlParam(name = "fleetcombine") ShipFleet targetFleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		User user = (User) getUser();
 
@@ -816,6 +822,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult alarmAction(ShipFleet fleet, Alarmstufe alarm)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		fleet.setAlarm(alarm);
 
@@ -831,6 +838,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult schnelleKampfbereitschaftAction(ShipFleet fleet, boolean schnelleKampfbereitschaft)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		for(Ship ship : fleet.getShips())
 		{
@@ -869,6 +877,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult buildAction(ShipFleet fleet, int buildcount, String buildid)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		if (buildcount <= 0)
 		{
@@ -935,6 +944,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult fillFoodAction(ShipFleet fleet) {
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -969,6 +979,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult fillFoodFromAstiAction(ShipFleet fleet){
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 		StringBuilder message = new StringBuilder(100);
 
 		org.hibernate.Session db = getDB();
@@ -1228,6 +1239,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult getCrewAction(ShipFleet fleet, int crewinpercent)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -1279,6 +1291,7 @@ public class FleetMgntController extends Controller
 	public Object dismantleAction(ShipFleet fleet)
 	{
 		validiereGueltigeFlotteVorhanden(fleet);
+		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
 		List<WerftObject> shipyards = new ArrayList<>();
 
@@ -1356,6 +1369,7 @@ public class FleetMgntController extends Controller
     public Object repairAction(ShipFleet fleet)
     {
         validiereGueltigeFlotteVorhanden(fleet);
+        pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
 
         List<WerftObject> shipyards = new ArrayList<>();
 

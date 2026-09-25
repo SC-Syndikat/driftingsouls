@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
@@ -120,6 +122,7 @@ public class TradeController extends Controller
 	{
 		validiereSchiff(ship);
 		validiereHandelsposten(ship, tradepost);
+		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRADE);
 
 		ResourceList resourceList = tradepost.getCargo().getResourceList();
 		Cargo tradepostCargo = tradepost.getCargo();
@@ -230,6 +233,7 @@ public class TradeController extends Controller
 
 		validiereSchiff(ship);
 		validiereHandelsposten(ship, tradepost);
+		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRADE);
 
 		GtuWarenKurse kurse = ermittleWarenKurseFuerHandelsposten(db, ship, tradepost);
 

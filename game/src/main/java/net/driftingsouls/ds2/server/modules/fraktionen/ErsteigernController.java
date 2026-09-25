@@ -22,6 +22,8 @@ import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.bases.Base;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.campaign.CampaignMapRepository;
 import net.driftingsouls.ds2.server.cargo.*;
 import net.driftingsouls.ds2.server.comm.PM;
@@ -198,7 +200,13 @@ public class ErsteigernController extends Controller
 		User user = (User) getUser();
 
 		String message = null;
-		if (ermittleMoeglicheDropZones().contains(favsys))
+		Optional<String> campaignDenial = favsys == null ? Optional.empty()
+				: new CampaignActionGuard().denial(user, favsys.getID(), CampaignAction.ENTER_SYSTEM);
+		if (campaignDenial.isPresent())
+		{
+			message = campaignDenial.get();
+		}
+		else if (ermittleMoeglicheDropZones().contains(favsys))
 		{
 			user.setGtuDropZone(favsys.getID());
 			message = "Neue Lieferkoordinate gespeichert";
@@ -1049,6 +1057,14 @@ public class ErsteigernController extends Controller
 	@Action(ActionType.DEFAULT)
 	public Object shopOrderGanymedeSummaryAction(User faction, int sourcesystem, int ganymedeid, int targetsystem, int targetx, int targety, int transport)
 	{
+		// A transport must not lead into or out of a campaign star system the player may not act in
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial((User) getUser(), sourcesystem, targetsystem, null);
+		if (campaignDenial.isPresent())
+		{
+			addError(campaignDenial.get());
+			return new RedirectViewResult("default");
+		}
+
 		User user = (User) getUser();
 		org.hibernate.Session db = getDB();
 
@@ -1279,6 +1295,14 @@ public class ErsteigernController extends Controller
 	@Action(ActionType.DEFAULT)
 	public Object shopOrderGanymedeAction(User faction, int sourcesystem, int ganymedeid, int targetsystem, int targetx, int targety)
 	{
+		// A transport must not lead into or out of a campaign star system the player may not act in
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial((User) getUser(), sourcesystem, targetsystem, null);
+		if (campaignDenial.isPresent())
+		{
+			addError(campaignDenial.get());
+			return new RedirectViewResult("default");
+		}
+
 		User user = (User) getUser();
 		org.hibernate.Session db = getDB();
 
