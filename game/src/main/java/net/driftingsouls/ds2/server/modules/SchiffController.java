@@ -21,6 +21,7 @@ package net.driftingsouls.ds2.server.modules;
 import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.interaction.CampaignBattleNotes;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.cargo.Resources;
@@ -43,6 +44,7 @@ import net.driftingsouls.ds2.server.modules.schiffplugins.*;
 import net.driftingsouls.ds2.server.services.HandelspostenService;
 import net.driftingsouls.ds2.server.ships.*;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -398,7 +400,38 @@ public class SchiffController extends Controller
 			return t;
 		}
 
+		if( ship.getBattle() != null )
+		{
+			// A dialog answer started a battle: say what happened and lead there instead of refusing the ship view
+			TemplateEngine t = templateViewResultFactory.createFor(this);
+			t.setVar("ship.message", campaignBattleStart(ship, ergebnis));
+			return t;
+		}
+
 		return new RedirectViewResult("default").withMessage(ergebnis);
+	}
+
+	private String campaignBattleStart(Ship ship, String ergebnis)
+	{
+		User user = (User) getUser();
+		StringBuilder html = new StringBuilder("<div class='gfxbox' style='width:600px;font-size:14px;line-height:1.5'>");
+		List<CampaignBattleNotes.Note> notes = new CampaignBattleNotes().find(ship.getBattle().getId(), user.getId());
+		if( !notes.isEmpty() )
+		{
+			CampaignBattleNotes.Note note = notes.get(notes.size() - 1);
+			if( !note.reply.isEmpty() )
+			{
+				html.append("<b>").append(StringEscapeUtils.escapeHtml4(note.speaker)).append("</b>: ").append(Common._text(note.reply)).append("<br /><br />");
+			}
+		}
+		if( ergebnis != null && !ergebnis.isEmpty() )
+		{
+			html.append(ergebnis).append("<br />");
+		}
+		html.append("<a class='forschinfo' style='font-size:16px' href='")
+				.append(Common.buildUrl("default", "module", "angriff", "battle", ship.getBattle().getId(), "ship", ship.getId()))
+				.append("'>Zur Schlacht &raquo;</a></div>");
+		return html.toString();
 	}
 
 	/**

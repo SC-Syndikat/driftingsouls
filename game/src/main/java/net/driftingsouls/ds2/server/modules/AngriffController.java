@@ -50,6 +50,8 @@ import net.driftingsouls.ds2.server.units.UnitCargo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import net.driftingsouls.ds2.server.campaign.interaction.CampaignBattleNotes;
+import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
@@ -348,6 +350,20 @@ public class AngriffController extends Controller
 		t.parse(tag, "ship.info");
 		t.stop_record();
 		t.clear_record();
+	}
+
+	/**
+	 * Ein Kampagnendialog, der diese Schlacht ausgeloest hat: die Antwort des Spielers und die Reaktion des NPCs.
+	 */
+	private String campaignBattleNote(Battle battle, User user) {
+		StringBuilder html = new StringBuilder();
+		for( CampaignBattleNotes.Note note : new CampaignBattleNotes().find(battle.getId(), user.getId()) ) {
+			html.append("<span style=\"color:#aaaaaa\">Deine Antwort: &bdquo;").append(StringEscapeUtils.escapeHtml4(note.answer)).append("&ldquo;</span><br />");
+			if( !note.reply.isEmpty() ) {
+				html.append("<b>").append(StringEscapeUtils.escapeHtml4(note.speaker)).append("</b>: ").append(Common._text(note.reply)).append("<br />");
+			}
+		}
+		return html.toString();
 	}
 
 	private boolean showMenu(TemplateEngine t, Battle battle, StringBuilder action ) throws IOException {
@@ -752,6 +768,8 @@ public class AngriffController extends Controller
 			Menue
 
 		-----------------------------------------------------------*/
+
+		t.setVar("campaign.battlenote", campaignBattleNote(battle, user));
 
 		StringBuilder actionBuilder = new StringBuilder(ksaction);
 		if( !this.showMenu( t, battle, actionBuilder ) ) {

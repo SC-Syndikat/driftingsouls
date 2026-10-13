@@ -137,7 +137,7 @@ public class DialogServiceTest extends DBSingleTransactionTest
 		DialogService.View first = service.currentView(player, playerShip).orElseThrow();
 		assertTrue(first.options.stream().anyMatch(o -> o.id == compliment));
 		assertEquals("Der Spieler erfährt, was die Aktionen bewirkt haben",
-				List.of("Vertrauen von " + npc.getPlainname() + " +1"), service.choose(player, playerShip, first.sessionId, compliment));
+				List.of("Das Vertrauen von " + npc.getPlainname() + " in dich wurde gestärkt."), service.choose(player, playerShip, first.sessionId, compliment));
 
 		DialogService.View again = service.currentView(player, playerShip).orElseThrow();
 		assertTrue("Die Antwort ist bereits gewählt", again.options.stream().noneMatch(o -> o.id == compliment));

@@ -764,6 +764,14 @@ Beantwortet am 2026-09-25:
    markierte Antwort kann jeder Spieler je Kampagne nur einmal wählen; danach ist sie versteckt bzw.
    ausgegraut. Zurückgerollte Versuche zählen nicht.
 10. **Spieler sieht, was die Aktionen bewirkt haben.** ✅ Nach einer Antwort erscheinen die sichtbaren
-    Folgen (z.B. „Abgegeben: 10× Nahrung“, „Erhalten: 3.000 RE“, „Vertrauen von … +10“, „Erhalten:
-    1× Datendisk“, Beziehung, Schlacht). Variablen, Verstärkungen, Sprungpunkte, Interaktionen und
+    Folgen (z.B. „Abgegeben: 10× Nahrung“, „Erhalten: 3.000 RE“, „Das Vertrauen von … wurde
+    gestärkt.“ – Vertrauen ist interne Währung, der Wert bleibt verborgen –, „Erhalten: 1× Datendisk“,
+    Beziehung, Schlacht). Variablen, Verstärkungen, Sprungpunkte, Interaktionen und
     PMs an den GM bleiben verborgen (`DialogAction.playerMessage`).
+11. **Schlacht aus einem Dialog.** ✅ Startet eine Antwort eine Schlacht, zeigt die folgende Seite statt
+    der Fehlermeldung „Das Schiff ist in einen Kampf verwickelt“ die Reaktion des NPCs, die Folgen
+    und den Link „Zur Schlacht“. Der Schlachtbildschirm zeigt Antwort und Reaktion oben, solange die
+    Schlacht läuft (Migration V050, `campaign_battle_note`).
+12. **GM-Navigation bleibt erhalten.** ✅ Wer als Admin über das GM-Menü ein Werkzeug öffnet, behält
+    das GM-Menü auch bei Folgeklicks (Sitzungs-Flag); „Zum Admin-Menü“ oder die Admin-Startseite
+    wechseln zurück.

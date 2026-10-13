@@ -241,6 +241,7 @@ public class DialogService
 		}
 
 		DialogContext context = context(user, ship, interaction, campaign, user);
+		Integer battleBefore = ship.getBattle() != null ? ship.getBattle().getId() : null;
 		DialogEngine.Result result;
 		try
 		{
@@ -258,6 +259,14 @@ public class DialogService
 
 		interactions.log(new InteractionLogEntry(campaign.getId(), campaign.getTickCount(), user.getId(), ship.getId(), interaction.id, node.id,
 				option.id, result.chance, result.success, String.join("; ", result.actions), Common.time()));
+
+		if (ship.getBattle() != null && !Integer.valueOf(ship.getBattle().getId()).equals(battleBefore))
+		{
+			// The battle screen tells the player why they are there
+			Optional<DialogModel.Node> reply = result.nextNodeId == null ? Optional.empty() : dialogs.findNode(result.nextNodeId);
+			new CampaignBattleNotes().add(ship.getBattle().getId(), user.getId(), reply.map(n -> n.speakerName).orElse(node.speakerName),
+					option.text, reply.map(n -> n.text).orElse(""));
+		}
 
 		if (result.nextNodeId == null)
 		{

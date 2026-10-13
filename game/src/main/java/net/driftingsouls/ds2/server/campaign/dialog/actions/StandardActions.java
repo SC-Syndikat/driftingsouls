@@ -190,8 +190,13 @@ public final class StandardActions
 		@Override
 		public String playerMessage(DialogContext context, Params params)
 		{
+			// Trust is an internal currency: the player learns the direction, never the amount
 			int delta = params.getInt("delta");
-			return "Vertrauen von " + context.npc.getPlainname() + " " + (delta >= 0 ? "+" : "") + delta;
+			if (delta == 0)
+			{
+				return null;
+			}
+			return "Das Vertrauen von " + context.npc.getPlainname() + " in dich wurde " + (delta > 0 ? "gestärkt." : "geschwächt.");
 		}
 	}
 

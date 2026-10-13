@@ -28,6 +28,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.Controller;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
 import net.driftingsouls.ds2.server.modules.admin.AdminMenuEntry;
 import net.driftingsouls.ds2.server.modules.admin.AdminPlugin;
+import net.driftingsouls.ds2.server.framework.BasicUser;
 import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EditPlugin8;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EntityEditor;
@@ -305,10 +306,11 @@ public class AdminController extends Controller
 	{
 		Writer echo = getContext().getResponse().getWriter();
 		echo.append("<div id='admin'>\n");
-		if (GameMasterMenu.appliesTo(getContext().getActiveUser()))
+		BasicUser activeUser = getContext().getActiveUser();
+		if (GameMasterMenu.shownFor(activeUser, getContext().getRequest(), namedplugin))
 		{
-			// A game master does not see the admin menu, only his own
-			GameMasterMenu.render(echo, namedplugin);
+			// A game master does not see the admin menu, only his own; an admin coming from it keeps it
+			GameMasterMenu.render(echo, namedplugin, activeUser.isAdmin());
 			echo.append("<br /><div id=\"adminplugin\">\n");
 			try
 			{

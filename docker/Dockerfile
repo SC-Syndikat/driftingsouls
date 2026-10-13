@@ -6,9 +6,9 @@ FROM tomcat:9-jdk11
 # rewrite WEB-INF/cfg/config.xml before Tomcat ever reads it.
 RUN rm -rf /usr/local/tomcat/webapps/ROOT
 
-# The game's links carry plugin parameters like "cargo_ops[act]" unencoded, which Tomcat rejects
-# with 400 unless brackets are allowed in the query string.
-RUN sed -i 's|<Connector port="8080" protocol="HTTP/1.1"|<Connector port="8080" protocol="HTTP/1.1" relaxedQueryChars="[]"|' /usr/local/tomcat/conf/server.xml
+# The game's links carry characters like "cargo_ops[act]" or "shiplist=1|2" unencoded, which Tomcat rejects
+# with 400 unless they are allowed in the query string.
+RUN sed -i 's#<Connector port="8080" protocol="HTTP/1.1"#<Connector port="8080" protocol="HTTP/1.1" relaxedQueryChars="[]|{}^"#' /usr/local/tomcat/conf/server.xml
 COPY game/target/*.war /tmp/app.war
 RUN mkdir -p /usr/local/tomcat/webapps/ROOT && \
     cd /usr/local/tomcat/webapps/ROOT && \
