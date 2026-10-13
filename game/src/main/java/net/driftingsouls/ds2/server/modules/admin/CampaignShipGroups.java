@@ -33,6 +33,19 @@ public class CampaignShipGroups implements AdminPlugin
 	@Override
 	public void output(StringBuilder echo)
 	{
+		CampaignAdminHtml.begin(echo);
+		try
+		{
+			render(echo);
+		}
+		finally
+		{
+			CampaignAdminHtml.end(echo);
+		}
+	}
+
+	private void render(StringBuilder echo)
+	{
 		Context context = ContextMap.getContext();
 		EntityManager em = context.getEM();
 		Request request = context.getRequest();

@@ -1,14 +1,18 @@
 package net.driftingsouls.ds2.server.modules.schiffplugins;
 
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
 import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.campaign.interaction.DialogService;
 import net.driftingsouls.ds2.server.campaign.interaction.Interaction;
+import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.BasicUser;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.Action;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
+import net.driftingsouls.ds2.server.modules.admin.CampaignInteractions;
 import net.driftingsouls.ds2.server.ships.Ship;
 import org.springframework.stereotype.Component;
 
@@ -88,7 +92,8 @@ public class CampaignDialog implements SchiffPlugin
 			}
 			offers = html.toString();
 		}
-		if (view.isEmpty() && offers.isEmpty())
+		String gamemaster = gamemasterHtml(ship);
+		if (view.isEmpty() && offers.isEmpty() && gamemaster.isEmpty())
 		{
 			// The plugin list shares one output variable; leave nothing behind for the next plugin
 			t.setVar(caller.target, "");
@@ -99,7 +104,8 @@ public class CampaignDialog implements SchiffPlugin
 		t.setVar("global.pluginid", pluginid,
 				"ship.id", ship.getId(),
 				"campaigndialog.active", view.isPresent(),
-				"campaigndialog.offers", offers);
+				"campaigndialog.offers", offers,
+				"campaigndialog.gamemaster", gamemaster);
 
 		t.setBlock("_PLUGIN_" + pluginid, "campaigndialog.option.listitem", "campaigndialog.option.list");
 		if (view.isPresent())
@@ -142,6 +148,37 @@ public class CampaignDialog implements SchiffPlugin
 			links.put(key, url);
 		}
 		return links;
+	}
+
+	/**
+	 * For a game master or admin: the interactions of the ship shown, and a way to add one. Empty for
+	 * everyone else.
+	 */
+	private static String gamemasterHtml(Ship ship)
+	{
+		BasicUser viewer = ContextMap.getContext().getActiveUser();
+		boolean gamemaster = viewer != null && (viewer.isAdmin()
+				|| GameMasterPermissionResolver.isGameMaster(viewer)
+				|| GameMasterPermissionResolver.isGameMaster(viewer.getAttachedUser()));
+		if (!gamemaster)
+		{
+			return "";
+		}
+		StringBuilder html = new StringBuilder("<span class=\"smallfont\">GameMaster – Interaktionen dieses Schiffs: ");
+		List<Interaction> interactions = new InteractionRepository().findFor(ObjectType.SHIP, ship.getId());
+		if (interactions.isEmpty())
+		{
+			html.append("keine");
+		}
+		for (Interaction interaction : interactions)
+		{
+			html.append("<a class=\"forschinfo\" href=\"./ds?module=admin&amp;namedplugin=").append(CampaignInteractions.class.getName())
+					.append("&amp;interaction=").append(interaction.id).append("\">").append(escapeHtml4(interaction.label)).append("</a>")
+					.append(interaction.active ? "" : " (inaktiv)").append(", ");
+		}
+		html.append(" <a class=\"forschinfo\" href=\"").append(CampaignInteractions.objectUrl(ObjectType.SHIP, ship.getId()))
+				.append("\">+ Interaktion hinzufügen / verwalten</a></span><br /><br />");
+		return html.toString();
 	}
 
 	private static void appendOffer(StringBuilder html, Ship ship, DialogService.Offer offer)

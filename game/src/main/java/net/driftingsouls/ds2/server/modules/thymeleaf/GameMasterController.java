@@ -10,6 +10,7 @@ import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.CampaignUserView;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.modules.admin.CampaignParticipants;
+import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
 import net.driftingsouls.ds2.server.framework.Context;
@@ -315,6 +316,7 @@ public class GameMasterController implements DSController {
       ctx.setVariable("preparing", preparing);
       ctx.setVariable("campaignName", campaign.map(Campaign::getName).orElse(null));
       ctx.setVariable("participantsPlugin", "./ds?module=admin&namedplugin=" + CampaignParticipants.class.getName());
+      ctx.setVariable("gmMenu", GameMasterMenu.ENTRIES);
       ctx.setVariable("show", show.name());
     }
 

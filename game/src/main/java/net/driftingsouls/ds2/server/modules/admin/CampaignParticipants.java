@@ -33,6 +33,19 @@ public class CampaignParticipants implements AdminPlugin
 	@Override
 	public void output(StringBuilder echo)
 	{
+		CampaignAdminHtml.begin(echo);
+		try
+		{
+			render(echo);
+		}
+		finally
+		{
+			CampaignAdminHtml.end(echo);
+		}
+	}
+
+	private void render(StringBuilder echo)
+	{
 		Context context = ContextMap.getContext();
 		EntityManager em = context.getEM();
 		User actor = (User) context.getActiveUser();

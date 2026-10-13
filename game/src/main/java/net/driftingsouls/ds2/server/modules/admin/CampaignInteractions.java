@@ -4,6 +4,7 @@ import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogEngine;
@@ -13,6 +14,7 @@ import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.campaign.interaction.DialogService;
 import net.driftingsouls.ds2.server.campaign.interaction.Interaction;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
+import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
@@ -22,9 +24,12 @@ import net.driftingsouls.ds2.server.ships.Ship;
 
 import javax.persistence.EntityManager;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
@@ -39,6 +44,19 @@ public class CampaignInteractions implements AdminPlugin
 
 	@Override
 	public void output(StringBuilder echo)
+	{
+		CampaignAdminHtml.begin(echo);
+		try
+		{
+			render(echo);
+		}
+		finally
+		{
+			CampaignAdminHtml.end(echo);
+		}
+	}
+
+	private void render(StringBuilder echo)
 	{
 		Context context = ContextMap.getContext();
 		EntityManager em = context.getEM();
@@ -95,9 +113,11 @@ public class CampaignInteractions implements AdminPlugin
 		else if (interactionId != 0 || "new".equals(request.getParameterString("show")))
 		{
 			Optional<Interaction> interaction = interactionId != 0 ? repository.find(interactionId) : Optional.empty();
-			form(echo, interaction.orElse(null), nodes);
+			form(echo, em, request, interaction.orElse(null), nodes);
 		}
-		list(echo, em, nodes);
+		// From a ship or base: only its interactions, and "new" preset to it
+		ObjectType filterType = request.getParameterString("objecttype").isEmpty() ? null : parseType(request.getParameterString("objecttype"));
+		list(echo, em, nodes, filterType, request.getParameterInt("objectid"));
 	}
 
 	private Interaction find(int id)
@@ -113,7 +133,11 @@ public class CampaignInteractions implements AdminPlugin
 			throw new CampaignException("Die Interaktion braucht eine Beschriftung.");
 		}
 		ObjectType type = ObjectType.valueOf(request.getParameterString("objecttype"));
-		int objectId = request.getParameterInt("objectid");
+		int objectId = request.getParameterInt("objectid_" + type.name());
+		if (objectId == 0)
+		{
+			objectId = request.getParameterInt("objectid");
+		}
 		int npcId = request.getParameterInt("npc");
 		int startNode = request.getParameterInt("startnode");
 		if (new DialogRepository().findNode(startNode).isEmpty())
@@ -192,8 +216,12 @@ public class CampaignInteractions implements AdminPlugin
 				.collect(Collectors.toSet());
 	}
 
-	private void form(StringBuilder echo, Interaction interaction, List<DialogModel.Node> nodes)
+	private void form(StringBuilder echo, EntityManager em, Request request, Interaction interaction, List<DialogModel.Node> nodes)
 	{
+		// Preset from a link, e.g. "add interaction" in the ship view
+		ObjectType presetType = interaction != null ? interaction.objectType : parseType(request.getParameterString("objecttype"));
+		int presetId = interaction != null ? interaction.objectId : request.getParameterInt("objectid");
+
 		echo.append("<div class='gfxbox' style='width:900px'><h3>")
 				.append(interaction == null ? "Neue Interaktion" : "Interaktion " + interaction.id).append("</h3>");
 		echo.append("<form action='./ds' method='post'>");
@@ -201,14 +229,15 @@ public class CampaignInteractions implements AdminPlugin
 		hidden(echo, "interaction", interaction == null ? 0 : interaction.id);
 		echo.append("Beschriftung (was der Spieler anklickt): <input type='text' name='label' size='40' value='")
 				.append(interaction == null ? "" : esc(interaction.label)).append("' /><br />");
-		echo.append("Objekt: <select name='objecttype'>");
+		echo.append("Objekt: <select name='objecttype' id='cpObjectType'>");
 		for (ObjectType type : ObjectType.values())
 		{
-			echo.append("<option value='").append(type.name()).append("'").append(interaction != null && interaction.objectType == type ? " selected='selected'" : "")
+			echo.append("<option value='").append(type.name()).append("'").append(presetType == type ? " selected='selected'" : "")
 					.append(">").append(esc(type.getLabel())).append("</option>");
 		}
-		echo.append("</select> ID (Schiff, Basis oder System): <input type='text' name='objectid' size='8' value='")
-				.append(interaction == null ? "" : interaction.objectId).append("' /><br />");
+		echo.append("</select> ");
+		objectSelects(echo, em, presetType, presetId);
+		echo.append("<br />");
 		echo.append("Startknoten: <select name='startnode'>");
 		for (DialogModel.Node node : nodes)
 		{
@@ -216,7 +245,8 @@ public class CampaignInteractions implements AdminPlugin
 					.append(">").append(node.id).append(": ").append(esc(node.title)).append("</option>");
 		}
 		echo.append("</select> ");
-		echo.append("Sprechender NPC (User-ID): <input type='text' name='npc' size='6' value='").append(interaction == null ? "" : interaction.npcUserId).append("' /><br />");
+		npcSelect(echo, em, interaction == null ? 0 : interaction.npcUserId);
+		echo.append("<br />");
 		echo.append("<label><input type='checkbox' name='active' value='1'").append(interaction == null || interaction.active ? " checked='checked'" : "")
 				.append(" /> aktiv</label> ");
 		echo.append("Max. Nutzungen pro Spieler (leer = beliebig): <input type='text' name='maxuses' size='4' value='")
@@ -235,19 +265,129 @@ public class CampaignInteractions implements AdminPlugin
 		echo.append("<input type='submit' value='Speichern' /></form></div><br />");
 	}
 
+	private static ObjectType parseType(String value)
+	{
+		try
+		{
+			return ObjectType.valueOf(value);
+		}
+		catch (IllegalArgumentException e)
+		{
+			return ObjectType.SHIP;
+		}
+	}
+
+	/**
+	 * One select per object type, listing only objects in campaign star systems with name and
+	 * position; a small script shows the one of the chosen type. Without an open campaign, a plain id
+	 * field remains.
+	 */
+	private static void objectSelects(StringBuilder echo, EntityManager em, ObjectType presetType, int presetId)
+	{
+		Set<Integer> systems = new CampaignMapService(em).getOpenCampaignSystemIds();
+		if (systems.isEmpty())
+		{
+			echo.append("ID (Schiff, Basis oder System): <input type='text' name='objectid' size='8' value='").append(presetId == 0 ? "" : presetId).append("' />");
+			echo.append(" <span class='campaign-hint'>Ohne Kampagnensysteme gibt es keine Auswahlliste.</span>");
+			return;
+		}
+
+		Map<Integer, String> ships = new LinkedHashMap<>();
+		for (Ship ship : em.createQuery("from Ship where system in (:systems) and id > 0 order by system, x, y, id", Ship.class)
+				.setParameter("systems", systems).getResultList())
+		{
+			ships.put(ship.getId(), Common._plaintitle(ship.getName()) + " (" + ship.getId() + ") – " + ship.getLocation().displayCoordinates(false)
+					+ " – " + Common._plaintitle(ship.getOwner().getName()));
+		}
+		Map<Integer, String> bases = new LinkedHashMap<>();
+		for (Base base : em.createQuery("from Base where system in (:systems) order by system, x, y, id", Base.class)
+				.setParameter("systems", systems).getResultList())
+		{
+			bases.put(base.getId(), Common._plaintitle(base.getName()) + " (" + base.getId() + ") – " + base.getLocation().displayCoordinates(false)
+					+ " – " + Common._plaintitle(base.getOwner().getName()));
+		}
+		Map<Integer, String> starSystems = new LinkedHashMap<>();
+		for (StarSystem system : em.createQuery("from StarSystem where id in (:systems) order by id", StarSystem.class)
+				.setParameter("systems", systems).getResultList())
+		{
+			starSystems.put(system.getID(), system.getName() + " (" + system.getID() + ")");
+		}
+
+		objectSelect(echo, ObjectType.SHIP, ships, presetType, presetId);
+		objectSelect(echo, ObjectType.BASE, bases, presetType, presetId);
+		objectSelect(echo, ObjectType.STAR_SYSTEM, starSystems, presetType, presetId);
+		echo.append("<script type='text/javascript'>(function(){")
+				.append("var type=document.getElementById('cpObjectType');")
+				.append("function show(){['SHIP','BASE','STAR_SYSTEM'].forEach(function(t){document.getElementById('cpObject_'+t).style.display=(type.value===t?'':'none');});}")
+				.append("type.onchange=show;show();})();</script>");
+	}
+
+	private static void objectSelect(StringBuilder echo, ObjectType type, Map<Integer, String> options, ObjectType presetType, int presetId)
+	{
+		echo.append("<select name='objectid_").append(type.name()).append("' id='cpObject_").append(type.name()).append("'>");
+		if (options.isEmpty())
+		{
+			echo.append("<option value='0'>– keine in Kampagnensystemen –</option>");
+		}
+		options.forEach((id, label) -> echo.append("<option value='").append(id).append("'")
+				.append(type == presetType && id == presetId ? " selected='selected'" : "").append(">").append(esc(label)).append("</option>"));
+		echo.append("</select>");
+	}
+
+	/**
+	 * The NPC accounts taking part in the open campaign; the stored NPC stays selectable even if it
+	 * no longer takes part.
+	 */
+	private static void npcSelect(StringBuilder echo, EntityManager em, int selected)
+	{
+		Set<Integer> ids = new TreeSet<>();
+		CampaignService campaigns = new CampaignService(em);
+		campaigns.findOpenCampaign().ifPresent(c -> campaigns.getParticipantIds(c).stream().filter(id -> id < 0).forEach(ids::add));
+		if (selected != 0)
+		{
+			ids.add(selected);
+		}
+		echo.append("Sprechender NPC: <select name='npc'>");
+		if (ids.isEmpty())
+		{
+			echo.append("<option value='0'>– kein NPC nimmt an der Kampagne teil –</option>");
+		}
+		for (int id : ids)
+		{
+			User npc = em.find(User.class, id);
+			echo.append("<option value='").append(id).append("'").append(id == selected ? " selected='selected'" : "").append(">")
+					.append(npc == null ? "?" : esc(Common._plaintitle(npc.getName()))).append(" (").append(id).append(")</option>");
+		}
+		echo.append("</select>");
+	}
+
 	private static String join(Set<Integer> ids)
 	{
 		return ids.stream().sorted().map(String::valueOf).collect(Collectors.joining(", "));
 	}
 
-	private void list(StringBuilder echo, EntityManager em, List<DialogModel.Node> nodes)
+	/**
+	 * @return The link to the interactions of an object, with "new" preset to it
+	 */
+	public static String objectUrl(ObjectType type, int objectId)
+	{
+		return pluginUrl(CampaignInteractions.class) + "&amp;objecttype=" + type.name() + "&amp;objectid=" + objectId;
+	}
+
+	private void list(StringBuilder echo, EntityManager em, List<DialogModel.Node> nodes, ObjectType filterType, int filterId)
 	{
 		echo.append("<div class='gfxbox' style='width:900px'><h3>Interaktionen</h3>");
-		echo.append("<a class='forschinfo' href='").append(pluginUrl(getClass())).append("&amp;show=new'>+ neue Interaktion</a><br /><br />");
+		String preset = filterType == null ? "" : "&amp;objecttype=" + filterType.name() + "&amp;objectid=" + filterId;
+		if (filterType != null)
+		{
+			echo.append("<p>Nur Interaktionen von ").append(esc(filterType.getLabel())).append(" ").append(filterId)
+					.append(". <a class='forschinfo' href='").append(pluginUrl(getClass())).append("'>alle anzeigen</a></p>");
+		}
+		echo.append("<a class='forschinfo' href='").append(pluginUrl(getClass())).append("&amp;show=new").append(preset).append("'>+ neue Interaktion</a><br /><br />");
 		echo.append("<table class='noBorderX' cellpadding='3'><tr><td class='noBorderX'>ID</td><td class='noBorderX'>Beschriftung</td>")
 				.append("<td class='noBorderX'>Objekt</td><td class='noBorderX'>Start</td><td class='noBorderX'>NPC</td><td class='noBorderX'>Limits</td>")
 				.append("<td class='noBorderX'>Zustand</td><td class='noBorderX'></td></tr>");
-		for (Interaction interaction : repository.findAll())
+		for (Interaction interaction : filterType == null ? repository.findAll() : repository.findFor(filterType, filterId))
 		{
 			User npc = em.find(User.class, interaction.npcUserId);
 			String startTitle = nodes.stream().filter(n -> n.id == interaction.startNodeId).map(n -> n.title).findFirst().orElse("?");

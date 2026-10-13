@@ -27,7 +27,11 @@
     <div class="gfxbox treemenu">
       <ul style="display: block;">
         <li th:if="${campaignName}" class="smallfont" th:text="${campaignName} + ${campaign ? ' (läuft)' : ' (in Vorbereitung)'}"></li>
-        <li><img src="data/interface/admin/editor.png"><a class="forschinfo" th:href="${participantsPlugin}" th:text="${campaignName == null ? 'Kampagne vorbereiten' : 'Teilnehmer bearbeiten'}">Kampagne vorbereiten</a></li>
+        <li><img src="data/interface/admin/editor.png"><span>Kampagne vorbereiten</span>
+          <ul style="display:block; margin-left:14px; line-height:1.6">
+            <li th:each="entry: ${gmMenu}"><a class="forschinfo" th:href="${entry.url}" th:text="${entry.label}">Teilnehmer</a></li>
+          </ul>
+        </li>
         <li><img src="data/interface/admin/editor.png"><a th:class="${preparing ? 'forschinfo' : 'error'}" th:href="${preparing ? './gamemaster?show=start': '#'}" >Kampagne starten</a></li>
         <li><img src="data/interface/admin/editor.png"><a th:class="${    campaign ? 'forschinfo' : 'error'}" th:href="${    campaign ? './gamemaster?show=tick' : '#'}" >Kampagnentick</a></li>
         <li><img src="data/interface/admin/editor.png"><a th:class="${    campaign ? 'forschinfo' : 'error'}" th:href="${    campaign ? './gamemaster?show=end'  : '#'}" >Kampagne beenden</a></li>

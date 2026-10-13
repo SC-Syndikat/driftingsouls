@@ -28,6 +28,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.Controller;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
 import net.driftingsouls.ds2.server.modules.admin.AdminMenuEntry;
 import net.driftingsouls.ds2.server.modules.admin.AdminPlugin;
+import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EditPlugin8;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EntityEditor;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EntitySelectionViewModel;
@@ -304,6 +305,25 @@ public class AdminController extends Controller
 	{
 		Writer echo = getContext().getResponse().getWriter();
 		echo.append("<div id='admin'>\n");
+		if (GameMasterMenu.appliesTo(getContext().getActiveUser()))
+		{
+			// A game master does not see the admin menu, only his own
+			GameMasterMenu.render(echo, namedplugin);
+			echo.append("<br /><div id=\"adminplugin\">\n");
+			try
+			{
+				if ((namedplugin.length() > 0) && (validPlugins.contains(namedplugin)))
+				{
+					echo.append(callNamedPlugin(namedplugin));
+				}
+			}
+			finally
+			{
+				echo.append("</div></div>");
+				echo.append("<script type='text/javascript'>$(document).ready(function() {Admin.initMenu();});</script>");
+			}
+			return;
+		}
 		echo.append("<div class='gfxbox treemenu'>\n");
 		echo.append("<ul>");
 		for (MenuCategory category : this.menu.values())

@@ -39,6 +39,25 @@ public class InteractionRepository
 		return withDb(db -> db.selectFrom(INTERACTION).where(INTERACTION.ID.eq(id)).fetchOptional().map(r -> toInteraction(db, r)));
 	}
 
+	/**
+	 * @return All interactions of the object, active or not
+	 */
+	public List<Interaction> findFor(ObjectType type, int objectId)
+	{
+		return withDb(db -> {
+			List<Interaction> result = new ArrayList<>();
+			for (InteractionRecord r : db.selectFrom(INTERACTION)
+					.where(INTERACTION.OBJECT_TYPE.eq(type.name()))
+					.and(INTERACTION.OBJECT_ID.eq(objectId))
+					.orderBy(INTERACTION.ID)
+					.fetch())
+			{
+				result.add(toInteraction(db, r));
+			}
+			return result;
+		});
+	}
+
 	public List<Interaction> findActiveFor(ObjectType type, int objectId)
 	{
 		return withDb(db -> {

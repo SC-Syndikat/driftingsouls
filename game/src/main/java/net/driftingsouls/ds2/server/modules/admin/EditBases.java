@@ -19,6 +19,7 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.AutoGTUAction;
 import net.driftingsouls.ds2.server.bases.Base;
@@ -68,6 +69,7 @@ public class EditBases implements EntityEditor<Base>
 			form.validateUpdate((before, after) -> restriction.check(after.getSystem(), ownerId(after)));
 		}
 
+		form.label("Kampagne", base -> "<a class='forschinfo' href='" + CampaignInteractions.objectUrl(ObjectType.BASE, base.getId()) + "'>Interaktionen</a>");
 		form.field("Name", String.class, Base::getName, Base::setName);
 		form.field("Besitzer", User.class, Base::getOwner, Base::setOwner).dbColumn(Base_.owner);
 		form.field("System", Integer.class, Base::getSystem, Base::setSystem).dbColumn(Base_.system);

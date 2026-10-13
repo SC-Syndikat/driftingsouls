@@ -22,6 +22,41 @@ final class CampaignAdminHtml
 		// static only
 	}
 
+	/**
+	 * Spacing for the campaign pages: the admin defaults put rows and form fields so close together
+	 * that the pages are hard to read.
+	 */
+	private static final String STYLE = "<style>"
+			+ ".campaign-admin { line-height: 1.6; }"
+			+ ".campaign-admin .gfxbox { padding: 12px 16px; margin-bottom: 16px; }"
+			+ ".campaign-admin h3 { margin: 0 0 10px 0; }"
+			+ ".campaign-admin h4 { margin: 16px 0 6px 0; }"
+			+ ".campaign-admin p { margin: 6px 0 10px 0; }"
+			+ ".campaign-admin table { border-collapse: separate; border-spacing: 0 2px; }"
+			+ ".campaign-admin td { padding: 4px 10px 4px 0; vertical-align: top; }"
+			+ ".campaign-admin tr:nth-child(even) td { background: rgba(255,255,255,0.03); }"
+			+ ".campaign-admin form { margin: 6px 0; }"
+			+ ".campaign-admin input[type=text], .campaign-admin select, .campaign-admin textarea { margin: 2px 6px 2px 0; padding: 2px 4px; }"
+			+ ".campaign-admin input[type=submit], .campaign-admin button { margin: 2px 4px 2px 0; padding: 2px 8px; }"
+			+ ".campaign-admin ul { margin: 6px 0 10px 0; padding-left: 20px; }"
+			+ ".campaign-admin li { margin: 4px 0; }"
+			+ ".campaign-admin .campaign-section { border: 1px solid #555; padding: 10px 12px; margin: 10px 0; }"
+			+ ".campaign-admin .campaign-hint { color: #aaaaaa; font-size: 90%; }"
+			+ "</style>";
+
+	/**
+	 * Opens a campaign page; pair with {@link #end}.
+	 */
+	static void begin(StringBuilder echo)
+	{
+		echo.append(STYLE).append("<div class='campaign-admin'>");
+	}
+
+	static void end(StringBuilder echo)
+	{
+		echo.append("</div>");
+	}
+
 	static String esc(Object value)
 	{
 		return value == null ? "" : escapeHtml4(value.toString());

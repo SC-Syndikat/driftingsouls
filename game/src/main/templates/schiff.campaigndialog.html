@@ -1,4 +1,5 @@
 <div class="gfxbox" style="width:95%">
+	{campaigndialog.gamemaster}
 	{if campaigndialog.active}
 	<table>
 		<tr>
@@ -23,7 +24,9 @@
 		</tr>
 	</table>
 	{else}
+	{if campaigndialog.offers}
 	Kontakte<br /><br />
 	{campaigndialog.offers}
+	{/endif}
 	{/endif}
 </div>

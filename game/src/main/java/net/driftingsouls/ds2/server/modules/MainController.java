@@ -19,6 +19,7 @@
 package net.driftingsouls.ds2.server.modules;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.entities.GuiHelpText;
 import net.driftingsouls.ds2.server.entities.User;
@@ -127,7 +128,8 @@ public class MainController extends Controller {
 
 		t.setVar(
 				"user.npc", user.hasFlag(UserFlag.ORDER_MENU),
-				"user.adminSichtbar", hasPermission(WellKnownAdminPermission.SICHTBAR),
+				// A game master reaches the campaign tools through his own page, not the admin menu
+				"user.adminSichtbar", hasPermission(WellKnownAdminPermission.SICHTBAR) && !GameMasterMenu.appliesTo(user),
 				"user.gamemaster", user.hasFlag(UserFlag.GAMEMASTER),
 				"user.spezial", user.hasFlag(UserFlag.ORDER_MENU) || hasPermission(WellKnownAdminPermission.SICHTBAR) || user.hasFlag(UserFlag.GAMEMASTER),
 				"admin.showconsole", hasPermission(WellKnownAdminPermission.CONSOLE),

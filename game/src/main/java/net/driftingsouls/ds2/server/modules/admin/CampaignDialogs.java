@@ -37,6 +37,19 @@ public class CampaignDialogs implements AdminPlugin
 	@Override
 	public void output(StringBuilder echo)
 	{
+		CampaignAdminHtml.begin(echo);
+		try
+		{
+			render(echo);
+		}
+		finally
+		{
+			CampaignAdminHtml.end(echo);
+		}
+	}
+
+	private void render(StringBuilder echo)
+	{
 		Request request = ContextMap.getContext().getRequest();
 		int nodeId = request.getParameterInt("node");
 
@@ -195,7 +208,7 @@ public class CampaignDialogs implements AdminPlugin
 			optionEditor(echo, request, node, option, nodes);
 		}
 
-		echo.append("<div style='border:1px dashed #666; padding:6px; margin-top:8px'><b>Neue Antwort</b><form action='./ds' method='post'>");
+		echo.append("<div class='campaign-section' style='border-style:dashed'><b>Neue Antwort</b><form action='./ds' method='post'>");
 		hiddenFields(echo, getClass(), "createoption");
 		hidden(echo, "node", node.id);
 		optionFields(echo, null, nodes, node.options.size() + 1);
@@ -205,7 +218,7 @@ public class CampaignDialogs implements AdminPlugin
 
 	private void optionEditor(StringBuilder echo, Request request, DialogModel.Node node, DialogModel.Option option, List<DialogModel.Node> nodes)
 	{
-		echo.append("<div style='border:1px solid #666; padding:6px; margin-bottom:8px'>");
+		echo.append("<div class='campaign-section'>");
 		echo.append("<form action='./ds' method='post'>");
 		hiddenFields(echo, getClass(), "saveoption");
 		hidden(echo, "node", node.id);
@@ -244,14 +257,34 @@ public class CampaignDialogs implements AdminPlugin
 			addFactorForm(echo, request, node, option, "modifier");
 		}
 
-		echo.append("<b>Aktionen</b>:<ul>");
-		for (DialogModel.ActionRef action : option.actions)
+		echo.append("<b>Aktionen</b> <span class='campaign-hint'>– laufen sofort, wenn der Spieler diese Antwort wählt, noch vor dem Folgeknoten. ")
+				.append("Er kann sie nicht mehr durch Abbrechen des Gesprächs verhindern.</span>");
+		for (DialogModel.Outcome outcome : DialogModel.Outcome.values())
 		{
-			echo.append("<li>[").append(esc(action.outcome.getLabel())).append("] ").append(esc(describeAction(action.type, action.params))).append(" ");
-			actionButton(echo, getClass(), "deleteaction", "x", "node", node.id, "item", action.id);
-			echo.append(problems(action.type, false, action.params)).append("</li>");
+			if (option.baseChance == null && outcome != DialogModel.Outcome.ALWAYS && option.actions.stream().noneMatch(a -> a.outcome == outcome))
+			{
+				// Without a chance roll there is no failure, and "on success" equals "always"
+				continue;
+			}
+			echo.append("<div style='margin-left:12px'><i>").append(esc(outcome.getLabel())).append(":</i><ul>");
+			boolean any = false;
+			for (DialogModel.ActionRef action : option.actions)
+			{
+				if (action.outcome != outcome)
+				{
+					continue;
+				}
+				any = true;
+				echo.append("<li>").append(esc(describeAction(action.type, action.params))).append(" ");
+				actionButton(echo, getClass(), "deleteaction", "x", "node", node.id, "item", action.id);
+				echo.append(problems(action.type, false, action.params)).append("</li>");
+			}
+			if (!any)
+			{
+				echo.append("<li class='campaign-hint'>keine</li>");
+			}
+			echo.append("</ul></div>");
 		}
-		echo.append("</ul>");
 		addActionForm(echo, request, node, option);
 		echo.append("</div>");
 	}
@@ -278,7 +311,7 @@ public class CampaignDialogs implements AdminPlugin
 			return;
 		}
 
-		echo.append("<form action='./ds' method='post' style='border:1px dotted #888; padding:4px'>");
+		echo.append("<form action='./ds' method='post' class='campaign-section' style='border-style:dotted'>");
 		hiddenFields(echo, getClass(), "condition".equals(kind) ? "addcondition" : "addmodifier");
 		hidden(echo, "node", node.id);
 		hidden(echo, "option", option.id);
@@ -333,7 +366,7 @@ public class CampaignDialogs implements AdminPlugin
 			return;
 		}
 
-		echo.append("<form action='./ds' method='post' style='border:1px dotted #888; padding:4px'>");
+		echo.append("<form action='./ds' method='post' class='campaign-section' style='border-style:dotted'>");
 		hiddenFields(echo, getClass(), "addaction");
 		hidden(echo, "node", node.id);
 		hidden(echo, "option", option.id);
@@ -367,6 +400,8 @@ public class CampaignDialogs implements AdminPlugin
 		echo.append(" Erfolgschance in % (leer = immer Erfolg): <input type='text' name='chance' size='4' value='")
 				.append(option == null || option.baseChance == null ? "" : option.baseChance).append("' /> bei Misserfolg weiter zu: ");
 		nodeSelect(echo, "failure", option == null ? null : option.failureNodeId, nodes);
+		echo.append("<br /><span class='campaign-hint'>Ein Folgeknoten bei Misserfolg ist optional. Soll ein Misserfolg z.B. sofort eine Schlacht ")
+				.append("auslösen, lege dafür eine Aktion „bei Misserfolg“ an: Sie läuft direkt bei der Auswahl, der Spieler kann sie nicht durch Abbrechen abwehren.</span>");
 		echo.append("<br /><label><input type='checkbox' name='hide' value='1'")
 				.append(option == null || option.hideIfUnavailable ? " checked='checked'" : "")
 				.append(" /> verstecken, wenn Bedingungen nicht erfüllt (sonst ausgegraut)</label><br />");
