@@ -6,6 +6,8 @@ import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogFactor;
 import net.driftingsouls.ds2.server.campaign.dialog.ParamDef;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
+import net.driftingsouls.ds2.server.cargo.ItemID;
+import net.driftingsouls.ds2.server.cargo.ResourceID;
 import net.driftingsouls.ds2.server.cargo.Resources;
 import net.driftingsouls.ds2.server.entities.Forschung;
 import net.driftingsouls.ds2.server.entities.Offizier;
@@ -253,13 +255,13 @@ public final class StandardFactors
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("resource", "Ressource (z.B. i12 für Item 12 oder eine Waren-ID)"));
+			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"));
 		}
 
 		@Override
 		public double value(DialogContext context, Params params)
 		{
-			return context.ship.getCargo().getResourceCount(Resources.fromString(params.get("resource")));
+			return context.ship.getCargo().getResourceCount(resource(params.get("resource")));
 		}
 
 		@Override
@@ -473,6 +475,26 @@ public final class StandardFactors
 		{
 			return params.has("alliance") ? "Allianz " + params.get("alliance") : "in einer Allianz";
 		}
+	}
+
+	/**
+	 * Reads an item as a game master writes it: "16", "i16" or the full form "i16|0|0".
+	 *
+	 * @throws net.driftingsouls.ds2.server.campaign.CampaignException if it is no item
+	 */
+	public static ResourceID resource(String value)
+	{
+		String v = value == null ? "" : value.trim();
+		if (v.matches("i?\\d+"))
+		{
+			return new ItemID(Integer.parseInt(v.startsWith("i") ? v.substring(1) : v));
+		}
+		ResourceID id = Resources.fromString(v);
+		if (id == null)
+		{
+			throw new net.driftingsouls.ds2.server.campaign.CampaignException("Unbekannte Ressource: " + value);
+		}
+		return id;
 	}
 
 	static ParamDef scope()

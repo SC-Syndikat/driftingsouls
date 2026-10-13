@@ -182,13 +182,13 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("resource", "Ressource (z.B. i12 für Item 12 oder eine Waren-ID)"), ParamDef.integer("count", "Menge", 1));
+			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"), ParamDef.integer("count", "Menge", 1));
 		}
 
 		@Override
 		public void execute(DialogContext context, Params params)
 		{
-			ResourceID resource = Resources.fromString(params.get("resource"));
+			ResourceID resource = StandardFactors.resource(params.get("resource"));
 			Ship ship = context.ship;
 			Cargo cargo = new Cargo(ship.getCargo());
 			cargo.addResource(resource, params.getLong("count"));
@@ -203,6 +203,49 @@ public final class StandardActions
 		public String describe(Params params)
 		{
 			return params.get("count") + "× " + params.get("resource") + " ins Cargo";
+		}
+	}
+
+	@DialogAction.Type("TAKE_RESOURCE")
+	public static class TakeResource implements DialogAction
+	{
+		@Override
+		public String getLabel()
+		{
+			return "Ware / Item aus dem Schiffscargo abnehmen";
+		}
+
+		@Override
+		public Group getGroup()
+		{
+			return Group.REWARD;
+		}
+
+		@Override
+		public List<ParamDef> getParams()
+		{
+			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"), ParamDef.integer("count", "Menge", 1));
+		}
+
+		@Override
+		public void execute(DialogContext context, Params params)
+		{
+			ResourceID resource = StandardFactors.resource(params.get("resource"));
+			long count = params.getLong("count");
+			Ship ship = context.ship;
+			Cargo cargo = new Cargo(ship.getCargo());
+			if (cargo.getResourceCount(resource) < count)
+			{
+				throw new CampaignException("Dein Schiff hat nicht genug davon an Bord.");
+			}
+			cargo.substractResource(resource, count);
+			ship.setCargo(cargo);
+		}
+
+		@Override
+		public String describe(Params params)
+		{
+			return params.get("count") + "× " + params.get("resource") + " aus dem Cargo abgeben";
 		}
 	}
 
@@ -688,10 +731,10 @@ public final class StandardActions
 			return List.of(ParamDef.integer("node", "Sprungpunkt-ID", 1),
 					ParamDef.optionalText("classes", "Erlaubte Schiffsklassen (z.B. JAEGER,KORVETTE; leer = unverändert, - = alle)"),
 					ParamDef.optionalText("types", "Erlaubte Schiffstyp-IDs (leer = unverändert, - = alle)"),
-					ParamDef.optionalText("perShip", "Max. Punkte je Schiff (leer = unverändert, - = unbegrenzt)"),
-					ParamDef.optionalText("perPlayer", "Max. Punkte je Spieler (leer = unverändert, - = unbegrenzt)"),
+					ParamDef.optionalText("perShip", "Max. GP je Schiff (leer = unverändert, - = unbegrenzt)"),
+					ParamDef.optionalText("perPlayer", "Max. GP je Spieler (leer = unverändert, - = unbegrenzt)"),
 					ParamDef.choice("period", "Spieler-Limit gilt", KEEP, "unverändert", "TOTAL", "für die ganze Kampagne", "PER_TICK", "pro Kampagnentick"),
-					ParamDef.choice("metric", "Gezählt wird", KEEP, "unverändert", "SIZE", "Schiffsgröße", "BATTLE_VALUE", "Schlachtwert"));
+					ParamDef.choice("metric", "Gezählt wird", KEEP, "unverändert", "SIZE", "Größenpunkte (GP)", "BATTLE_VALUE", "Schlachtwert"));
 		}
 
 		@Override

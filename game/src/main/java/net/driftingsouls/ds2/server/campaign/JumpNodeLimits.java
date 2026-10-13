@@ -33,7 +33,7 @@ public class JumpNodeLimits
 	 */
 	public enum Metric
 	{
-		SIZE("Schiffsgröße"),
+		SIZE("Größenpunkte (GP)"),
 		BATTLE_VALUE("Schlachtwert (nur Kriegsschiffe)");
 
 		private final String label;
