@@ -1,9 +1,9 @@
 package net.driftingsouls.ds2.server.campaign.dialog.factors;
 
-import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogFactor;
+import net.driftingsouls.ds2.server.campaign.dialog.DialogShips;
 import net.driftingsouls.ds2.server.campaign.dialog.ParamDef;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
 import net.driftingsouls.ds2.server.cargo.ItemID;
@@ -12,7 +12,6 @@ import net.driftingsouls.ds2.server.cargo.Resources;
 import net.driftingsouls.ds2.server.entities.Forschung;
 import net.driftingsouls.ds2.server.entities.Offizier;
 import net.driftingsouls.ds2.server.entities.User;
-import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.ships.ShipTypeFlag;
@@ -503,32 +502,49 @@ public final class StandardFactors
 		@Override
 		public double value(DialogContext context, Params params)
 		{
-			ConfigService config = new ConfigService(context.em);
-			int sizeModifier = config.getValue(WellKnownConfigValue.BATTLE_VALUE_SIZE_MODIFIER);
-			int dockModifier = config.getValue(WellKnownConfigValue.BATTLE_VALUE_DOCK_MODIFIER);
-
-			List<Ship> ships = context.em.createQuery("from Ship where owner = :owner and system = :system and x = :x and y = :y and id > 0", Ship.class)
-					.setParameter("owner", context.user)
-					.setParameter("system", context.ship.getSystem())
-					.setParameter("x", context.ship.getX())
-					.setParameter("y", context.ship.getY())
-					.getResultList();
-			long strength = 0;
-			for (Ship ship : ships)
-			{
-				ShipTypeData type = ship.getTypeData();
-				if (type.isMilitary())
-				{
-					strength += (long) type.getSize() * sizeModifier + (long) type.getJDocks() * dockModifier;
-				}
-			}
-			return strength;
+			return DialogShips.strength(context.em, DialogShips.of(context, context.user, DialogShips.Scope.SECTOR));
 		}
 
 		@Override
 		public String describe(Params params)
 		{
 			return "Flottenstärke";
+		}
+	}
+
+	/**
+	 * The player's battle strength in the sector divided by the speaking NPC's: 3 means three times as strong.
+	 * Without NPC ships in the sector the player counts as overwhelmingly stronger.
+	 */
+	@DialogFactor.Type("STRENGTH_RATIO")
+	public static class StrengthRatioFactor implements DialogFactor
+	{
+		private static final double NO_OPPONENT = 1000;
+
+		@Override
+		public String getLabel()
+		{
+			return "Kampfkraft-Verhältnis Spieler / NPC im Sektor (3 = dreimal so stark)";
+		}
+
+		@Override
+		public List<ParamDef> getParams()
+		{
+			return List.of();
+		}
+
+		@Override
+		public double value(DialogContext context, Params params)
+		{
+			long npc = DialogShips.strength(context.em, DialogShips.of(context, context.npc, DialogShips.Scope.SECTOR));
+			long player = DialogShips.strength(context.em, DialogShips.of(context, context.user, DialogShips.Scope.SECTOR));
+			return npc == 0 ? NO_OPPONENT : (double) player / npc;
+		}
+
+		@Override
+		public String describe(Params params)
+		{
+			return "Kampfkraft-Verhältnis";
 		}
 	}
 

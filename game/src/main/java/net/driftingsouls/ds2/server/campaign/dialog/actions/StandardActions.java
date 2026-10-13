@@ -11,10 +11,13 @@ import net.driftingsouls.ds2.server.campaign.ShipGroupSpawner;
 import net.driftingsouls.ds2.server.campaign.ShipGroupTemplate;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogAction;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
+import net.driftingsouls.ds2.server.campaign.dialog.DialogShips;
 import net.driftingsouls.ds2.server.campaign.dialog.ParamDef;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
 import net.driftingsouls.ds2.server.campaign.dialog.TrustService;
 import net.driftingsouls.ds2.server.campaign.dialog.factors.StandardFactors;
+import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
+import net.driftingsouls.ds2.server.campaign.interaction.Interaction;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ItemID;
@@ -31,6 +34,7 @@ import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.services.SchlachtErstellenService;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * The actions dialog choices can trigger. Each is one nested class, found by its annotation.
@@ -44,6 +48,10 @@ public final class StandardActions
 
 	private static final String OBJECT = "OBJECT";
 	private static final String TEMPLATE = "TEMPLATE";
+	private static final String NEW = "NEW";
+	private static final String GONE = "GONE";
+	private static final String NPC_SHIP = "NPC_SHIP";
+	private static final String SECTOR = "SECTOR";
 
 	// ---------------------------------------------------------------- Diplomacy
 
@@ -220,16 +228,23 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"), ParamDef.integer("count", "Menge", 1));
+			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"), ParamDef.integer("count", "Menge", 1),
+					ParamDef.choice("from", "Herkunft", NEW, "neu geschaffen", OBJECT, "aus dem Cargo des Gesprächsschiffs"));
 		}
 
 		@Override
 		public void execute(DialogContext context, Params params)
 		{
 			ResourceID resource = StandardFactors.resource(params.get("resource"));
+			long count = params.getLong("count");
+			if (OBJECT.equals(params.get("from")))
+			{
+				// The conversation ship hands over what it carries, e.g. loot a pirate took
+				removeFromCargo(context.requireObjectShip(), resource, count, "Das Gesprächsschiff hat das nicht (mehr) an Bord.");
+			}
 			Ship ship = context.ship;
 			Cargo cargo = new Cargo(ship.getCargo());
-			cargo.addResource(resource, params.getLong("count"));
+			cargo.addResource(resource, count);
 			if (cargo.getMass() > ship.getTypeData().getCargo())
 			{
 				throw new CampaignException("Im Frachtraum deines Schiffes ist nicht genug Platz.");
@@ -240,7 +255,7 @@ public final class StandardActions
 		@Override
 		public String describe(Params params)
 		{
-			return params.get("count") + "× " + params.get("resource") + " ins Cargo";
+			return params.get("count") + "× " + params.get("resource") + " ins Cargo" + (OBJECT.equals(params.get("from")) ? " (vom Gesprächsschiff)" : "");
 		}
 
 		@Override
@@ -268,7 +283,8 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"), ParamDef.integer("count", "Menge", 1));
+			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"), ParamDef.integer("count", "Menge", 1),
+					ParamDef.choice("to", "Verbleib", GONE, "verschwindet", NPC_SHIP, "ins Cargo eines Schiffs des NPC im Sektor"));
 		}
 
 		@Override
@@ -276,20 +292,22 @@ public final class StandardActions
 		{
 			ResourceID resource = StandardFactors.resource(params.get("resource"));
 			long count = params.getLong("count");
-			Ship ship = context.ship;
-			Cargo cargo = new Cargo(ship.getCargo());
-			if (cargo.getResourceCount(resource) < count)
+			removeFromCargo(context.ship, resource, count, "Dein Schiff hat nicht genug davon an Bord.");
+			if (NPC_SHIP.equals(params.get("to")))
 			{
-				throw new CampaignException("Dein Schiff hat nicht genug davon an Bord.");
+				// Ends up where the player can win it back, e.g. by plundering after a battle
+				Ship npcShip = DialogShips.npcShipInSector(context)
+						.orElseThrow(() -> new CampaignException("Im Sektor ist kein Schiff von " + context.npc.getPlainname() + "."));
+				Cargo cargo = new Cargo(npcShip.getCargo());
+				cargo.addResource(resource, count);
+				npcShip.setCargo(cargo);
 			}
-			cargo.substractResource(resource, count);
-			ship.setCargo(cargo);
 		}
 
 		@Override
 		public String describe(Params params)
 		{
-			return params.get("count") + "× " + params.get("resource") + " aus dem Cargo abgeben";
+			return params.get("count") + "× " + params.get("resource") + " aus dem Cargo abgeben" + (NPC_SHIP.equals(params.get("to")) ? " (an das NPC-Schiff)" : "");
 		}
 
 		@Override
@@ -507,7 +525,8 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.choice("source", "Angreifer", OBJECT, "das Gesprächsschiff", TEMPLATE, "neu aus einer Schiffsgruppen-Vorlage"),
+			return List.of(ParamDef.choice("source", "Angreifer", OBJECT, "das Gesprächsschiff", TEMPLATE, "neu aus einer Schiffsgruppen-Vorlage",
+							SECTOR, "ein Schiff des NPC im Sektor"),
 					ParamDef.optionalInteger("template", "Vorlagen-ID (bei Vorlage)"));
 		}
 
@@ -515,7 +534,12 @@ public final class StandardActions
 		public void execute(DialogContext context, Params params)
 		{
 			Ship attacker;
-			if (TEMPLATE.equals(params.get("source")))
+			if (SECTOR.equals(params.get("source")))
+			{
+				attacker = DialogShips.npcShipInSector(context)
+						.orElseThrow(() -> new CampaignException("Im Sektor ist kein Schiff von " + context.npc.getPlainname() + "."));
+			}
+			else if (TEMPLATE.equals(params.get("source")))
 			{
 				List<Ship> ships = new ShipGroupSpawner(context.em).spawn(template(params), context.npc, context.ship.getLocation());
 				if (ships.isEmpty())
@@ -542,6 +566,10 @@ public final class StandardActions
 		@Override
 		public String describe(Params params)
 		{
+			if (SECTOR.equals(params.get("source")))
+			{
+				return "Schlacht gegen ein NPC-Schiff im Sektor";
+			}
 			return TEMPLATE.equals(params.get("source")) ? "Schlacht gegen Vorlage " + params.get("template") : "Schlacht gegen das Gesprächsschiff";
 		}
 
@@ -574,7 +602,8 @@ public final class StandardActions
 		{
 			return List.of(ParamDef.integer("template", "Vorlagen-ID", 1),
 					ParamDef.optionalInteger("owner", "Besitzer (leer = der sprechende NPC)"),
-					ParamDef.optionalText("location", "Ort system:x/y (leer = Sektor des Spielers)"));
+					ParamDef.optionalText("location", "Ort system:x/y (leer = Sektor des Spielers)"),
+					ParamDef.optionalInteger("interaction", "Interaktion auf das erste Schiff übertragen (ID einer Vorlage-Interaktion, leer = keine)"));
 		}
 
 		@Override
@@ -590,13 +619,79 @@ public final class StandardActions
 				}
 			}
 			Location location = params.has("location") ? Location.fromString(params.get("location")) : context.ship.getLocation();
-			new ShipGroupSpawner(context.em).spawn(template(params), owner, location);
+			List<Ship> ships = new ShipGroupSpawner(context.em).spawn(template(params), owner, location);
+			if (params.has("interaction") && !ships.isEmpty())
+			{
+				attachInteraction(context, params.getInt("interaction"), ships.get(0));
+			}
+		}
+
+		/**
+		 * Copies the template interaction onto the new ship, for this player only: e.g. talking to the
+		 * pirate who just appeared.
+		 */
+		private static void attachInteraction(DialogContext context, int templateId, Ship ship)
+		{
+			InteractionRepository repository = new InteractionRepository();
+			Interaction template = repository.find(templateId)
+					.orElseThrow(() -> new CampaignException("Unbekannte Interaktion " + templateId + "."));
+			context.em.flush();
+			repository.save(new Interaction(0, template.label, ObjectType.SHIP, ship.getId(), template.startNodeId, template.npcUserId, true,
+					template.maxUsesPerUser, template.cooldownTicks, Interaction.Audience.RESTRICTED, Set.of(context.user.getId()), Set.of()));
 		}
 
 		@Override
 		public String describe(Params params)
 		{
-			return "Vorlage " + params.get("template") + " erscheint" + (params.has("location") ? " bei " + params.get("location") : " im Sektor");
+			return "Vorlage " + params.get("template") + " erscheint" + (params.has("location") ? " bei " + params.get("location") : " im Sektor")
+					+ (params.has("interaction") ? ", mit Interaktion " + params.get("interaction") : "");
+		}
+	}
+
+	@DialogAction.Type("REMOVE_NPC_SHIPS")
+	public static class RemoveNpcShips implements DialogAction
+	{
+		@Override
+		public String getLabel()
+		{
+			return "Schiffe des NPC im Sektor abziehen (verschwinden)";
+		}
+
+		@Override
+		public Group getGroup()
+		{
+			return Group.SCRIPT;
+		}
+
+		@Override
+		public List<ParamDef> getParams()
+		{
+			return List.of();
+		}
+
+		@Override
+		public void execute(DialogContext context, Params params)
+		{
+			for (Ship ship : DialogShips.of(context, context.npc, DialogShips.Scope.SECTOR))
+			{
+				// Ships fighting stay; a battle is not ended by a dialog
+				if (ship.getBattle() == null && !ship.isDocked() && !ship.isLanded())
+				{
+					ship.destroy();
+				}
+			}
+		}
+
+		@Override
+		public String describe(Params params)
+		{
+			return "Schiffe des NPC im Sektor ziehen ab";
+		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return "Die Schiffe von " + context.npc.getPlainname() + " ziehen ab.";
 		}
 	}
 
@@ -960,6 +1055,17 @@ public final class StandardActions
 	private static ParamDef scope()
 	{
 		return ParamDef.choice("scope", "Gültigkeit", "USER", "pro Spieler", "GLOBAL", "für die ganze Kampagne");
+	}
+
+	private static void removeFromCargo(Ship ship, ResourceID resource, long count, String missing)
+	{
+		Cargo cargo = new Cargo(ship.getCargo());
+		if (cargo.getResourceCount(resource) < count)
+		{
+			throw new CampaignException(missing);
+		}
+		cargo.substractResource(resource, count);
+		ship.setCargo(cargo);
 	}
 
 	private static String resourceName(Params params)

@@ -787,3 +787,12 @@ Beantwortet am 2026-09-25:
     Kampagnentick entschlüsseln (20 % Erfolg, 40 % Teilerfolg, Rest Misserfolg; plus Sensorreichweite,
     AWACS-Flags, Technik des Offiziers und Zufall). Die Nachricht wird schrittweise lesbar und nennt
     621:35/42; dort liegt das Trümmerteil mit der Datendisk für Vex.
+17. **Bausteine für NPC-Begegnungen.** ✅ Faktor „Kampfkraft-Verhältnis Spieler / NPC im Sektor“;
+    Schlacht gegen „ein Schiff des NPC im Sektor“; Ware an ein NPC-Schiff abgeben bzw. aus dem Cargo des
+    Gesprächsschiffs erhalten (V052 setzt die Standardwerte bestehender Aktionen); Schiffsgruppe
+    erscheinen lassen und dabei eine Vorlage-Interaktion nur für diesen Spieler auf das erste Schiff
+    übertragen; „Schiffe des NPC im Sektor abziehen“.
+18. **Testkampagne: Piraten am Wrack.** ✅ `docs/testdata/campaign_piraten.sql`: Die Durchsuchung
+    (50 % + Sicherheit des Offiziers) kann Kapitän Skarn (NPC -901) anlocken. Disk übergeben,
+    überzeugen (Kommando, Kampfkraft) oder kämpfen. Ist die Disk verloren, stellt Vex einmalig einen
+    Raider. Bei dreifacher Kampfkraft gibt Skarn die Disk heraus; sonst angreifen, lahmlegen, plündern.
