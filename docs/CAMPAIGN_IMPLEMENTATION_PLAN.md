@@ -704,3 +704,44 @@ Beantwortet am 2026-09-25:
    - Aktionen in einer laufenden Schlacht;
    - GTU: Die Dropzone und Ganymed-Transporte dürfen nicht in ein Kampagnensystem führen, das der
      Spieler nicht betreten darf.
+
+
+## 9. Zweite Runde (Rückmeldung vom 2026-10-13)
+
+1. **Misserfolg mit Aktion statt Folgeknoten**, damit der Spieler einen Schlachtbeginn nicht durch
+   Abbrechen des Dialogs abwehren kann. ✅ Das ging technisch schon: Aktionen „bei Misserfolg“ laufen
+   sofort bei der Auswahl, ein Folgeknoten ist optional. Der Editor macht das jetzt sichtbar: Die
+   Aktionen sind nach „immer“, „bei Erfolg“ und „bei Misserfolg“ gruppiert, mit Hinweis am
+   Misserfolgsfeld.
+2. **Bessere Formatierung** der Kampagnen-Seiten. ✅ Gemeinsamer Stil mit mehr Zeilenabstand,
+   Abständen in Tabellen, Formularen und Abschnitten (`CampaignAdminHtml.begin/end`).
+3. **Testdaten für Schiffe, Asteroiden, Systeme.** ❓ Seit dem Import des Produktions-Backups vom
+   2026-10-12 enthält das Dev-System die echten Daten (295 Accounts, 40 Systeme, rund 100.000
+   Schiffe). Werden zusätzlich eigene Testdaten gebraucht, etwa eine vorbereitete Kampagne?
+4. **Dropdown für die Objekt-ID** bei den Interaktionen, gefiltert auf den Objekttyp und auf
+   Kampagnensysteme, mit Name und Position. ✅ Dazu Besitzer, und der sprechende NPC als Auswahl der
+   teilnehmenden NPC-Accounts.
+5. **Rückweg aus der Schiffsansicht und dem Adminmenü.** ✅ In der Schiffsansicht sehen GMs und
+   Admins die Interaktionen des Schiffs mit Links zum Bearbeiten und Hinzufügen. EditShip und
+   EditBases haben ein Feld „Kampagne“ mit Link auf die Interaktionen des Objekts; neue Interaktionen
+   sind dann vorbelegt.
+6. **Limits für Kampagnen-Sprungpunkte.** ✅ Migration V047, `CampaignJumpNodeLimitService`:
+   - erlaubte Schiffsklassen und erlaubte Schiffstypen;
+   - maximale Punkte je Schiff und je Spieler;
+   - das Spieler-Limit gilt wahlweise für die ganze Kampagne oder pro Kampagnentick;
+   - jeder Durchgang wird in `campaign_jump_node_passage` protokolliert;
+   - geprüft wird der ganze Verband (Flotte und gedockte Schiffe), NPCs und GMs sind ausgenommen;
+   - alle Kombinationen sind möglich;
+   - Dialog-Aktionen „Kampagnen-Sprungpunkt (de)aktivieren“ und „Limits eines
+     Kampagnen-Sprungpunkts ändern“ (leer = unverändert, `-` = Limit aufheben);
+   - Pflege im Plugin „Sprungpunkte“ über „Limits bearbeiten“, mit dem verbrauchten Kontingent je
+     Spieler.
+
+   ❓ „GP“ ist im Code nicht definiert. Deshalb ist je Sprungpunkt wählbar, ob die **Schiffsgröße**
+   oder der **Schlachtwert** zählt (Größe × Modifikator + Jägerdocks × Modifikator, nur
+   Kriegsschiffe). Was ist mit GP gemeint?
+7. **Eigenes GM-Menü statt Adminmenü.** ✅ Ein GM ohne Admin-Level sieht das Adminmenü nicht mehr.
+   Die GM-Seite listet alle Werkzeuge als Unterpunkte von „Kampagne vorbereiten“, und auf den
+   Plugin-Seiten erscheint dasselbe Menü statt des Admin-Baums. Der Admin-Link im Hauptmenü ist für
+   ihn ausgeblendet. Technisch laufen die Plugins weiter über den `AdminController`, damit
+   Rechteprüfung und Formulare unverändert bleiben (`GameMasterMenu`).

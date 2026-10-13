@@ -2,6 +2,10 @@ package net.driftingsouls.ds2.server.campaign.dialog.actions;
 
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeLimitService;
+import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeState;
+import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.JumpNodeLimits;
 import net.driftingsouls.ds2.server.campaign.ShipGroupRepository;
 import net.driftingsouls.ds2.server.campaign.ShipGroupSpawner;
 import net.driftingsouls.ds2.server.campaign.ShipGroupTemplate;
@@ -620,6 +624,160 @@ public final class StandardActions
 		public String describe(Params params)
 		{
 			return "Interaktion " + params.get("interaction") + ("1".equals(params.get("active")) ? " aktiviert" : " deaktiviert");
+		}
+	}
+
+	@DialogAction.Type("SET_JUMP_NODE_STATE")
+	public static class SetJumpNodeState implements DialogAction
+	{
+		@Override
+		public String getLabel()
+		{
+			return "Kampagnen-Sprungpunkt (de)aktivieren";
+		}
+
+		@Override
+		public Group getGroup()
+		{
+			return Group.SCRIPT;
+		}
+
+		@Override
+		public List<ParamDef> getParams()
+		{
+			return List.of(ParamDef.integer("node", "Sprungpunkt-ID", 1),
+					ParamDef.choice("state", "Zustand", "ACTIVE", "aktiv", "VISIBLE", "sichtbar, gesperrt", "PREPARED", "unsichtbar, gesperrt"));
+		}
+
+		@Override
+		public void execute(DialogContext context, Params params)
+		{
+			new CampaignMapService(context.em).setJumpNodeState(params.getInt("node"), CampaignJumpNodeState.valueOf(params.get("state")));
+		}
+
+		@Override
+		public String describe(Params params)
+		{
+			return "Sprungpunkt " + params.get("node") + " → " + CampaignJumpNodeState.valueOf(params.get("state")).getLabel();
+		}
+	}
+
+	/**
+	 * Changes the limits of a campaign jump node. Empty parameters leave a limit as it is, "-" removes it.
+	 */
+	@DialogAction.Type("SET_JUMP_NODE_LIMITS")
+	public static class SetJumpNodeLimits implements DialogAction
+	{
+		private static final String KEEP = "KEEP";
+
+		@Override
+		public String getLabel()
+		{
+			return "Limits eines Kampagnen-Sprungpunkts ändern";
+		}
+
+		@Override
+		public Group getGroup()
+		{
+			return Group.SCRIPT;
+		}
+
+		@Override
+		public List<ParamDef> getParams()
+		{
+			return List.of(ParamDef.integer("node", "Sprungpunkt-ID", 1),
+					ParamDef.optionalText("classes", "Erlaubte Schiffsklassen (z.B. JAEGER,KORVETTE; leer = unverändert, - = alle)"),
+					ParamDef.optionalText("types", "Erlaubte Schiffstyp-IDs (leer = unverändert, - = alle)"),
+					ParamDef.optionalText("perShip", "Max. Punkte je Schiff (leer = unverändert, - = unbegrenzt)"),
+					ParamDef.optionalText("perPlayer", "Max. Punkte je Spieler (leer = unverändert, - = unbegrenzt)"),
+					ParamDef.choice("period", "Spieler-Limit gilt", KEEP, "unverändert", "TOTAL", "für die ganze Kampagne", "PER_TICK", "pro Kampagnentick"),
+					ParamDef.choice("metric", "Gezählt wird", KEEP, "unverändert", "SIZE", "Schiffsgröße", "BATTLE_VALUE", "Schlachtwert"));
+		}
+
+		@Override
+		public void execute(DialogContext context, Params params)
+		{
+			CampaignJumpNodeLimitService service = new CampaignJumpNodeLimitService(context.em);
+			int node = params.getInt("node");
+			JumpNodeLimits limits = service.load(node);
+			if (params.has("classes"))
+			{
+				limits = limits.withAllowedShipClasses("-".equals(params.get("classes")) ? java.util.Set.of() : names(params.get("classes")));
+			}
+			if (params.has("types"))
+			{
+				limits = limits.withAllowedShipTypes("-".equals(params.get("types")) ? java.util.Set.of() : ids(params.get("types")));
+			}
+			if (params.has("perShip"))
+			{
+				limits = limits.withMaxPointsPerShip(number(params.get("perShip")));
+			}
+			if (params.has("perPlayer"))
+			{
+				limits = limits.withMaxPointsPerPlayer(number(params.get("perPlayer")));
+			}
+			if (!KEEP.equals(params.get("period")))
+			{
+				limits = limits.withPeriod(JumpNodeLimits.Period.valueOf(params.get("period")));
+			}
+			if (!KEEP.equals(params.get("metric")))
+			{
+				limits = limits.withMetric(JumpNodeLimits.Metric.valueOf(params.get("metric")));
+			}
+			service.save(node, limits);
+		}
+
+		private static java.util.Set<String> names(String csv)
+		{
+			java.util.Set<String> names = new java.util.LinkedHashSet<>();
+			for (String name : csv.split("[,;\\s]+"))
+			{
+				if (!name.isBlank())
+				{
+					names.add(net.driftingsouls.ds2.server.ships.ShipClasses.valueOf(name.trim().toUpperCase()).name());
+				}
+			}
+			return names;
+		}
+
+		private static java.util.Set<Integer> ids(String csv)
+		{
+			java.util.Set<Integer> ids = new java.util.LinkedHashSet<>();
+			for (String id : csv.split("[,;\\s]+"))
+			{
+				if (!id.isBlank())
+				{
+					ids.add(Integer.parseInt(id.trim()));
+				}
+			}
+			return ids;
+		}
+
+		private static Integer number(String value)
+		{
+			return "-".equals(value) ? null : Integer.valueOf(value.trim());
+		}
+
+		@Override
+		public String describe(Params params)
+		{
+			StringBuilder text = new StringBuilder("Sprungpunkt " + params.get("node") + ":");
+			for (String name : List.of("classes", "types", "perShip", "perPlayer"))
+			{
+				if (params.has(name))
+				{
+					text.append(" ").append(name).append("=").append(params.get(name));
+				}
+			}
+			if (!KEEP.equals(params.get("period")))
+			{
+				text.append(" Zeitraum=").append(params.get("period"));
+			}
+			if (!KEEP.equals(params.get("metric")))
+			{
+				text.append(" Punkte=").append(params.get("metric"));
+			}
+			return text.toString();
 		}
 	}
 

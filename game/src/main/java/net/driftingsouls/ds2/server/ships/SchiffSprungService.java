@@ -3,6 +3,7 @@ package net.driftingsouls.ds2.server.ships;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeLimitService;
 import net.driftingsouls.ds2.server.config.Rassen;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.entities.User;
@@ -135,6 +136,21 @@ public class SchiffSprungService
 			shiplist.add(schiff);
 		}
 
+		// Limits des Kampagnen-Sprungpunkts gelten fuer den ganzen Verband samt gedockter Schiffe
+		List<Ship> passage = new ArrayList<>();
+		for (Ship ship : shiplist)
+		{
+			passage.add(ship);
+			passage.addAll(ship.getGedockteUndGelandeteSchiffe());
+		}
+		CampaignJumpNodeLimitService jumpLimits = new CampaignJumpNodeLimitService(db);
+		Optional<String> limitDenial = jumpLimits.check(user, node.getId(), passage);
+		if (limitDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(limitDenial.get()).append("</span><br />\n");
+			return new SprungErgebnis(outputbuffer.toString(), false);
+		}
+
 		//
 		// Jedes Schiff in der Liste springen lassen
 		//
@@ -178,6 +194,7 @@ public class SchiffSprungService
 			}
 		}
 
+		jumpLimits.record(user, node.getId(), passage);
 		return new SprungErgebnis(outputbuffer.toString(), true);
 	}
 

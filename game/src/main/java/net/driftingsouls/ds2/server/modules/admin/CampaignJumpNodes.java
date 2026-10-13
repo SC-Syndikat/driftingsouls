@@ -4,6 +4,8 @@ import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeLimitService;
+import net.driftingsouls.ds2.server.campaign.JumpNodeLimits;
 import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeState;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
@@ -11,13 +13,16 @@ import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
+import net.driftingsouls.ds2.server.ships.ShipClasses;
 
 import javax.persistence.EntityManager;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
 
@@ -78,6 +83,39 @@ public class CampaignJumpNodes implements AdminPlugin
 					mapService.unregisterJumpNode(request.getParameterInt("node"));
 					message(echo, "Sprungpunkt " + request.getParameterInt("node") + " ist wieder ein normaler Sprungpunkt.");
 					break;
+				case "savelimits":
+				{
+					int node = request.getParameterInt("node");
+					Set<String> classes = new LinkedHashSet<>();
+					for (ShipClasses shipClass : ShipClasses.values())
+					{
+						if ("1".equals(request.getParameterString("class_" + shipClass.name())))
+						{
+							classes.add(shipClass.name());
+						}
+					}
+					Set<Integer> types = new LinkedHashSet<>();
+					for (String id : request.getParameterString("types").split("[,;\\s]+"))
+					{
+						if (!id.isBlank())
+						{
+							try
+							{
+								types.add(Integer.parseInt(id.trim()));
+							}
+							catch (NumberFormatException e)
+							{
+								throw new CampaignException("Ungültige Schiffstyp-ID: " + id);
+							}
+						}
+					}
+					new CampaignJumpNodeLimitService(em).save(node, new JumpNodeLimits(classes, types,
+							optionalInt(request, "pership"), optionalInt(request, "perplayer"),
+							JumpNodeLimits.Period.valueOf(request.getParameterString("period")),
+							JumpNodeLimits.Metric.valueOf(request.getParameterString("metric"))));
+					message(echo, "Limits von Sprungpunkt " + node + " gespeichert.");
+					break;
+				}
 				case "state":
 				{
 					CampaignJumpNodeState state = CampaignJumpNodeState.valueOf(request.getParameterString("state"));
@@ -101,9 +139,66 @@ public class CampaignJumpNodes implements AdminPlugin
 		Set<Integer> systems = mapService.getSystemIds(campaign);
 		Map<Integer, CampaignJumpNodeState> states = mapService.getJumpNodeStates();
 
+		if (request.getParameterInt("limits") != 0 && states.containsKey(request.getParameterInt("limits")))
+		{
+			limitsForm(echo, em, campaign, request.getParameterInt("limits"));
+		}
 		campaignNodes(echo, em, states, campaign);
 		normalNodesIntoCampaign(echo, em, systems, states);
 		createForm(echo);
+	}
+
+	private void limitsForm(StringBuilder echo, EntityManager em, Campaign campaign, int nodeId)
+	{
+		CampaignJumpNodeLimitService service = new CampaignJumpNodeLimitService(em);
+		JumpNodeLimits limits = service.load(nodeId);
+		echo.append("<div class='gfxbox' style='width:900px'><h3>Limits von Sprungpunkt ").append(nodeId).append("</h3>");
+		echo.append("<p class='campaign-hint'>Gilt für Spieler; NPCs und GameMaster sind ausgenommen. Geprüft wird der ganze Verband ")
+				.append("(Flotte und gedockte Schiffe). Leere Felder bedeuten: keine Beschränkung. Dialoge können die Limits mit der Aktion ")
+				.append("„Limits eines Kampagnen-Sprungpunkts ändern“ anpassen.</p>");
+		echo.append("<form action='./ds' method='post'>");
+		hiddenFields(echo, getClass(), "savelimits");
+		hidden(echo, "node", nodeId);
+		hidden(echo, "limits", nodeId);
+		echo.append("<b>Erlaubte Schiffsklassen</b> (keine angekreuzt = alle):<br />");
+		for (ShipClasses shipClass : ShipClasses.values())
+		{
+			echo.append("<label style='display:inline-block; min-width:170px'><input type='checkbox' name='class_").append(shipClass.name()).append("' value='1'")
+					.append(limits.allowedShipClasses.contains(shipClass.name()) ? " checked='checked'" : "").append(" /> ")
+					.append(esc(shipClass.getSingular())).append("</label>");
+		}
+		echo.append("<br /><br />Erlaubte Schiffstyp-IDs (leer = alle): <input type='text' name='types' size='40' value='")
+				.append(esc(limits.allowedShipTypes.stream().map(String::valueOf).collect(Collectors.joining(", ")))).append("' /><br />");
+		echo.append("Max. Punkte je Schiff: <input type='text' name='pership' size='6' value='").append(limits.maxPointsPerShip == null ? "" : limits.maxPointsPerShip).append("' /> ");
+		echo.append("Max. Punkte je Spieler: <input type='text' name='perplayer' size='6' value='").append(limits.maxPointsPerPlayer == null ? "" : limits.maxPointsPerPlayer).append("' /> ");
+		echo.append("<select name='period'>");
+		for (JumpNodeLimits.Period period : JumpNodeLimits.Period.values())
+		{
+			echo.append("<option value='").append(period.name()).append("'").append(period == limits.playerLimitPeriod ? " selected='selected'" : "").append(">")
+					.append(esc(period.getLabel())).append("</option>");
+		}
+		echo.append("</select><br />Gezählt wird: <select name='metric'>");
+		for (JumpNodeLimits.Metric metric : JumpNodeLimits.Metric.values())
+		{
+			echo.append("<option value='").append(metric.name()).append("'").append(metric == limits.metric ? " selected='selected'" : "").append(">")
+					.append(esc(metric.getLabel())).append("</option>");
+		}
+		echo.append("</select><br /><input type='submit' value='Limits speichern' /></form>");
+
+		if (limits.maxPointsPerPlayer != null && campaign.isRunning())
+		{
+			echo.append("<h4>Verbraucht ").append(esc(limits.playerLimitPeriod.getLabel())).append("</h4><ul>");
+			for (int userId : new CampaignService(em).getParticipantIds(campaign))
+			{
+				long used = service.usedPoints(nodeId, campaign, userId, limits.playerLimitPeriod);
+				if (used > 0)
+				{
+					echo.append("<li>Spieler ").append(userId).append(": ").append(used).append(" von ").append(limits.maxPointsPerPlayer).append("</li>");
+				}
+			}
+			echo.append("</ul>");
+		}
+		echo.append("</div>");
 	}
 
 	private void campaignNodes(StringBuilder echo, EntityManager em, Map<Integer, CampaignJumpNodeState> states, Campaign campaign)
@@ -132,6 +227,8 @@ public class CampaignJumpNodes implements AdminPlugin
 				}
 			}
 			actionButton(echo, getClass(), "unregister", "normal machen", "node", node.getId());
+			echo.append("<br /><span class='campaign-hint'>Limits: ").append(esc(new CampaignJumpNodeLimitService(em).load(node.getId()).describe()))
+					.append("</span> <a class='forschinfo' href='").append(pluginUrl(getClass())).append("&amp;limits=").append(node.getId()).append("'>Limits bearbeiten</a>");
 			echo.append("</td></tr>");
 		}
 		echo.append("</table></div><br />");
