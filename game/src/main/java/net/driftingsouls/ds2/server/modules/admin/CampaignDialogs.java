@@ -117,13 +117,15 @@ public class CampaignDialogs implements AdminPlugin
 			}
 			case "createoption":
 				repository.createOption(nodeId, request.getParameterInt("sort"), nonEmpty(request, "text", "Antworttext"),
-						optionalInt(request, "next"), optionalInt(request, "failure"), chance(request), "1".equals(request.getParameterString("hide")),
+						optionalInt(request, "next"), optionalInt(request, "failure"), chance(request), partialChance(request),
+						optionalInt(request, "partial"), "1".equals(request.getParameterString("hide")),
 						"1".equals(request.getParameterString("once")));
 				message(echo, "Antwort angelegt.");
 				return nodeId;
 			case "saveoption":
 				repository.updateOption(optionId, request.getParameterInt("sort"), nonEmpty(request, "text", "Antworttext"),
-						optionalInt(request, "next"), optionalInt(request, "failure"), chance(request), "1".equals(request.getParameterString("hide")),
+						optionalInt(request, "next"), optionalInt(request, "failure"), chance(request), partialChance(request),
+						optionalInt(request, "partial"), "1".equals(request.getParameterString("hide")),
 						"1".equals(request.getParameterString("once")));
 				message(echo, "Antwort gespeichert.");
 				return nodeId;
@@ -169,6 +171,16 @@ public class CampaignDialogs implements AdminPlugin
 			default:
 				return nodeId;
 		}
+	}
+
+	private static Integer partialChance(Request request)
+	{
+		Integer partial = optionalInt(request, "partialchance");
+		if (partial != null && (partial < 0 || partial > 100))
+		{
+			throw new CampaignException("Die Teilerfolg-Spanne muss zwischen 0 und 100 liegen.");
+		}
+		return partial;
 	}
 
 	private static Integer chance(Request request)
@@ -266,6 +278,10 @@ public class CampaignDialogs implements AdminPlugin
 			if (option.baseChance == null && outcome != DialogModel.Outcome.ALWAYS && option.actions.stream().noneMatch(a -> a.outcome == outcome))
 			{
 				// Without a chance roll there is no failure, and "on success" equals "always"
+				continue;
+			}
+			if (outcome == DialogModel.Outcome.PARTIAL && option.partialChance == null && option.actions.stream().noneMatch(a -> a.outcome == outcome))
+			{
 				continue;
 			}
 			echo.append("<div style='margin-left:12px'><i>").append(esc(outcome.getLabel())).append(":</i><ul>");
@@ -402,6 +418,12 @@ public class CampaignDialogs implements AdminPlugin
 		echo.append(" Erfolgschance in % (leer = immer Erfolg): <input type='text' name='chance' size='4' value='")
 				.append(option == null || option.baseChance == null ? "" : option.baseChance).append("' /> bei Misserfolg weiter zu: ");
 		nodeSelect(echo, "failure", option == null ? null : option.failureNodeId, nodes);
+		echo.append("<br />Teilerfolg-Spanne in % (leer = kein Teilerfolg): <input type='text' name='partialchance' size='4' value='")
+				.append(option == null || option.partialChance == null ? "" : option.partialChance).append("' /> bei Teilerfolg weiter zu: ");
+		nodeSelect(echo, "partial", option == null ? null : option.partialNodeId, nodes);
+		echo.append("<br /><span class='campaign-hint'>Der Wurf (0–99) entscheidet: unter der Erfolgschance Erfolg, in den folgenden ")
+				.append("Prozentpunkten der Teilerfolg-Spanne Teilerfolg, sonst Misserfolg. Beispiel: Chance 30 %, Spanne 40 % → 30 % Erfolg, ")
+				.append("40 % Teilerfolg, 30 % Misserfolg.</span>");
 		echo.append("<br /><span class='campaign-hint'>Ein Folgeknoten bei Misserfolg ist optional. Soll ein Misserfolg z.B. sofort eine Schlacht ")
 				.append("auslösen, lege dafür eine Aktion „bei Misserfolg“ an: Sie läuft direkt bei der Auswahl, der Spieler kann sie nicht durch Abbrechen abwehren.</span>");
 		echo.append("<br /><label><input type='checkbox' name='hide' value='1'")
@@ -444,6 +466,10 @@ public class CampaignDialogs implements AdminPlugin
 				if (option.failureNodeId != null)
 				{
 					referenced.add(option.failureNodeId);
+				}
+				if (option.partialNodeId != null)
+				{
+					referenced.add(option.partialNodeId);
 				}
 			}
 		}
@@ -523,6 +549,15 @@ public class CampaignDialogs implements AdminPlugin
 			if (option.nextNodeId != null && byId.containsKey(option.nextNodeId))
 			{
 				tree(echo, byId.get(option.nextNodeId), byId, shown, depth + 2);
+			}
+			if (option.baseChance != null && option.partialChance != null)
+			{
+				echo.append(indent).append("&nbsp;&nbsp;&nbsp;&nbsp;◐ Teilerfolg [").append(option.partialChance).append(" %]")
+						.append(option.partialNodeId == null ? " → Ende" : "").append("<br />");
+				if (option.partialNodeId != null && byId.containsKey(option.partialNodeId))
+				{
+					tree(echo, byId.get(option.partialNodeId), byId, shown, depth + 3);
+				}
 			}
 			if (option.baseChance != null)
 			{

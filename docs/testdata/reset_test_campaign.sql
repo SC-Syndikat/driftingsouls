@@ -4,7 +4,7 @@ START TRANSACTION;
 
 -- Battles started by dialogs, and the ships spawned for them
 CREATE TEMPORARY TABLE reset_battles AS
-SELECT DISTINCT battle AS id FROM ships WHERE battle IS NOT NULL AND id IN (2338362, 2338363, 2338364, 2338365);
+SELECT DISTINCT battle AS id FROM ships WHERE battle IS NOT NULL AND id IN (2338362, 2338363, 2338364);
 CREATE TEMPORARY TABLE reset_ships AS
 SELECT id, fleet FROM ships WHERE id > 2338365 AND owner = -900;
 
@@ -26,7 +26,7 @@ DELETE FROM npc_trust_event WHERE npc_user_id = -900;
 DELETE FROM user_relations WHERE (user_id = 90003 AND target_id = -900) OR (user_id = -900 AND target_id = 90003);
 
 -- Player ships back to the jump node in 612, freighter with 50 Nahrung
-UPDATE ships SET star_system = 612, x = 150, y = 150 WHERE id IN (2338363, 2338364, 2338365);
+UPDATE ships SET star_system = 612, x = 150, y = 150 WHERE id IN (2338363, 2338364);
 UPDATE ships SET cargo = '16|50|0|0;17|80|0|0;20|40|0|0' WHERE id = 2338364;
 UPDATE users SET konto = 0 WHERE id = 90003;
 

@@ -81,7 +81,7 @@ public class DialogRepository
 	{
 		return withDb(db -> db.select(DIALOG_OPTION.ID)
 				.from(DIALOG_OPTION)
-				.where(DIALOG_OPTION.NEXT_NODE_ID.eq(nodeId).or(DIALOG_OPTION.FAILURE_NODE_ID.eq(nodeId)))
+				.where(DIALOG_OPTION.NEXT_NODE_ID.eq(nodeId).or(DIALOG_OPTION.FAILURE_NODE_ID.eq(nodeId)).or(DIALOG_OPTION.PARTIAL_NODE_ID.eq(nodeId)))
 				.and(DIALOG_OPTION.NODE_ID.ne(nodeId))
 				.fetch(DIALOG_OPTION.ID));
 	}
@@ -94,16 +94,24 @@ public class DialogRepository
 	public int createOption(int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance, boolean hideIfUnavailable,
 							boolean oncePerUser)
 	{
+		return createOption(nodeId, sort, text, nextNodeId, failureNodeId, baseChance, null, null, hideIfUnavailable, oncePerUser);
+	}
+
+	public int createOption(int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance,
+							Integer partialChance, Integer partialNodeId, boolean hideIfUnavailable, boolean oncePerUser)
+	{
 		return withDb(db -> {
 			DialogOptionRecord record = db.newRecord(DIALOG_OPTION);
 			applyOption(record, nodeId, sort, text, nextNodeId, failureNodeId, baseChance, hideIfUnavailable, oncePerUser);
+			record.setPartialChance(partialChance);
+			record.setPartialNodeId(partialNodeId);
 			record.store();
 			return record.getId();
 		});
 	}
 
-	public void updateOption(int id, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance, boolean hideIfUnavailable,
-							 boolean oncePerUser)
+	public void updateOption(int id, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance,
+							 Integer partialChance, Integer partialNodeId, boolean hideIfUnavailable, boolean oncePerUser)
 	{
 		withDb(db -> db.update(DIALOG_OPTION)
 				.set(DIALOG_OPTION.SORT, sort)
@@ -113,6 +121,8 @@ public class DialogRepository
 				.set(DIALOG_OPTION.BASE_CHANCE, baseChance)
 				.set(DIALOG_OPTION.HIDE_IF_UNAVAILABLE, (byte) (hideIfUnavailable ? 1 : 0))
 				.set(DIALOG_OPTION.ONCE_PER_USER, (byte) (oncePerUser ? 1 : 0))
+				.set(DIALOG_OPTION.PARTIAL_CHANCE, partialChance)
+				.set(DIALOG_OPTION.PARTIAL_NODE_ID, partialNodeId)
 				.where(DIALOG_OPTION.ID.eq(id))
 				.execute());
 	}
@@ -196,7 +206,7 @@ public class DialogRepository
 					Params.fromJson(a.getParams())));
 		}
 		return new DialogModel.Option(o.getId(), o.getNodeId(), o.getSort(), o.getText(), o.getNextNodeId(), o.getFailureNodeId(),
-				o.getBaseChance(), o.getHideIfUnavailable() != 0, o.getOncePerUser() != 0, conditions, modifiers, actions);
+				o.getBaseChance(), o.getPartialChance(), o.getPartialNodeId(), o.getHideIfUnavailable() != 0, o.getOncePerUser() != 0, conditions, modifiers, actions);
 	}
 
 	private static void applyOption(DialogOptionRecord record, int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId,

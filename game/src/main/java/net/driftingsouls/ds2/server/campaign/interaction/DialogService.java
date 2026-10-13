@@ -12,6 +12,7 @@ import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogEngine;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogModel;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogRepository;
+import net.driftingsouls.ds2.server.campaign.dialog.DialogText;
 import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
@@ -211,7 +212,7 @@ public class DialogService
 				options.add(new OptionView(option.id, option.text, available));
 			}
 		}
-		return new View(sessionId, interaction.label, node.speakerName, node.image, Common._text(node.text), options);
+		return new View(sessionId, interaction.label, node.speakerName, node.image, Common._text(DialogText.resolve(node.text, context)), options);
 	}
 
 	/**
@@ -258,14 +259,15 @@ public class DialogService
 		}
 
 		interactions.log(new InteractionLogEntry(campaign.getId(), campaign.getTickCount(), user.getId(), ship.getId(), interaction.id, node.id,
-				option.id, result.chance, result.success, String.join("; ", result.actions), Common.time()));
+				option.id, result.chance, result.success,
+				(result.roll == DialogModel.Roll.PARTIAL ? "Teilerfolg: " : "") + String.join("; ", result.actions), Common.time()));
 
 		if (ship.getBattle() != null && !Integer.valueOf(ship.getBattle().getId()).equals(battleBefore))
 		{
 			// The battle screen tells the player why they are there
 			Optional<DialogModel.Node> reply = result.nextNodeId == null ? Optional.empty() : dialogs.findNode(result.nextNodeId);
 			new CampaignBattleNotes().add(ship.getBattle().getId(), user.getId(), reply.map(n -> n.speakerName).orElse(node.speakerName),
-					option.text, reply.map(n -> n.text).orElse(""));
+					option.text, reply.map(n -> DialogText.resolve(n.text, context)).orElse(""));
 		}
 
 		if (result.nextNodeId == null)
@@ -279,7 +281,17 @@ public class DialogService
 		List<String> outcome = new ArrayList<>();
 		if (result.chance != null)
 		{
-			outcome.add(result.success ? "Das hat geklappt." : "Das ist leider misslungen.");
+			switch (result.roll)
+			{
+				case SUCCESS:
+					outcome.add("Das hat geklappt.");
+					break;
+				case PARTIAL:
+					outcome.add("Das hat teilweise geklappt.");
+					break;
+				default:
+					outcome.add("Das ist leider misslungen.");
+			}
 		}
 		outcome.addAll(result.playerMessages);
 		return outcome;
@@ -444,14 +456,14 @@ public class DialogService
 		Optional<String> unavailability = campaign != null && campaign.isRunning()
 				? unavailability(interaction, player, ship, campaign)
 				: Optional.of("Die Kampagne läuft noch nicht.");
-		return new PreviewView(node, Common._text(node.text), evaluations, unavailability);
+		return new PreviewView(node, Common._text(DialogText.resolve(node.text, context)), evaluations, unavailability);
 	}
 
 	/**
 	 * Plays an option in the preview: rolls (or takes the forced outcome) and describes the actions
 	 * instead of running them.
 	 */
-	public DialogEngine.Result previewChoose(Interaction interaction, User player, Ship ship, int nodeId, int optionId, Boolean forcedOutcome, User gamemaster)
+	public DialogEngine.Result previewChoose(Interaction interaction, User player, Ship ship, int nodeId, int optionId, DialogModel.Roll forcedOutcome, User gamemaster)
 	{
 		DialogModel.Node node = dialogs.findNode(nodeId).orElseThrow(() -> new CampaignException("Unbekannter Dialogknoten " + nodeId + "."));
 		DialogModel.Option option = node.option(optionId);

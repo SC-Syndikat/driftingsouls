@@ -156,7 +156,26 @@ public class DialogEngineTest
 	{
 		DialogModel.Option option = option(100, List.of(), List.of(), List.of());
 
-		assertFalse(engine.choose(option, context(0), true, false).success);
+		assertFalse(engine.choose(option, context(0), true, DialogModel.Roll.FAILURE).success);
+	}
+
+	@Test
+	public void gegebenEineTeilerfolgSpanne_choose_sollteNachWurfErfolgTeilerfolgOderMisserfolgLiefern()
+	{
+		DialogModel.Option option = new DialogModel.Option(1, 1, 0, "Entschlüsseln", 2, 3, 30, 40, 4, true, false, List.of(), List.of(),
+				List.of(action(DialogModel.Outcome.PARTIAL, "bruchstück")));
+
+		DialogEngine.Result success = engine.choose(option, context(29.9), false, null);
+		DialogEngine.Result partial = engine.choose(option, context(30), false, null);
+		DialogEngine.Result failure = engine.choose(option, context(70), false, null);
+
+		assertEquals(DialogModel.Roll.SUCCESS, success.roll);
+		assertEquals(Integer.valueOf(2), success.nextNodeId);
+		assertEquals(DialogModel.Roll.PARTIAL, partial.roll);
+		assertEquals(Integer.valueOf(4), partial.nextNodeId);
+		assertEquals(DialogModel.Roll.FAILURE, failure.roll);
+		assertEquals(Integer.valueOf(3), failure.nextNodeId);
+		assertEquals("Nur der Teilerfolg führt die Aktion aus", List.of("bruchstück"), executed);
 	}
 
 	@Test(expected = IllegalStateException.class)

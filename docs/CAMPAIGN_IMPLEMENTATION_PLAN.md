@@ -775,3 +775,15 @@ Beantwortet am 2026-09-25:
 12. **GM-Navigation bleibt erhalten.** ✅ Wer als Admin über das GM-Menü ein Werkzeug öffnet, behält
     das GM-Menü auch bei Folgeklicks (Sitzungs-Flag); „Zum Admin-Menü“ oder die Admin-Startseite
     wechseln zurück.
+13. **Teilerfolg.** ✅ Migration V051: Je Antwort eine Teilerfolg-Spanne in Prozentpunkten nach der
+    Erfolgschance und ein eigener Folgeknoten; Aktionen „bei Teilerfolg“; Vorschau kann ihn erzwingen.
+14. **Bedingter Text in Knoten.** ✅ `[wenn name >= 2]…[sonst]…[/wenn]` (auch `global:name`) zeigt Text
+    abhängig von Kampagnenvariablen (`DialogText`).
+15. **Alle Schiffs- und Offizierswerte als Faktoren.** ✅ „Schiffswert“ (aktueller Zustand und alle
+    Zahlenwerte des Schiffstyps, z.B. Sensorreichweite, Größe, Hülle, Docks), „Schiffstyp hat
+    Eigenschaft“ (jedes Schiffstyp-Flag, z.B. AWACS-SRS), „Fähigkeit oder Rang des Offiziers“ (alle
+    fünf Fähigkeiten und Rang), „Zufallszahl“ (von–bis).
+16. **Testkampagne: verzerrter Notruf.** ✅ `docs/testdata/campaign_notruf.sql`: einmal je
+    Kampagnentick entschlüsseln (20 % Erfolg, 40 % Teilerfolg, Rest Misserfolg; plus Sensorreichweite,
+    AWACS-Flags, Technik des Offiziers und Zufall). Die Nachricht wird schrittweise lesbar und nennt
+    621:35/42; dort liegt das Trümmerteil mit der Datendisk für Vex.

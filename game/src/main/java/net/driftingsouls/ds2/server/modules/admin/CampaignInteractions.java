@@ -473,9 +473,11 @@ public class CampaignInteractions implements AdminPlugin
 		if ("previewchoose".equals(request.getParameterString("cpaction")))
 		{
 			String forced = request.getParameterString("forced");
-			Boolean forcedOutcome = "success".equals(forced) ? Boolean.TRUE : "failure".equals(forced) ? Boolean.FALSE : null;
+			DialogModel.Roll forcedOutcome = "success".equals(forced) ? DialogModel.Roll.SUCCESS
+					: "partial".equals(forced) ? DialogModel.Roll.PARTIAL
+					: "failure".equals(forced) ? DialogModel.Roll.FAILURE : null;
 			DialogEngine.Result result = service.previewChoose(interaction, player, ship, nodeId, request.getParameterInt("poption"), forcedOutcome, gamemaster);
-			echo.append("<div style='border:1px solid #aa8800; padding:6px'>Ergebnis: <b>").append(result.success ? "Erfolg" : "Misserfolg").append("</b>")
+			echo.append("<div style='border:1px solid #aa8800; padding:6px'>Ergebnis: <b>").append(result.roll.getLabel()).append("</b>")
 					.append(result.chance == null ? "" : " (Chance " + result.chance + " %)").append("<br />Aktionen: ")
 					.append(result.actions.isEmpty() ? "keine" : esc(String.join("; ", result.actions)))
 					.append("<br />").append(result.nextNodeId == null ? "Das Gespräch endet." : "Weiter mit Knoten " + result.nextNodeId + ".").append("</div>");
@@ -512,7 +514,8 @@ public class CampaignInteractions implements AdminPlugin
 			}
 			if (evaluation.chance != null)
 			{
-				echo.append("<br /><span class='smallfont'>Chance ").append(evaluation.chance).append(" %: ")
+				echo.append("<br /><span class='smallfont'>Chance ").append(evaluation.chance).append(" %")
+						.append(option.partialChance == null ? "" : ", Teilerfolg weitere " + option.partialChance + " %").append(": ")
 						.append(esc(String.join(" | ", evaluation.chanceExplanation))).append("</span>");
 			}
 			if (evaluation.available)
@@ -522,6 +525,10 @@ public class CampaignInteractions implements AdminPlugin
 				if (evaluation.chance != null)
 				{
 					previewButton(echo, interaction, playerId, shipId, nodeId, option.id, "success", "Erfolg erzwingen");
+					if (option.partialChance != null)
+					{
+						previewButton(echo, interaction, playerId, shipId, nodeId, option.id, "partial", "Teilerfolg erzwingen");
+					}
 					previewButton(echo, interaction, playerId, shipId, nodeId, option.id, "failure", "Misserfolg erzwingen");
 				}
 			}

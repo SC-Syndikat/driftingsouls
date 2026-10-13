@@ -61,6 +61,10 @@ public final class DialogModel
 		public final boolean hideIfUnavailable;
 		/** The player may choose it only once per campaign. */
 		public final boolean oncePerUser;
+		/** Percentage points after the success chance that count as partial success; {@code null}: none. */
+		public final Integer partialChance;
+		/** {@code null} ends the dialog on partial success. */
+		public final Integer partialNodeId;
 		public final List<Condition> conditions;
 		public final List<Modifier> modifiers;
 		public final List<ActionRef> actions;
@@ -68,7 +72,16 @@ public final class DialogModel
 		public Option(int id, int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance,
 					  boolean hideIfUnavailable, boolean oncePerUser, List<Condition> conditions, List<Modifier> modifiers, List<ActionRef> actions)
 		{
+			this(id, nodeId, sort, text, nextNodeId, failureNodeId, baseChance, null, null, hideIfUnavailable, oncePerUser, conditions, modifiers, actions);
+		}
+
+		public Option(int id, int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance,
+					  Integer partialChance, Integer partialNodeId, boolean hideIfUnavailable, boolean oncePerUser,
+					  List<Condition> conditions, List<Modifier> modifiers, List<ActionRef> actions)
+		{
 			this.oncePerUser = oncePerUser;
+			this.partialChance = partialChance;
+			this.partialNodeId = partialNodeId;
 			this.id = id;
 			this.nodeId = nodeId;
 			this.sort = sort;
@@ -134,6 +147,7 @@ public final class DialogModel
 	{
 		ALWAYS("immer"),
 		SUCCESS("bei Erfolg"),
+		PARTIAL("bei Teilerfolg"),
 		FAILURE("bei Misserfolg");
 
 		private final String label;
@@ -148,9 +162,41 @@ public final class DialogModel
 			return label;
 		}
 
-		public boolean appliesTo(boolean success)
+		public boolean appliesTo(Roll roll)
 		{
-			return this == ALWAYS || (this == SUCCESS) == success;
+			switch (this)
+			{
+				case ALWAYS:
+					return true;
+				case SUCCESS:
+					return roll == Roll.SUCCESS;
+				case PARTIAL:
+					return roll == Roll.PARTIAL;
+				default:
+					return roll == Roll.FAILURE;
+			}
+		}
+	}
+
+	/**
+	 * How a choice turned out.
+	 */
+	public enum Roll
+	{
+		SUCCESS("Erfolg"),
+		PARTIAL("Teilerfolg"),
+		FAILURE("Misserfolg");
+
+		private final String label;
+
+		Roll(String label)
+		{
+			this.label = label;
+		}
+
+		public String getLabel()
+		{
+			return label;
 		}
 	}
 

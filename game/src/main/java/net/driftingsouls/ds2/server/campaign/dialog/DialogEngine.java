@@ -11,6 +11,7 @@ import java.util.Locale;
  * available = every condition holds: factor(params) comparison threshold
  * chance    = clamp(baseChance + sum(modifier.factor * clamp(value, min, max)), 0, 100)
  * success   = roll &lt; chance, with roll uniform in [0, 100); options without base chance always succeed
+ * partial   = chance &lt;= roll &lt; chance + partialChance
  * </pre>
  */
 public class DialogEngine
@@ -56,7 +57,9 @@ public class DialogEngine
 	 */
 	public static class Result
 	{
+		/** Only a full success; see {@link #roll}. */
 		public final boolean success;
+		public final DialogModel.Roll roll;
 		/** {@code null} if the option always succeeds. */
 		public final Integer chance;
 		/** {@code null} ends the dialog. */
@@ -66,9 +69,10 @@ public class DialogEngine
 		/** What the player is told about the actions; hidden actions are left out. */
 		public final List<String> playerMessages;
 
-		Result(boolean success, Integer chance, Integer nextNodeId, List<String> actions, List<String> playerMessages)
+		Result(DialogModel.Roll roll, Integer chance, Integer nextNodeId, List<String> actions, List<String> playerMessages)
 		{
-			this.success = success;
+			this.roll = roll;
+			this.success = roll == DialogModel.Roll.SUCCESS;
 			this.chance = chance;
 			this.nextNodeId = nextNodeId;
 			this.actions = actions;
@@ -118,10 +122,10 @@ public class DialogEngine
 	 * Carries out the choice of an option: rolls for success and runs the actions for that outcome.
 	 *
 	 * @param preview Only describe the actions, do not run them
-	 * @param forcedOutcome Succeed ({@code true}) or fail ({@code false}) instead of rolling; for previews
+	 * @param forcedOutcome The outcome to take instead of rolling; for previews
 	 * @throws IllegalStateException if the option is not available
 	 */
-	public Result choose(DialogModel.Option option, DialogContext context, boolean preview, Boolean forcedOutcome)
+	public Result choose(DialogModel.Option option, DialogContext context, boolean preview, DialogModel.Roll forcedOutcome)
 	{
 		Evaluation evaluation = evaluate(option, context);
 		if (!evaluation.available)
@@ -129,21 +133,29 @@ public class DialogEngine
 			throw new IllegalStateException("Diese Antwort steht dir nicht zur Verfügung.");
 		}
 
-		boolean success;
+		DialogModel.Roll roll;
 		if (forcedOutcome != null)
 		{
-			success = forcedOutcome;
+			roll = forcedOutcome;
+		}
+		else if (evaluation.chance == null)
+		{
+			roll = DialogModel.Roll.SUCCESS;
 		}
 		else
 		{
-			success = evaluation.chance == null || context.random.getAsDouble() < evaluation.chance;
+			double dice = context.random.getAsDouble();
+			int partial = option.partialChance == null ? 0 : option.partialChance;
+			roll = dice < evaluation.chance ? DialogModel.Roll.SUCCESS
+					: dice < evaluation.chance + partial ? DialogModel.Roll.PARTIAL
+					: DialogModel.Roll.FAILURE;
 		}
 
 		List<String> done = new ArrayList<>();
 		List<String> messages = new ArrayList<>();
 		for (DialogModel.ActionRef ref : option.actions)
 		{
-			if (!ref.outcome.appliesTo(success))
+			if (!ref.outcome.appliesTo(roll))
 			{
 				continue;
 			}
@@ -160,8 +172,19 @@ public class DialogEngine
 			}
 		}
 
-		Integer next = success ? option.nextNodeId : option.failureNodeId;
-		return new Result(success, evaluation.chance, next, done, messages);
+		Integer next;
+		switch (roll)
+		{
+			case SUCCESS:
+				next = option.nextNodeId;
+				break;
+			case PARTIAL:
+				next = option.partialNodeId;
+				break;
+			default:
+				next = option.failureNodeId;
+		}
+		return new Result(roll, evaluation.chance, next, done, messages);
 	}
 
 	private static double clamp(double value, Double min, Double max)
