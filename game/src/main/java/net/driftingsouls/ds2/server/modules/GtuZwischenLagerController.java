@@ -101,7 +101,7 @@ public class GtuZwischenLagerController extends Controller
 		validiereSchiff(ship);
 
 		validiereGtuZwischenlager(tradeentry, ship, handelsposten);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRADE);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRADE);
 
 		//  Der Handelspartner
 		// Die (zukuenftig) eigenen Waren

@@ -25,10 +25,13 @@ public final class DialogModel
 		public final String image;
 		/** BBCode. */
 		public final String text;
+		/** The player must answer; the dialog cannot be left here. */
+		public final boolean forced;
 		public final List<Option> options;
 
-		public Node(int id, String title, String speakerName, String image, String text, List<Option> options)
+		public Node(int id, String title, String speakerName, String image, String text, boolean forced, List<Option> options)
 		{
+			this.forced = forced;
 			this.id = id;
 			this.title = title;
 			this.speakerName = speakerName;

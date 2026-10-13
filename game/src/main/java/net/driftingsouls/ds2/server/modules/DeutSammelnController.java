@@ -154,7 +154,7 @@ public class DeutSammelnController extends Controller
 		List<Ship> shipList = erzeugeSchiffsliste(ship, fleet);
 		for (Ship aship : shipList)
 		{
-			new CampaignActionGuard().check((User) getUser(), aship.getSystem(), CampaignAction.SHIP_ACTION);
+			new CampaignActionGuard().check((User) getUser(), aship, CampaignAction.SHIP_ACTION);
 		}
 		Nebel nebel = ermittleNebelFuerSchiffsliste(shipList);
 		filtereSchiffsliste(shipList, nebel);

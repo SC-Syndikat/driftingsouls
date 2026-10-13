@@ -554,7 +554,7 @@ public class AngriffController extends Controller
 		if( battleID == 0 ) {
 			Ship attackingShip = (Ship)db.get(Ship.class, ownShipID);
 			if( attackingShip != null ) {
-				new CampaignActionGuard().check(user, attackingShip.getSystem(), CampaignAction.START_BATTLE);
+				new CampaignActionGuard().check(user, attackingShip, CampaignAction.START_BATTLE);
 			}
 			try {
 				battle = schlachtErstellenService.erstelle(user, ownShipID, enemyShipID);

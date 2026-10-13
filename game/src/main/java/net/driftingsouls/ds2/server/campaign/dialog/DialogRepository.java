@@ -86,6 +86,11 @@ public class DialogRepository
 				.fetch(DIALOG_OPTION.ID));
 	}
 
+	public void setNodeForced(int id, boolean forced)
+	{
+		withDb(db -> db.update(DIALOG_NODE).set(DIALOG_NODE.FORCED, (byte) (forced ? 1 : 0)).where(DIALOG_NODE.ID.eq(id)).execute());
+	}
+
 	public void deleteNode(int id)
 	{
 		withDb(db -> db.deleteFrom(DIALOG_NODE).where(DIALOG_NODE.ID.eq(id)).execute());
@@ -181,7 +186,7 @@ public class DialogRepository
 		{
 			options.add(toOption(db, o));
 		}
-		return new DialogModel.Node(record.getId(), record.getTitle(), record.getSpeakerName(), record.getImage(), record.getText(), options);
+		return new DialogModel.Node(record.getId(), record.getTitle(), record.getSpeakerName(), record.getImage(), record.getText(), record.getForced() != 0, options);
 	}
 
 	private static DialogModel.Option toOption(DSLContext db, DialogOptionRecord o)

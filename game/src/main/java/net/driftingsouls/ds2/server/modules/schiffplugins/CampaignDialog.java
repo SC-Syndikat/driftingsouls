@@ -120,6 +120,7 @@ public class CampaignDialog implements SchiffPlugin
 		{
 			DialogService.View v = view.get();
 			t.setVar("campaigndialog.session", v.sessionId,
+					"campaigndialog.canquit", v.canQuit,
 					"campaigndialog.label", escapeHtml4(v.interactionLabel),
 					"campaigndialog.speaker", escapeHtml4(v.speaker),
 					"campaigndialog.image", escapeHtml4(v.image),

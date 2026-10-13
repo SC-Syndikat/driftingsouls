@@ -87,12 +87,14 @@ public class CampaignDialogs implements AdminPlugin
 			{
 				int id = repository.createNode(nonEmpty(request, "title", "Titel"), request.getParameterString("speaker").trim(),
 						request.getParameterString("image").trim(), request.getParameterString("text"));
+				repository.setNodeForced(id, "1".equals(request.getParameterString("forced")));
 				message(echo, "Knoten " + id + " angelegt.");
 				return id;
 			}
 			case "savenode":
 				repository.updateNode(nodeId, nonEmpty(request, "title", "Titel"), request.getParameterString("speaker").trim(),
 						request.getParameterString("image").trim(), request.getParameterString("text"));
+				repository.setNodeForced(nodeId, "1".equals(request.getParameterString("forced")));
 				message(echo, "Knoten gespeichert.");
 				return nodeId;
 			case "deletenode":
@@ -212,7 +214,7 @@ public class CampaignDialogs implements AdminPlugin
 		echo.append("<form action='./ds' method='post'>");
 		hiddenFields(echo, getClass(), "savenode");
 		hidden(echo, "node", node.id);
-		nodeFields(echo, node.title, node.speakerName, node.image, node.text);
+		nodeFields(echo, node.title, node.speakerName, node.image, node.text, node.forced);
 		echo.append("<input type='submit' value='Knoten speichern' /></form>");
 		actionButton(echo, getClass(), "deletenode", "Knoten löschen", "node", node.id);
 
@@ -401,12 +403,15 @@ public class CampaignDialogs implements AdminPlugin
 				.append("&amp;node=").append(node.id).append("'>abbrechen</a></form>");
 	}
 
-	private static void nodeFields(StringBuilder echo, String title, String speaker, String image, String text)
+	private static void nodeFields(StringBuilder echo, String title, String speaker, String image, String text, boolean forced)
 	{
 		echo.append("Titel (nur für dich): <input type='text' name='title' size='40' value='").append(esc(title)).append("' /><br />");
 		echo.append("Sprecher: <input type='text' name='speaker' size='30' value='").append(esc(speaker)).append("' /> ");
 		echo.append("Bild (Pfad/URL): <input type='text' name='image' size='40' value='").append(esc(image)).append("' /><br />");
 		echo.append("Text (BBCode):<br /><textarea name='text' rows='5' cols='100'>").append(esc(text)).append("</textarea><br />");
+		echo.append("<span class='campaign-hint'>Bedingter Text: [wenn name &gt;= 2]…[sonst]…[/wenn], kampagnenweit mit global:name.</span><br />");
+		echo.append("<label><input type='checkbox' name='forced' value='1'").append(forced ? " checked='checked'" : "")
+				.append(" /> Spieler muss antworten (kein „Gespräch beenden“, kein anderes Gespräch, z.B. bei einem Überfall)</label><br />");
 	}
 
 	private static void optionFields(StringBuilder echo, DialogModel.Option option, List<DialogModel.Node> nodes, int sort)
@@ -520,7 +525,7 @@ public class CampaignDialogs implements AdminPlugin
 
 		echo.append("<h4>Neuer Knoten</h4><form action='./ds' method='post'>");
 		hiddenFields(echo, getClass(), "createnode");
-		nodeFields(echo, "", "", "", "");
+		nodeFields(echo, "", "", "", "", false);
 		echo.append("<input type='submit' value='Knoten anlegen' /></form></div>");
 	}
 

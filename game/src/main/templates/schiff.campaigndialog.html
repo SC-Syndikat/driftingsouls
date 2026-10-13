@@ -19,7 +19,11 @@
 					{/endif}
 				<!-- END campaigndialog.option.listitem -->
 				<br />
+				{if campaigndialog.canquit}
 				<a class="error" href="./ds?module=schiff&amp;ship={ship.id}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops%5Bop%5D=quit&amp;{global.pluginid}_ops%5Bsession%5D={campaigndialog.session}">Gespräch beenden</a>
+				{else}
+				<span class="smallfont" style="color:orange">Du musst antworten. Deine Schiffe in diesem Sektor sind bis dahin gebunden.</span>
+				{/endif}
 			</td>
 		</tr>
 	</table>

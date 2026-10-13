@@ -122,7 +122,7 @@ public class TradeController extends Controller
 	{
 		validiereSchiff(ship);
 		validiereHandelsposten(ship, tradepost);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRADE);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRADE);
 
 		ResourceList resourceList = tradepost.getCargo().getResourceList();
 		Cargo tradepostCargo = tradepost.getCargo();
@@ -233,7 +233,7 @@ public class TradeController extends Controller
 
 		validiereSchiff(ship);
 		validiereHandelsposten(ship, tradepost);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRADE);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRADE);
 
 		GtuWarenKurse kurse = ermittleWarenKurseFuerHandelsposten(db, ship, tradepost);
 

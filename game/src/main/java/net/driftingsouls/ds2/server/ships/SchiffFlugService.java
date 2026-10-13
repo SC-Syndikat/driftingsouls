@@ -573,7 +573,8 @@ public class SchiffFlugService
 			return new FlugErgebnis(FlugStatus.SHIP_FAILURE, out.toString());
 		}
 
-		Optional<String> campaignDenial = new CampaignActionGuard().denial(user, schiff.getSystem(), CampaignAction.MOVE);
+		Optional<String> campaignDenial = new CampaignActionGuard().denial(user, schiff.getSystem(), CampaignAction.MOVE)
+				.or(() -> new CampaignActionGuard().dialogDenial(user, schiff.getLocation()));
 		if( campaignDenial.isPresent() ) {
 			out.append("<span style=\"color:#ff0000\">").append(campaignDenial.get()).append("</span><br />\n");
 			return new FlugErgebnis(FlugStatus.SHIP_FAILURE, out.toString());

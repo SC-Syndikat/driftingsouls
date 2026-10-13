@@ -1789,7 +1789,7 @@ public class FleetMgntController extends Controller
 		List<Ship> ships = fleet.getShips();
 		if (!ships.isEmpty())
 		{
-			new CampaignActionGuard().check((User) getUser(), ships.get(0).getSystem(), action);
+			new CampaignActionGuard().check((User) getUser(), ships, action);
 		}
 	}
 }

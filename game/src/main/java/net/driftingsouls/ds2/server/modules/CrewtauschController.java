@@ -290,7 +290,7 @@ public class CrewtauschController extends Controller
 	public RedirectViewResult sendAction(Ship ship, int tar, String mode, int send)
 	{
 		validiereSchiff(ship);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRANSFER);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 
 		Target datat = ladeCrewtauschZiel(mode, tar, ship);
 
@@ -332,7 +332,7 @@ public class CrewtauschController extends Controller
 	public RedirectViewResult recAction(Ship ship, int tar, String mode, int rec)
 	{
 		validiereSchiff(ship);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRANSFER);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 
 		Target datat = ladeCrewtauschZiel(mode, tar, ship);
 

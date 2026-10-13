@@ -101,7 +101,7 @@ public class ColonizeController extends Controller
 	public TemplateEngine defaultAction(Ship ship, @UrlParam(name = "col") Base base)
 	{
 		validiereSchiffUndBasis(ship, base);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.COLONIZE);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.COLONIZE);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();

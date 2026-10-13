@@ -1,7 +1,9 @@
 package net.driftingsouls.ds2.server.campaign.interaction;
 
 import net.driftingsouls.ds2.server.DBSingleTransactionTest;
+import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
@@ -143,6 +145,34 @@ public class DialogServiceTest extends DBSingleTransactionTest
 		assertTrue("Die Antwort ist bereits gewählt", again.options.stream().noneMatch(o -> o.id == compliment));
 		assertThrows(CampaignException.class, () -> service.choose(player, playerShip, again.sessionId, compliment));
 		assertEquals(1, new TrustService(getEM()).trust(player.getId(), npc.getId()).getTotal(), 0.001);
+	}
+
+	@Test
+	public void gegebenEinLaufendesGespraech_sollteDieSchiffeImSektorBinden()
+	{
+		int interactionId = service.findOffers(player, playerShip).get(0).interactions.get(0).id;
+		CampaignActionGuard guard = new CampaignActionGuard();
+		assertTrue(guard.dialogDenial(player, playerShip.getLocation()).isEmpty());
+
+		service.start(player, playerShip, interactionId);
+		assertTrue("Im Gesprächssektor darf nichts abfliegen", guard.dialogDenial(player, playerShip.getLocation()).isPresent());
+		assertTrue("Andere Sektoren sind frei", guard.dialogDenial(player, new Location(playerShip.getSystem(), 40, 40)).isEmpty());
+
+		service.quit(player, service.currentView(player, playerShip).orElseThrow().sessionId);
+		assertTrue(guard.dialogDenial(player, playerShip.getLocation()).isEmpty());
+	}
+
+	@Test
+	public void gegebenEinPflichtknoten_quit_sollteAbgelehntWerden()
+	{
+		new DialogRepository().setNodeForced(greeting, true);
+		int interactionId = service.findOffers(player, playerShip).get(0).interactions.get(0).id;
+		service.start(player, playerShip, interactionId);
+		DialogService.View view = service.currentView(player, playerShip).orElseThrow();
+
+		assertFalse(view.canQuit);
+		assertThrows(CampaignException.class, () -> service.quit(player, view.sessionId));
+		assertTrue(service.currentView(player, playerShip).isPresent());
 	}
 
 	@Test

@@ -191,7 +191,7 @@ public class KapernController extends Controller
 		User user = (User) this.getUser();
 
 		validiereEigenesUndZielschiff(eigenesSchiff, zielSchiff);
-		new CampaignActionGuard().check(user, eigenesSchiff.getSystem(), CampaignAction.BOARD);
+		new CampaignActionGuard().check(user, eigenesSchiff, CampaignAction.BOARD);
 
 		t.setVar(
 				"ownship.id", eigenesSchiff.getId(),

@@ -1194,6 +1194,6 @@ public class SchiffController extends Controller
 
 	private void pruefeKampagne(Ship ship, CampaignAction action)
 	{
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), action);
+		new CampaignActionGuard().check((User) getUser(), ship, action);
 	}
 }

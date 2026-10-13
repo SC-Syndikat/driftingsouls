@@ -796,3 +796,10 @@ Beantwortet am 2026-09-25:
     (50 % + Sicherheit des Offiziers) kann Kapitän Skarn (NPC -901) anlocken. Disk übergeben,
     überzeugen (Kommando, Kampfkraft) oder kämpfen. Ist die Disk verloren, stellt Vex einmalig einen
     Raider. Bei dreifacher Kampfkraft gibt Skarn die Disk heraus; sonst angreifen, lahmlegen, plündern.
+19. **Ein Gespräch bindet den Sektor.** ✅ Solange ein Spieler ein Gespräch führt, können seine Schiffe im
+    Sektor des Gesprächs weder abfliegen noch springen, Waren oder Crew tauschen, handeln oder
+    angreifen (`CampaignActionGuard.dialogDenial`, an allen Schiffsaktionen). Weitere Schiffe dürfen
+    hineinfliegen und sind dann ebenfalls gebunden. Knoten mit „Spieler muss antworten“ (V053) lassen
+    sich weder beenden noch durch ein anderes Gespräch ersetzen; Skarns Forderung ist so markiert.
+    Startet eine Antwort eine Schlacht, endet das Gespräch. Dabei geschlossen: Der neue Flugweg
+    (`ShipsMovement`) prüfte die Kampagnenregeln bisher gar nicht.

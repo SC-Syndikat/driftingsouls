@@ -118,7 +118,7 @@ public class TCController extends Controller
 		User user = (User) getUser();
 
 		validiereSchiff(ship);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRANSFER);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 		t.setVar("global.shipid", ship.getId());
 
 		String errorurl = Common.buildUrl("default", "module", "schiff", "ship", ship.getId());
@@ -257,7 +257,7 @@ public class TCController extends Controller
 		User user = (User) getUser();
 
 		validiereSchiff(ship);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRANSFER);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 		t.setVar("global.shipid", ship.getId());
 
 
@@ -349,7 +349,7 @@ public class TCController extends Controller
 		User user = (User) getUser();
 
 		validiereSchiff(ship);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRANSFER);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 		t.setVar("global.shipid", ship.getId());
 
 
@@ -427,7 +427,7 @@ public class TCController extends Controller
 		User user = (User) getUser();
 
 		validiereSchiff(ship);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.TRANSFER);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 		t.setVar("global.shipid", ship.getId());
 
 

@@ -48,6 +48,8 @@ Er gibt einem Offizier ein Zeichen. »Nehmt diesen Raider aus meiner Flotte. Sei
 
 -- ---------------------------------------------------------------- the wreck: careful search or pirates
 UPDATE interaction SET npc_user_id = -901 WHERE id = 3;
+-- Skarn's demand must be answered: no leaving the dialog, all ships in the sector stay
+UPDATE dialog_node SET forced = 1 WHERE id = 14;
 UPDATE dialog_option SET base_chance = 50, failure_node_id = 14 WHERE id = 22;
 INSERT INTO dialog_option_modifier (option_id, type, params, factor, min_value, max_value) VALUES
 (22, 'OFFICER_SKILL', '{"ability":"SEC"}', 0.1, NULL, 200);

@@ -87,9 +87,12 @@ public class DialogService
 		/** Rendered from BBCode. */
 		public final String textHtml;
 		public final List<OptionView> options;
+		/** {@code false} where the player must answer. */
+		public final boolean canQuit;
 
-		View(int sessionId, String interactionLabel, String speaker, String image, String textHtml, List<OptionView> options)
+		View(int sessionId, String interactionLabel, String speaker, String image, String textHtml, List<OptionView> options, boolean canQuit)
 		{
+			this.canQuit = canQuit;
 			this.sessionId = sessionId;
 			this.interactionLabel = interactionLabel;
 			this.speaker = speaker;
@@ -174,6 +177,10 @@ public class DialogService
 		{
 			throw new CampaignException(reason.get());
 		}
+		if (mustAnswer(user))
+		{
+			throw new CampaignException("Du musst zuerst das laufende Gespräch beantworten.");
+		}
 
 		interactions.startSession(user.getId(), ship.getId(), interaction.id, interaction.startNodeId);
 		interactions.log(new InteractionLogEntry(campaign.getId(), campaign.getTickCount(), user.getId(), ship.getId(), interaction.id,
@@ -212,7 +219,9 @@ public class DialogService
 				options.add(new OptionView(option.id, option.text, available));
 			}
 		}
-		return new View(sessionId, interaction.label, node.speakerName, node.image, Common._text(DialogText.resolve(node.text, context)), options);
+		// A forced node with nothing to choose must not trap the player
+		boolean canQuit = !node.forced || options.stream().noneMatch(o -> o.available);
+		return new View(sessionId, interaction.label, node.speakerName, node.image, Common._text(DialogText.resolve(node.text, context)), options, canQuit);
 	}
 
 	/**
@@ -270,8 +279,10 @@ public class DialogService
 					option.text, reply.map(n -> DialogText.resolve(n.text, context)).orElse(""));
 		}
 
-		if (result.nextNodeId == null)
+		boolean battleStarted = ship.getBattle() != null && !Integer.valueOf(ship.getBattle().getId()).equals(battleBefore);
+		if (result.nextNodeId == null || battleStarted)
 		{
+			// After a battle started the reply is shown on the way to the battle; the dialog is over
 			interactions.endSession(session.id);
 		}
 		else
@@ -302,7 +313,37 @@ public class DialogService
 	 */
 	public void quit(User user, int sessionId)
 	{
-		interactions.findSession(sessionId, user.getId()).ifPresent(s -> interactions.endSession(s.id));
+		Optional<DialogSession> session = interactions.findSession(sessionId, user.getId());
+		if (session.isEmpty())
+		{
+			return;
+		}
+		if (mustAnswer(user))
+		{
+			throw new CampaignException("Du kannst dieses Gespräch nicht einfach beenden – du musst antworten.");
+		}
+		interactions.endSession(session.get().id);
+	}
+
+	/**
+	 * @return Whether the player's dialog is at a node they must answer, and can answer
+	 */
+	private boolean mustAnswer(User user)
+	{
+		Optional<DialogSession> session = interactions.findSessionOf(user.getId());
+		if (session.isEmpty())
+		{
+			return false;
+		}
+		Ship ship = em.find(Ship.class, session.get().shipId);
+		Optional<Interaction> interaction = interactions.find(session.get().interactionId);
+		Optional<DialogModel.Node> node = dialogs.findNode(session.get().currentNodeId);
+		Optional<Campaign> campaign = runningCampaign();
+		if (ship == null || interaction.isEmpty() || node.isEmpty() || campaign.isEmpty() || !node.get().forced)
+		{
+			return false;
+		}
+		return !view(session.get().id, interaction.get(), node.get(), context(user, ship, interaction.get(), campaign.get(), user)).canQuit;
 	}
 
 	private void rollBackAndLog(User user, Ship ship, Interaction interaction, Campaign campaign, DialogModel.Node node, DialogModel.Option option, RuntimeException e)

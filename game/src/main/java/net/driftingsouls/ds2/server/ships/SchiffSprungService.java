@@ -113,7 +113,8 @@ public class SchiffSprungService
 			return new SprungErgebnis(outputbuffer.toString(), false);
 		}
 
-		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), node.getId());
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), node.getId())
+				.or(() -> new CampaignActionGuard().dialogDenial(user, shipLoc));
 		if (campaignDenial.isPresent())
 		{
 			outputbuffer.append("<span style=\"color:red\">").append(campaignDenial.get()).append("</span><br />\n");
@@ -368,7 +369,8 @@ public class SchiffSprungService
 			return new SprungErgebnis(outputbuffer.toString(), false);
 		}
 
-		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), null);
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), null)
+				.or(() -> new CampaignActionGuard().dialogDenial(user, shipLoc));
 		if (campaignDenial.isPresent())
 		{
 			outputbuffer.append("<span style=\"color:red\">").append(campaignDenial.get()).append("</span><br />\n");

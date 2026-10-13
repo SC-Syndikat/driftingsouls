@@ -184,7 +184,7 @@ public class PluendernController extends Controller
 		org.hibernate.Session db = getDB();
 
 		validiereEigenesUndZielschiff(shipFrom, shipTo);
-		new CampaignActionGuard().check(user, shipFrom.getSystem(), CampaignAction.TRANSFER);
+		new CampaignActionGuard().check(user, shipFrom, CampaignAction.TRANSFER);
 
 		Cargo cargofrom = shipFrom.getCargo();
 		Cargo cargoto = shipTo.getCargo();

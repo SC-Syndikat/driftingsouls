@@ -84,7 +84,7 @@ public class SchiffAjaxController extends Controller
 	public ViewMessage alarmAction(Ship schiff, Alarmstufe alarm)
 	{
 		validiereSchiff(schiff);
-		new CampaignActionGuard().check((User) getUser(), schiff.getSystem(), CampaignAction.SHIP_ACTION);
+		new CampaignActionGuard().check((User) getUser(), schiff, CampaignAction.SHIP_ACTION);
 
 		User user = (User) getUser();
 		if (user.isNoob())
@@ -174,6 +174,8 @@ public class SchiffAjaxController extends Controller
 	public Object fliegeSchiffAction(Ship schiff, int x, int y)
 	{
 		validiereSchiff(schiff);
+		// Campaign rules and dialogs binding the ships in their sector apply to flights too
+		new CampaignActionGuard().check((User) getUser(), schiff, CampaignAction.MOVE);
 
 		RouteFactory router = new RouteFactory();
 		boolean forceLowHeat = false;

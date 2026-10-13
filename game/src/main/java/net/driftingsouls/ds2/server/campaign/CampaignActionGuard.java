@@ -1,9 +1,17 @@
 package net.driftingsouls.ds2.server.campaign;
 
+import net.driftingsouls.ds2.server.Location;
+import net.driftingsouls.ds2.server.campaign.interaction.DialogSession;
+import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
+import net.driftingsouls.ds2.server.framework.Common;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
+import net.driftingsouls.ds2.server.ships.Ship;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -97,6 +105,61 @@ public class CampaignActionGuard
 		{
 			throw new ValidierungException(denial.get());
 		}
+	}
+
+	/**
+	 * Like {@link #check(User, int, CampaignAction)} for an action of the ship, which is also refused while
+	 * the player talks in its sector: the player must not fly away from a demand.
+	 */
+	public void check(User user, Ship ship, CampaignAction action)
+	{
+		check(user, List.of(ship), action);
+	}
+
+	/**
+	 * Like {@link #check(User, Ship, CampaignAction)} for ships acting together, e.g. a fleet.
+	 */
+	public void check(User user, Collection<Ship> ships, CampaignAction action)
+	{
+		if (ships.isEmpty())
+		{
+			return;
+		}
+		check(user, ships.iterator().next().getSystem(), action);
+		for (Ship ship : ships)
+		{
+			Optional<String> denial = dialogDenial(user, ship.getLocation());
+			if (denial.isPresent())
+			{
+				throw new ValidierungException(denial.get());
+			}
+		}
+	}
+
+	/**
+	 * A dialog binds all of the player's ships in its sector until it is finished: ships may join, but
+	 * none may leave, transfer goods or attack.
+	 *
+	 * @return Why the player's ships at the location cannot act, or empty
+	 */
+	public Optional<String> dialogDenial(User user, Location location)
+	{
+		if (user == null)
+		{
+			return Optional.empty();
+		}
+		Optional<DialogSession> session = new InteractionRepository().findSessionOf(user.getId());
+		if (session.isEmpty())
+		{
+			return Optional.empty();
+		}
+		Ship talking = ContextMap.getContext().getEM().find(Ship.class, session.get().shipId);
+		if (talking == null || !talking.getLocation().sameSector(0, location, 0))
+		{
+			return Optional.empty();
+		}
+		return Optional.of("In diesem Sektor läuft gerade ein Gespräch mit " + Common._plaintitle(talking.getName()) + " (" + talking.getId()
+				+ "). Bis es abgeschlossen ist, können deine Schiffe hier nicht abfliegen, Waren tauschen oder angreifen.");
 	}
 
 	static Optional<String> decide(Campaign campaign, boolean campaignSystem, boolean participant, boolean tickReady, CampaignAction action)

@@ -87,7 +87,7 @@ public class WerftController extends Controller
 	public void defaultAction(Ship ship, int linkedbase) throws IOException
 	{
 		validiereSchiff(ship);
-		new CampaignActionGuard().check((User) getUser(), ship.getSystem(), CampaignAction.SHIP_ACTION);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 
