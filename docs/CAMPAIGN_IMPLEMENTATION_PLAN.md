@@ -715,9 +715,22 @@ Beantwortet am 2026-09-25:
    Misserfolgsfeld.
 2. **Bessere Formatierung** der Kampagnen-Seiten. ✅ Gemeinsamer Stil mit mehr Zeilenabstand,
    Abständen in Tabellen, Formularen und Abschnitten (`CampaignAdminHtml.begin/end`).
-3. **Testdaten für Schiffe, Asteroiden, Systeme.** ❓ Seit dem Import des Produktions-Backups vom
+3. **Testdaten für Schiffe, Asteroiden, Systeme.** ✅ Seit dem Import des Produktions-Backups vom
    2026-10-12 enthält das Dev-System die echten Daten (295 Accounts, 40 Systeme, rund 100.000
-   Schiffe). Werden zusätzlich eigene Testdaten gebraucht, etwa eine vorbereitete Kampagne?
+   Schiffe). Darauf liegt die Testkampagne „Testkampagne Maelstrom“ (`docs/testdata/`):
+   - System 621 Maelstrom, Sprungpunkte 105/106 „Riss im Maelstrom“ (612:150/150 ↔ 621:20/20);
+   - Teilnehmer 90003 (Spieler) und -900 (NPC), Schiffsgruppen-Vorlage 1 „Piratenrotte“;
+   - Flaggschiff Vex (-900, 621:20/20) mit dem Dialog „Mit Admiral Vex sprechen“: friedlicher Weg
+     (Nahrung gegen Credits, Freundschaft), Erpressung mit Erfolgschance und Schlacht bei
+     Misserfolg, Auftrag ab Vertrauen 10, Abgabe der Datendisk;
+   - System-Interaktion „Notsignal untersuchen“ (einmalig): Datendisk und Variable bei Erfolg,
+     Hinterhalt der Piratenrotte bei Misserfolg;
+   - `reset_test_campaign.sql` setzt den Fortschritt des Spielers zurück.
+
+   Beim Anlegen fielen zwei Fehler auf: Der Prod-Dump enthielt keine Stored Procedures (im Dev
+   nachträglich angelegt), und der alte Fremdschlüssel `ships.id → ship_history.id` verhinderte
+   jedes neue Schiff (V048 entfernt ihn; AddShips und CreateObjects speichern die Historie jetzt
+   mit).
 4. **Dropdown für die Objekt-ID** bei den Interaktionen, gefiltert auf den Objekttyp und auf
    Kampagnensysteme, mit Name und Position. ✅ Dazu Besitzer, und der sprechende NPC als Auswahl der
    teilnehmenden NPC-Accounts.
@@ -737,9 +750,8 @@ Beantwortet am 2026-09-25:
    - Pflege im Plugin „Sprungpunkte“ über „Limits bearbeiten“, mit dem verbrauchten Kontingent je
      Spieler.
 
-   ❓ „GP“ ist im Code nicht definiert. Deshalb ist je Sprungpunkt wählbar, ob die **Schiffsgröße**
-   oder der **Schlachtwert** zählt (Größe × Modifikator + Jägerdocks × Modifikator, nur
-   Kriegsschiffe). Was ist mit GP gemeint?
+   GP sind die Größenpunkte des Schiffs (Standard). Je Sprungpunkt kann stattdessen der
+   **Schlachtwert** zählen (Größe × Modifikator + Jägerdocks × Modifikator, nur Kriegsschiffe).
 7. **Eigenes GM-Menü statt Adminmenü.** ✅ Ein GM ohne Admin-Level sieht das Adminmenü nicht mehr.
    Die GM-Seite listet alle Werkzeuge als Unterpunkte von „Kampagne vorbereiten“, und auf den
    Plugin-Seiten erscheint dasselbe Menü statt des Admin-Baums. Der Admin-Link im Hauptmenü ist für

@@ -313,6 +313,8 @@ public class AddShips implements AdminPlugin {
 					ship.setId(shipid);
 				}
 				db.save(ship);
+				// save() does not cascade to the history like persist() would
+				db.persist(ship.getHistory());
 
 				if( shiptype.getWerft() != 0 ) {
 					ShipWerft werft = new ShipWerft(ship);
@@ -399,6 +401,7 @@ public class AddShips implements AdminPlugin {
 							jaeger.setId(shouldId);
 						}
 						db.save(jaeger);
+						db.persist(jaeger.getHistory());
 
 						jaeger.recalculateShipStatus();
 

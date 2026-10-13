@@ -483,6 +483,8 @@ public class CreateObjects implements AdminPlugin {
 				shipObj.setComm(100);
 				shipObj.setSensors(100);
 				db.save(shipObj);
+				// save() does not cascade to the history like persist() would
+				db.persist(shipObj.getHistory());
 				
 				// Offizier
 				Element offiElement = (Element)XMLUtils.firstNodeByTagName(ship, "offizier");

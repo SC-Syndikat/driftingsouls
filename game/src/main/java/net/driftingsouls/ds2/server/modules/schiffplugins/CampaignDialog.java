@@ -1,6 +1,9 @@
 package net.driftingsouls.ds2.server.modules.schiffplugins;
 
+import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
 import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.campaign.interaction.DialogService;
@@ -177,8 +180,21 @@ public class CampaignDialog implements SchiffPlugin
 					.append(interaction.active ? "" : " (inaktiv)").append(", ");
 		}
 		html.append(" <a class=\"forschinfo\" href=\"").append(CampaignInteractions.objectUrl(ObjectType.SHIP, ship.getId()))
-				.append("\">+ Interaktion hinzufügen / verwalten</a></span><br /><br />");
+				.append("\">+ Interaktion hinzufügen / verwalten</a></span><br />");
+		if (!interactions.isEmpty() && !inCampaignSystem(ship))
+		{
+			html.append("<span class=\"smallfont\" style=\"color:orange\">Das Schiff steht außerhalb der Kampagnensysteme. ")
+					.append("Spieler sehen seine Interaktionen erst, wenn es in einem Kampagnensystem steht.</span><br />");
+		}
+		html.append("<br />");
 		return html.toString();
+	}
+
+	private static boolean inCampaignSystem(Ship ship)
+	{
+		var em = ContextMap.getContext().getEM();
+		Optional<Campaign> campaign = new CampaignService(em).findOpenCampaign();
+		return campaign.isPresent() && new CampaignMapService(em).getSystemIds(campaign.get()).contains(ship.getSystem());
 	}
 
 	private static void appendOffer(StringBuilder html, Ship ship, DialogService.Offer offer)

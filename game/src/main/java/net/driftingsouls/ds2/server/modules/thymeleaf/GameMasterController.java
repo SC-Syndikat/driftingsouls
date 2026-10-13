@@ -173,8 +173,11 @@ public class GameMasterController implements DSController {
         ctx.setVariable("out", "Kampagne gestartet. Die Kampagnen-Sprungpunkte sind jetzt aktiv.");
       } catch(CampaignException e) {
         ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster?show=start"));
+        defaultAction(ctx, request, user, Show.START);
+        return;
       }
-      defaultAction(ctx, request, user, Show.START);
+      // Once started, the campaign is run from the tick view
+      defaultAction(ctx, request, user, Show.TICK);
     }
 
     /**
