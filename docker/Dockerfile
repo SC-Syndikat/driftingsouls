@@ -5,6 +5,10 @@ FROM tomcat:9-jdk11
 # .war into webapps/ for Tomcat to explode at startup) so the entrypoint can
 # rewrite WEB-INF/cfg/config.xml before Tomcat ever reads it.
 RUN rm -rf /usr/local/tomcat/webapps/ROOT
+
+# The game's links carry plugin parameters like "cargo_ops[act]" unencoded, which Tomcat rejects
+# with 400 unless brackets are allowed in the query string.
+RUN sed -i 's|<Connector port="8080" protocol="HTTP/1.1"|<Connector port="8080" protocol="HTTP/1.1" relaxedQueryChars="[]"|' /usr/local/tomcat/conf/server.xml
 COPY game/target/*.war /tmp/app.war
 RUN mkdir -p /usr/local/tomcat/webapps/ROOT && \
     cd /usr/local/tomcat/webapps/ROOT && \

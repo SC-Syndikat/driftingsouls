@@ -13,13 +13,13 @@
 				<br /><br />
 				<!-- BEGIN campaigndialog.option.listitem -->
 					{if campaigndialog.option.available}
-						<a class="forschinfo" href="./ds?module=schiff&amp;ship={ship.id}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops[op]=choose&amp;{global.pluginid}_ops[session]={campaigndialog.session}&amp;{global.pluginid}_ops[option]={campaigndialog.option.id}">{campaigndialog.option.text}</a><br />
+						<a class="forschinfo" href="./ds?module=schiff&amp;ship={ship.id}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops%5Bop%5D=choose&amp;{global.pluginid}_ops%5Bsession%5D={campaigndialog.session}&amp;{global.pluginid}_ops%5Boption%5D={campaigndialog.option.id}">{campaigndialog.option.text}</a><br />
 					{else}
 						<span style="color:#888888">{campaigndialog.option.text}</span><br />
 					{/endif}
 				<!-- END campaigndialog.option.listitem -->
 				<br />
-				<a class="error" href="./ds?module=schiff&amp;ship={ship.id}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops[op]=quit&amp;{global.pluginid}_ops[session]={campaigndialog.session}">Gespräch beenden</a>
+				<a class="error" href="./ds?module=schiff&amp;ship={ship.id}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops%5Bop%5D=quit&amp;{global.pluginid}_ops%5Bsession%5D={campaigndialog.session}">Gespräch beenden</a>
 			</td>
 		</tr>
 	</table>

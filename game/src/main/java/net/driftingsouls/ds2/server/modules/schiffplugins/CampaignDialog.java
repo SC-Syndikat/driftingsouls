@@ -147,7 +147,7 @@ public class CampaignDialog implements SchiffPlugin
 			String key = offer.type + ":" + offer.objectId;
 			String url = offer.interactions.size() == 1
 					? startUrl(ship, offer.interactions.get(0))
-					: "./ds?module=schiff&amp;ship=" + ship.getId() + "&amp;" + PLUGIN_ID + "_ops[contact]=" + key;
+					: "./ds?module=schiff&amp;ship=" + ship.getId() + "&amp;" + PLUGIN_ID + "_ops%5Bcontact%5D=" + key;
 			links.put(key, url);
 		}
 		return links;
@@ -212,6 +212,6 @@ public class CampaignDialog implements SchiffPlugin
 	private static String startUrl(Ship ship, Interaction interaction)
 	{
 		return "./ds?module=schiff&amp;ship=" + ship.getId() + "&amp;action=plugin&amp;plugin=" + PLUGIN_ID
-				+ "&amp;" + PLUGIN_ID + "_ops[op]=start&amp;" + PLUGIN_ID + "_ops[interaction]=" + interaction.id;
+				+ "&amp;" + PLUGIN_ID + "_ops%5Bop%5D=start&amp;" + PLUGIN_ID + "_ops%5Binteraction%5D=" + interaction.id;
 	}
 }
