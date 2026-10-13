@@ -72,12 +72,12 @@ public class DialogServiceTest extends DBSingleTransactionTest
 		DialogRepository dialogs = new DialogRepository();
 		greeting = dialogs.createNode("Begrüßung", "Admiral", "", "Willkommen an Bord.");
 		farewell = dialogs.createNode("Abschied", "Admiral", "", "Viel Glück.");
-		accept = dialogs.createOption(greeting, 1, "Ich helfe Ihnen.", farewell, null, null, true);
+		accept = dialogs.createOption(greeting, 1, "Ich helfe Ihnen.", farewell, null, null, true, false);
 		dialogs.addAction(accept, 1, DialogModel.Outcome.ALWAYS, "SET_VARIABLE", Params.of("name", "hilft", "scope", "USER", "value", "1"));
 		dialogs.addAction(accept, 2, DialogModel.Outcome.ALWAYS, "CHANGE_TRUST", Params.of("delta", "5", "reason", "Hilfe zugesagt"));
-		secret = dialogs.createOption(greeting, 2, "Das Geheimnis?", null, null, null, true);
+		secret = dialogs.createOption(greeting, 2, "Das Geheimnis?", null, null, null, true, false);
 		dialogs.addCondition(secret, "VARIABLE", Params.of("name", "hilft", "scope", "USER"), Comparison.GE, 1);
-		goodbye = dialogs.createOption(farewell, 1, "Auf Wiedersehen.", null, null, null, true);
+		goodbye = dialogs.createOption(farewell, 1, "Auf Wiedersehen.", null, null, null, true, false);
 
 		new InteractionRepository().save(new Interaction(0, "Mit dem Admiral sprechen", ObjectType.SHIP, npcShip.getId(), greeting, npc.getId(),
 				true, 1, null, Interaction.Audience.ALL, Set.of(), Set.of()));
@@ -123,6 +123,26 @@ public class DialogServiceTest extends DBSingleTransactionTest
 
 		assertTrue(service.currentView(player, playerShip).isEmpty());
 		assertTrue("Die Interaktion darf nur einmal genutzt werden", service.findOffers(player, playerShip).isEmpty());
+	}
+
+	@Test
+	public void gegebenEineNurEinmalWaehlbareAntwort_choose_sollteSieDanachNichtMehrAnbieten()
+	{
+		DialogRepository dialogs = new DialogRepository();
+		int compliment = dialogs.createOption(greeting, 3, "Schönes Schiff!", greeting, null, null, true, true);
+		dialogs.addAction(compliment, 1, DialogModel.Outcome.ALWAYS, "CHANGE_TRUST", Params.of("delta", "1", "reason", "Kompliment"));
+		int interactionId = service.findOffers(player, playerShip).get(0).interactions.get(0).id;
+		service.start(player, playerShip, interactionId);
+
+		DialogService.View first = service.currentView(player, playerShip).orElseThrow();
+		assertTrue(first.options.stream().anyMatch(o -> o.id == compliment));
+		assertEquals("Der Spieler erfährt, was die Aktionen bewirkt haben",
+				List.of("Vertrauen von " + npc.getPlainname() + " +1"), service.choose(player, playerShip, first.sessionId, compliment));
+
+		DialogService.View again = service.currentView(player, playerShip).orElseThrow();
+		assertTrue("Die Antwort ist bereits gewählt", again.options.stream().noneMatch(o -> o.id == compliment));
+		assertThrows(CampaignException.class, () -> service.choose(player, playerShip, again.sessionId, compliment));
+		assertEquals(1, new TrustService(getEM()).trust(player.getId(), npc.getId()).getTotal(), 0.001);
 	}
 
 	@Test

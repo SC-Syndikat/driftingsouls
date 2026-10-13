@@ -43,6 +43,7 @@ public final class GameMasterMenu
 			new Entry("Dialoge", CampaignDialogs.class),
 			new Entry("Interaktionen", CampaignInteractions.class),
 			new Entry("Vertrauen", CampaignTrust.class),
+			new Entry("Kampagnenvariablen", CampaignVariables.class),
 			new Entry("Protokoll", CampaignLog.class),
 			new Entry("NPC übernehmen (Masterlogin)", PlayerLoginSuper.class)
 	);

@@ -52,7 +52,7 @@ nur Hooks einbauen, werden **nicht** umbenannt (das macht Track Zero).
 | Script-Aktion | Java-Aktions-Plugins: Interface plus Annotation, automatisch gefunden wie `@AdminMenuEntry`. Es gibt keine eingebettete Skriptsprache. |
 | Vertrauen | Der **Rang bei der NPC-Fraktion** (`UserRank`) wird genutzt. Zusätzlich gibt es einen **eigenen Vertrauenswert**. Er bleibt über Kampagnen hinweg bestehen und berücksichtigt neben den eigenen Aktionen des Spielers anteilig auch die Aktionen seiner Allianzmitglieder. Der GM kann den Wert anpassen oder zurücksetzen. Loyalitätspunkte werden nicht verwendet (sie sind eine Währung). |
 | System-Interaktionen | Block „Signale im System“ in der Schiffsansicht. |
-| Ergänzungen | Quest-Variablen, Interaktions-Limits, Dialog-/Aktionsprotokoll, Schiffsgruppen-Vorlagen. |
+| Ergänzungen | Kampagnenvariablen, Interaktions-Limits, Dialog-/Aktionsprotokoll, Schiffsgruppen-Vorlagen. |
 | Roadmap | Die Arbeit läuft **parallel zu Track Zero** auf `feature/campaign`. Die Hooks in Altcode bleiben einzeilig, um Merge-Konflikte klein zu halten. |
 
 ---
@@ -137,7 +137,7 @@ interaction_audience
 dialog_session                -- laufender Dialog; verhindert Sprünge zu beliebigen Knoten per URL
   id, user_id, ship_id, interaction_id, current_node_id, started_at
 
-campaign_variable             -- Quest-Fortschritt
+campaign_variable             -- Kampagnenfortschritt
   campaign_id, user_id (0 = global), name, value (bigint)   (PK: alle außer value)
 
 npc_trust_event               -- Vertrauenswert als Ereignisjournal, kampagnenübergreifend
@@ -537,7 +537,7 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
   | Diplomatie | `SET_RELATION` (Richtung NPC→User / User→NPC / beide), `SET_NPC_RANK`, `CHANGE_TRUST` |
   | Belohnung | `GIVE_RESOURCE` (Item oder Ware ins Schiffscargo), `GIVE_CREDITS` (`transferMoneyFrom` vom NPC), `UNLOCK_ITEM` (`addKnownItem`), `UNLOCK_RESEARCH` (`addResearch`), `GIVE_SHIP` (Objektschiff per `Ship.consign` oder neu aus einer Vorlage) |
   | Schlacht | `START_BATTLE`: NPC-Schiff (das Interaktionsobjekt oder eine frisch gespawnte Vorlage) greift das Spielerschiff über `SchlachtErstellenService.erstelle(npc, npcShip, playerShip, true)` an. Damit greift automatisch auch der Verteidiger-Reset aus P4.3. |
-  | Script | `SPAWN_SHIP_GROUP` (Verstärkung, `ShipGroupSpawner`), `REPAIR_SHIP`, `SET_VARIABLE`/`ADD_VARIABLE`, `SET_INTERACTION_ACTIVE` (Quest-Phasen), `SEND_PM` (an Spieler oder GM) |
+  | Script | `SPAWN_SHIP_GROUP` (Verstärkung, `ShipGroupSpawner`), `REPAIR_SHIP`, `SET_VARIABLE`/`ADD_VARIABLE`, `SET_INTERACTION_ACTIVE` (Kampagnenphasen), `SEND_PM` (an Spieler oder GM) |
 
   Alle Aktionen einer Auswahl laufen in **einer** Transaktion (dafür P0.1). Scheitert eine Aktion,
   zum Beispiel weil der Cargo voll ist oder das Ziel Noob-Schutz hat, wird alles zurückgerollt. Der
@@ -586,7 +586,7 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
 ### P9 – GM-Editor ✅
 
 > Umgesetzt als Plugins „Dialoge“, „Interaktionen“ (mit Vorschau), „Vertrauen“ und „Protokoll“. Das
-> Protokoll zeigt zusätzlich die Quest-Variablen. Der Formular-Helfer heißt `CampaignAdminHtml`.
+> Protokoll zeigt zusätzlich die Kampagnenvariablen. Der Formular-Helfer heißt `CampaignAdminHtml`.
 
 Alle Plugins liegen in der Admin-Kategorie „Kampagne“. Ein gemeinsames kleines Formular-Hilfsmodul
 (`CampaignAdminForms`) erzeugt HTML und **escaped jede Ausgabe**. Vorher prüfen, was
@@ -757,3 +757,13 @@ Beantwortet am 2026-09-25:
    Plugin-Seiten erscheint dasselbe Menü statt des Admin-Baums. Der Admin-Link im Hauptmenü ist für
    ihn ausgeblendet. Technisch laufen die Plugins weiter über den `AdminController`, damit
    Rechteprüfung und Formulare unverändert bleiben (`GameMasterMenu`).
+8. **Kampagnenvariablen verwalten.** ✅ Eigenes Plugin „Kampagnenvariablen“ (auch im GM-Menü):
+   anzeigen, setzen, löschen, global oder je teilnehmendem Spieler. „Quest“ heißt überall
+   „Kampagne“.
+9. **Antworten nur einmal wählbar.** ✅ Migration V049 (`dialog_option.once_per_user`): Eine so
+   markierte Antwort kann jeder Spieler je Kampagne nur einmal wählen; danach ist sie versteckt bzw.
+   ausgegraut. Zurückgerollte Versuche zählen nicht.
+10. **Spieler sieht, was die Aktionen bewirkt haben.** ✅ Nach einer Antwort erscheinen die sichtbaren
+    Folgen (z.B. „Abgegeben: 10× Nahrung“, „Erhalten: 3.000 RE“, „Vertrauen von … +10“, „Erhalten:
+    1× Datendisk“, Beziehung, Schlacht). Variablen, Verstärkungen, Sprungpunkte, Interaktionen und
+    PMs an den GM bleiben verborgen (`DialogAction.playerMessage`).

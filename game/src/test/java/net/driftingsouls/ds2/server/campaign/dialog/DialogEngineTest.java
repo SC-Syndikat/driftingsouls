@@ -175,7 +175,7 @@ public class DialogEngineTest
 	private static DialogModel.Option option(Integer baseChance, List<DialogModel.Condition> conditions, List<DialogModel.Modifier> modifiers,
 											 List<DialogModel.ActionRef> actions)
 	{
-		return new DialogModel.Option(1, 1, 0, "Antwort", 2, 3, baseChance, true, conditions, modifiers, actions);
+		return new DialogModel.Option(1, 1, 0, "Antwort", 2, 3, baseChance, true, false, conditions, modifiers, actions);
 	}
 
 	private static DialogModel.Condition condition(double value, Comparison comparison, double threshold)

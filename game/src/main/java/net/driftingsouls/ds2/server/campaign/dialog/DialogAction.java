@@ -63,4 +63,13 @@ public interface DialogAction
 	 * @return What the action does with these parameters, for the editor, the preview and the log
 	 */
 	String describe(Params params);
+
+	/**
+	 * @return What the player is told after the action ran, or {@code null} to keep it hidden, e.g. for
+	 * campaign variables or reinforcements that should come as a surprise
+	 */
+	default String playerMessage(DialogContext context, Params params)
+	{
+		return null;
+	}
 }

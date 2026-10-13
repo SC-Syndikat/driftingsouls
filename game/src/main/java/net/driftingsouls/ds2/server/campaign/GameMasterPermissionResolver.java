@@ -29,6 +29,7 @@ public class GameMasterPermissionResolver implements PermissionResolver
 			WellKnownAdminPermission.CAMPAIGN_DIALOGS,
 			WellKnownAdminPermission.CAMPAIGN_INTERACTIONS,
 			WellKnownAdminPermission.CAMPAIGN_TRUST,
+			WellKnownAdminPermission.CAMPAIGN_VARIABLES,
 			WellKnownAdminPermission.CAMPAIGN_LOG,
 			// Restricted by GameMasterRestriction in the plugins they unlock
 			WellKnownAdminPermission.ADD_SHIPS,

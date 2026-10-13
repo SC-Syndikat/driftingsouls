@@ -63,19 +63,26 @@ public class DialogEngine
 		public final Integer nextNodeId;
 		/** What each action did, or in a preview would do. */
 		public final List<String> actions;
+		/** What the player is told about the actions; hidden actions are left out. */
+		public final List<String> playerMessages;
 
-		Result(boolean success, Integer chance, Integer nextNodeId, List<String> actions)
+		Result(boolean success, Integer chance, Integer nextNodeId, List<String> actions, List<String> playerMessages)
 		{
 			this.success = success;
 			this.chance = chance;
 			this.nextNodeId = nextNodeId;
 			this.actions = actions;
+			this.playerMessages = playerMessages;
 		}
 	}
 
 	public Evaluation evaluate(DialogModel.Option option, DialogContext context)
 	{
 		List<String> unmet = new ArrayList<>();
+		if (option.oncePerUser && context.hasChosen(option.id))
+		{
+			unmet.add("nur einmal wählbar, bereits gewählt");
+		}
 		for (DialogModel.Condition condition : option.conditions)
 		{
 			DialogFactor factor = types.factor(condition.type);
@@ -133,6 +140,7 @@ public class DialogEngine
 		}
 
 		List<String> done = new ArrayList<>();
+		List<String> messages = new ArrayList<>();
 		for (DialogModel.ActionRef ref : option.actions)
 		{
 			if (!ref.outcome.appliesTo(success))
@@ -145,10 +153,15 @@ public class DialogEngine
 				action.execute(context, ref.params);
 			}
 			done.add(action.describe(ref.params));
+			String message = action.playerMessage(context, ref.params);
+			if (message != null)
+			{
+				messages.add(message);
+			}
 		}
 
 		Integer next = success ? option.nextNodeId : option.failureNodeId;
-		return new Result(success, evaluation.chance, next, done);
+		return new Result(success, evaluation.chance, next, done, messages);
 	}
 
 	private static double clamp(double value, Double min, Double max)

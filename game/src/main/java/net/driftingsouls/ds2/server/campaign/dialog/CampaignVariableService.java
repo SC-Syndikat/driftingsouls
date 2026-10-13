@@ -7,7 +7,7 @@ import static net.driftingsouls.ds2.server.campaign.CampaignDb.withDb;
 import static net.driftingsouls.ds2.server.entities.jooq.Tables.CAMPAIGN_VARIABLE;
 
 /**
- * Named numbers per campaign, either per player or global, for quest progress: "has talked to the
+ * Named numbers per campaign, either per player or global, for campaign progress: "has talked to the
  * admiral", "phase 2 reached", "number of convoys escorted". Unset variables are 0.
  */
 public class CampaignVariableService
@@ -43,6 +43,15 @@ public class CampaignVariableService
 				.values(campaignId, userId, name, delta)
 				.onDuplicateKeyUpdate()
 				.set(CAMPAIGN_VARIABLE.VALUE, CAMPAIGN_VARIABLE.VALUE.plus(delta))
+				.execute());
+	}
+
+	public void delete(int campaignId, int userId, String name)
+	{
+		withDb(db -> db.deleteFrom(CAMPAIGN_VARIABLE)
+				.where(CAMPAIGN_VARIABLE.CAMPAIGN_ID.eq(campaignId))
+				.and(CAMPAIGN_VARIABLE.USER_ID.eq(userId))
+				.and(CAMPAIGN_VARIABLE.NAME.eq(name))
 				.execute());
 	}
 

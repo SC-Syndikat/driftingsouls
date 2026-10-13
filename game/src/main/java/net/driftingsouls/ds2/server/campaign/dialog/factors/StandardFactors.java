@@ -384,7 +384,7 @@ public final class StandardFactors
 		@Override
 		public String getLabel()
 		{
-			return "Quest-Variable (nicht gesetzt = 0)";
+			return "Kampagnenvariable (nicht gesetzt = 0)";
 		}
 
 		@Override

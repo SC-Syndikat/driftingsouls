@@ -17,12 +17,14 @@ import net.driftingsouls.ds2.server.campaign.dialog.TrustService;
 import net.driftingsouls.ds2.server.campaign.dialog.factors.StandardFactors;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.cargo.Cargo;
+import net.driftingsouls.ds2.server.cargo.ItemID;
 import net.driftingsouls.ds2.server.cargo.ResourceID;
 import net.driftingsouls.ds2.server.cargo.Resources;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.entities.Forschung;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserMoneyTransfer;
+import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
@@ -88,6 +90,24 @@ public final class StandardActions
 		{
 			return "Beziehung (" + params.get("direction") + ") → " + params.get("relation");
 		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			String relation;
+			switch (User.Relation.valueOf(params.get("relation")))
+			{
+				case FRIEND:
+					relation = "Freund";
+					break;
+				case ENEMY:
+					relation = "Feind";
+					break;
+				default:
+					relation = "neutral";
+			}
+			return "Beziehung zu " + context.npc.getPlainname() + ": " + relation;
+		}
 	}
 
 	@DialogAction.Type("SET_NPC_RANK")
@@ -121,6 +141,12 @@ public final class StandardActions
 		public String describe(Params params)
 		{
 			return "Rang beim NPC → " + params.get("rank");
+		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return "Neuer Rang bei " + context.npc.getPlainname() + ": " + params.get("rank");
 		}
 	}
 
@@ -159,6 +185,13 @@ public final class StandardActions
 		{
 			int delta = params.getInt("delta");
 			return "Vertrauen " + (delta >= 0 ? "+" : "") + delta;
+		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			int delta = params.getInt("delta");
+			return "Vertrauen von " + context.npc.getPlainname() + " " + (delta >= 0 ? "+" : "") + delta;
 		}
 	}
 
@@ -204,6 +237,12 @@ public final class StandardActions
 		{
 			return params.get("count") + "× " + params.get("resource") + " ins Cargo";
 		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return "Erhalten: " + Common.ln(params.getLong("count")) + "× " + resourceName(params);
+		}
 	}
 
 	@DialogAction.Type("TAKE_RESOURCE")
@@ -247,6 +286,12 @@ public final class StandardActions
 		{
 			return params.get("count") + "× " + params.get("resource") + " aus dem Cargo abgeben";
 		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return "Abgegeben: " + Common.ln(params.getLong("count")) + "× " + resourceName(params);
+		}
 	}
 
 	@DialogAction.Type("GIVE_CREDITS")
@@ -289,6 +334,12 @@ public final class StandardActions
 		{
 			return params.get("amount") + " RE";
 		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return "Erhalten: " + Common.ln(params.getLong("amount")) + " RE";
+		}
 	}
 
 	@DialogAction.Type("UNLOCK_ITEM")
@@ -322,6 +373,12 @@ public final class StandardActions
 		public String describe(Params params)
 		{
 			return "Item " + params.get("item") + " freigeschaltet";
+		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return "Freigeschaltet: " + Cargo.getResourceName(new ItemID(params.getInt("item")));
 		}
 	}
 
@@ -364,6 +421,13 @@ public final class StandardActions
 		public String describe(Params params)
 		{
 			return "Forschung " + params.get("research") + " freigeschaltet";
+		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			Forschung research = context.em.find(Forschung.class, params.getInt("research"));
+			return "Forschung erhalten: " + (research == null ? params.get("research") : Common._plaintitle(research.getName()));
 		}
 	}
 
@@ -409,6 +473,12 @@ public final class StandardActions
 		public String describe(Params params)
 		{
 			return TEMPLATE.equals(params.get("source")) ? "Schiffe aus Vorlage " + params.get("template") + " übergeben" : "Gesprächsschiff übergeben";
+		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return TEMPLATE.equals(params.get("source")) ? "Dir wurden neue Schiffe übergeben." : "Das Schiff gehört jetzt dir.";
 		}
 	}
 
@@ -468,6 +538,12 @@ public final class StandardActions
 		public String describe(Params params)
 		{
 			return TEMPLATE.equals(params.get("source")) ? "Schlacht gegen Vorlage " + params.get("template") : "Schlacht gegen das Gesprächsschiff";
+		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return "Dein Schiff wird angegriffen – eine Schlacht beginnt!";
 		}
 	}
 
@@ -560,6 +636,12 @@ public final class StandardActions
 		{
 			return "Schiff repariert";
 		}
+
+		@Override
+		public String playerMessage(DialogContext context, Params params)
+		{
+			return "Dein Schiff wurde repariert.";
+		}
 	}
 
 	@DialogAction.Type("SET_VARIABLE")
@@ -568,7 +650,7 @@ public final class StandardActions
 		@Override
 		public String getLabel()
 		{
-			return "Quest-Variable setzen";
+			return "Kampagnenvariable setzen";
 		}
 
 		@Override
@@ -602,7 +684,7 @@ public final class StandardActions
 		@Override
 		public String getLabel()
 		{
-			return "Quest-Variable erhöhen / verringern";
+			return "Kampagnenvariable erhöhen / verringern";
 		}
 
 		@Override
@@ -636,7 +718,7 @@ public final class StandardActions
 		@Override
 		public String getLabel()
 		{
-			return "Interaktion (de)aktivieren (Quest-Phasen)";
+			return "Interaktion (de)aktivieren (Kampagnenphasen)";
 		}
 
 		@Override
@@ -873,6 +955,11 @@ public final class StandardActions
 	private static ParamDef scope()
 	{
 		return ParamDef.choice("scope", "Gültigkeit", "USER", "pro Spieler", "GLOBAL", "für die ganze Kampagne");
+	}
+
+	private static String resourceName(Params params)
+	{
+		return Common._plaintitle(Cargo.getResourceName(StandardFactors.resource(params.get("resource"))));
 	}
 
 	private static ShipGroupTemplate template(Params params)

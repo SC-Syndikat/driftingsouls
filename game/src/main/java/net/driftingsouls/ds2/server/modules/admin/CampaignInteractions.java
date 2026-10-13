@@ -292,9 +292,17 @@ public class CampaignInteractions implements AdminPlugin
 			return;
 		}
 
+		// Only the ships of the speaking NPCs; listing every player ship in the campaign systems would run
+		// into thousands of entries. The stored ship stays selectable.
+		Set<Integer> owners = new TreeSet<>();
+		CampaignService campaigns = new CampaignService(em);
+		campaigns.findOpenCampaign().ifPresent(c -> campaigns.getParticipantIds(c).stream().filter(id -> id < 0).forEach(owners::add));
 		Map<Integer, String> ships = new LinkedHashMap<>();
-		for (Ship ship : em.createQuery("from Ship where system in (:systems) and id > 0 order by system, x, y, id", Ship.class)
-				.setParameter("systems", systems).getResultList())
+		for (Ship ship : em.createQuery("from Ship where system in (:systems) and id > 0 and (owner.id in (:owners) or id = :preset) order by system, x, y, id", Ship.class)
+				.setParameter("systems", systems)
+				.setParameter("owners", owners.isEmpty() ? Set.of(0) : owners)
+				.setParameter("preset", presetType == ObjectType.SHIP ? presetId : 0)
+				.getResultList())
 		{
 			ships.put(ship.getId(), Common._plaintitle(ship.getName()) + " (" + ship.getId() + ") – " + ship.getLocation().displayCoordinates(false)
 					+ " – " + Common._plaintitle(ship.getOwner().getName()));
@@ -324,7 +332,7 @@ public class CampaignInteractions implements AdminPlugin
 
 	private static void objectSelect(StringBuilder echo, ObjectType type, Map<Integer, String> options, ObjectType presetType, int presetId)
 	{
-		echo.append("<select name='objectid_").append(type.name()).append("' id='cpObject_").append(type.name()).append("'>");
+		echo.append("<select name='objectid_").append(type.name()).append("' id='cpObject_").append(type.name()).append("' style='max-width:600px'>");
 		if (options.isEmpty())
 		{
 			echo.append("<option value='0'>– keine in Kampagnensystemen –</option>");

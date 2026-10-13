@@ -117,12 +117,14 @@ public class CampaignDialogs implements AdminPlugin
 			}
 			case "createoption":
 				repository.createOption(nodeId, request.getParameterInt("sort"), nonEmpty(request, "text", "Antworttext"),
-						optionalInt(request, "next"), optionalInt(request, "failure"), chance(request), "1".equals(request.getParameterString("hide")));
+						optionalInt(request, "next"), optionalInt(request, "failure"), chance(request), "1".equals(request.getParameterString("hide")),
+						"1".equals(request.getParameterString("once")));
 				message(echo, "Antwort angelegt.");
 				return nodeId;
 			case "saveoption":
 				repository.updateOption(optionId, request.getParameterInt("sort"), nonEmpty(request, "text", "Antworttext"),
-						optionalInt(request, "next"), optionalInt(request, "failure"), chance(request), "1".equals(request.getParameterString("hide")));
+						optionalInt(request, "next"), optionalInt(request, "failure"), chance(request), "1".equals(request.getParameterString("hide")),
+						"1".equals(request.getParameterString("once")));
 				message(echo, "Antwort gespeichert.");
 				return nodeId;
 			case "deleteoption":
@@ -405,6 +407,9 @@ public class CampaignDialogs implements AdminPlugin
 		echo.append("<br /><label><input type='checkbox' name='hide' value='1'")
 				.append(option == null || option.hideIfUnavailable ? " checked='checked'" : "")
 				.append(" /> verstecken, wenn Bedingungen nicht erfüllt (sonst ausgegraut)</label><br />");
+		echo.append("<label><input type='checkbox' name='once' value='1'")
+				.append(option != null && option.oncePerUser ? " checked='checked'" : "")
+				.append(" /> nur einmal wählbar (je Spieler und Kampagne; danach versteckt bzw. ausgegraut)</label><br />");
 	}
 
 	private static void nodeSelect(StringBuilder echo, String name, Integer selected, List<DialogModel.Node> nodes)

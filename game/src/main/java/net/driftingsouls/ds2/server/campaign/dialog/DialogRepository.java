@@ -91,17 +91,19 @@ public class DialogRepository
 		withDb(db -> db.deleteFrom(DIALOG_NODE).where(DIALOG_NODE.ID.eq(id)).execute());
 	}
 
-	public int createOption(int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance, boolean hideIfUnavailable)
+	public int createOption(int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance, boolean hideIfUnavailable,
+							boolean oncePerUser)
 	{
 		return withDb(db -> {
 			DialogOptionRecord record = db.newRecord(DIALOG_OPTION);
-			applyOption(record, nodeId, sort, text, nextNodeId, failureNodeId, baseChance, hideIfUnavailable);
+			applyOption(record, nodeId, sort, text, nextNodeId, failureNodeId, baseChance, hideIfUnavailable, oncePerUser);
 			record.store();
 			return record.getId();
 		});
 	}
 
-	public void updateOption(int id, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance, boolean hideIfUnavailable)
+	public void updateOption(int id, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance, boolean hideIfUnavailable,
+							 boolean oncePerUser)
 	{
 		withDb(db -> db.update(DIALOG_OPTION)
 				.set(DIALOG_OPTION.SORT, sort)
@@ -110,6 +112,7 @@ public class DialogRepository
 				.set(DIALOG_OPTION.FAILURE_NODE_ID, failureNodeId)
 				.set(DIALOG_OPTION.BASE_CHANCE, baseChance)
 				.set(DIALOG_OPTION.HIDE_IF_UNAVAILABLE, (byte) (hideIfUnavailable ? 1 : 0))
+				.set(DIALOG_OPTION.ONCE_PER_USER, (byte) (oncePerUser ? 1 : 0))
 				.where(DIALOG_OPTION.ID.eq(id))
 				.execute());
 	}
@@ -193,12 +196,13 @@ public class DialogRepository
 					Params.fromJson(a.getParams())));
 		}
 		return new DialogModel.Option(o.getId(), o.getNodeId(), o.getSort(), o.getText(), o.getNextNodeId(), o.getFailureNodeId(),
-				o.getBaseChance(), o.getHideIfUnavailable() != 0, conditions, modifiers, actions);
+				o.getBaseChance(), o.getHideIfUnavailable() != 0, o.getOncePerUser() != 0, conditions, modifiers, actions);
 	}
 
 	private static void applyOption(DialogOptionRecord record, int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId,
-									Integer baseChance, boolean hideIfUnavailable)
+									Integer baseChance, boolean hideIfUnavailable, boolean oncePerUser)
 	{
+		record.setOncePerUser((byte) (oncePerUser ? 1 : 0));
 		record.setNodeId(nodeId);
 		record.setSort(sort);
 		record.setText(text);

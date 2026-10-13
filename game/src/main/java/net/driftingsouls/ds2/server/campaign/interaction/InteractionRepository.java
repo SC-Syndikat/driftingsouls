@@ -22,6 +22,9 @@ import static net.driftingsouls.ds2.server.entities.jooq.Tables.INTERACTION_LOG;
  */
 public class InteractionRepository
 {
+	/** Starts the log summary of a choice that was rolled back. */
+	public static final String ABORTED_PREFIX = "abgebrochen: ";
+
 	public List<Interaction> findAll()
 	{
 		return withDb(db -> {
@@ -195,6 +198,17 @@ public class InteractionRepository
 		return withDb(db -> db.fetchCount(INTERACTION_LOG, INTERACTION_LOG.INTERACTION_ID.eq(interactionId)
 				.and(INTERACTION_LOG.USER_ID.eq(userId))
 				.and(INTERACTION_LOG.OPTION_ID.isNull())));
+	}
+
+	/**
+	 * @return How often the user chose the option in the campaign; choices that were rolled back do not count
+	 */
+	public int countOptionChoices(int campaignId, int userId, int optionId)
+	{
+		return withDb(db -> db.fetchCount(INTERACTION_LOG, INTERACTION_LOG.CAMPAIGN_ID.eq(campaignId)
+				.and(INTERACTION_LOG.USER_ID.eq(userId))
+				.and(INTERACTION_LOG.OPTION_ID.eq(optionId))
+				.and(INTERACTION_LOG.ACTIONS_SUMMARY.notLike(ABORTED_PREFIX + "%"))));
 	}
 
 	/**

@@ -53,8 +53,13 @@ public class CampaignDialog implements SchiffPlugin
 					return "";
 				case "choose":
 				{
-					String outcome = service.choose(user, caller.ship, session, option);
-					return outcome.isEmpty() ? "" : "<span style=\"color:#ffcc00\">" + escapeHtml4(outcome) + "</span>";
+					List<String> outcome = service.choose(user, caller.ship, session, option);
+					StringBuilder html = new StringBuilder();
+					for (String line : outcome)
+					{
+						html.append("<span style=\"color:#ffcc00\">").append(escapeHtml4(line)).append("</span><br />");
+					}
+					return html.toString();
 				}
 				case "quit":
 					service.quit(user, session);

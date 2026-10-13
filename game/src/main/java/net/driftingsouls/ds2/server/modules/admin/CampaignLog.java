@@ -1,9 +1,6 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
-import net.driftingsouls.ds2.server.campaign.Campaign;
-import net.driftingsouls.ds2.server.campaign.CampaignService;
-import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
 import net.driftingsouls.ds2.server.campaign.interaction.DialogService;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionLogEntry;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
@@ -15,12 +12,11 @@ import net.driftingsouls.ds2.server.framework.pipeline.Request;
 
 import javax.persistence.EntityManager;
 import java.util.Map;
-import java.util.Optional;
 
 import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
 
 /**
- * What players did with interactions, and the campaign's quest variables.
+ * What players did with interactions.
  */
 @AdminMenuEntry(category = "Kampagne", name = "Protokoll", permission = WellKnownAdminPermission.CAMPAIGN_LOG)
 public class CampaignLog implements AdminPlugin
@@ -73,21 +69,7 @@ public class CampaignLog implements AdminPlugin
 					.append("</td><td class='noBorderX'>").append(entry.isStart() ? "" : entry.success ? "Erfolg" : "<span class='error'>Misserfolg</span>")
 					.append("</td><td class='noBorderX'>").append(esc(entry.actionsSummary)).append("</td></tr>");
 		}
-		echo.append("</table></div><br />");
-
-		Optional<Campaign> campaign = new CampaignService(em).findOpenCampaign();
-		if (campaign.isPresent())
-		{
-			echo.append("<div class='gfxbox' style='width:950px'><h3>Quest-Variablen der Kampagne</h3><table class='noBorderX' cellpadding='2'>")
-					.append("<tr><td class='noBorderX'>Spieler</td><td class='noBorderX'>Name</td><td class='noBorderX'>Wert</td></tr>");
-			for (Map.Entry<String, Long> variable : new CampaignVariableService().list(campaign.get().getId()).entrySet())
-			{
-				String[] userAndName = variable.getKey().split("/", 2);
-				echo.append("<tr><td class='noBorderX'>").append("0".equals(userAndName[0]) ? "global" : esc(userAndName[0]))
-						.append("</td><td class='noBorderX'>").append(esc(userAndName[1]))
-						.append("</td><td class='noBorderX'>").append(variable.getValue()).append("</td></tr>");
-			}
-			echo.append("</table></div>");
-		}
+		echo.append("</table><br /><a class='forschinfo' href='").append(pluginUrl(CampaignVariables.class))
+				.append("'>Kampagnenvariablen ansehen und bearbeiten</a></div><br />");
 	}
 }

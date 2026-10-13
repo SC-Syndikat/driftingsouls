@@ -3,6 +3,7 @@ package net.driftingsouls.ds2.server.campaign.dialog;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.ships.Ship;
 
@@ -83,5 +84,13 @@ public class DialogContext
 	public int campaignTicks()
 	{
 		return campaign == null ? 0 : campaign.getTickCount();
+	}
+
+	/**
+	 * @return Whether the player already chose the option in this campaign
+	 */
+	public boolean hasChosen(int optionId)
+	{
+		return campaign != null && new InteractionRepository().countOptionChoices(campaign.getId(), user.getId(), optionId) > 0;
 	}
 }

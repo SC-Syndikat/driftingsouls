@@ -217,9 +217,9 @@ public class DialogService
 	/**
 	 * Carries out the player's choice of an option of the dialog's current node.
 	 *
-	 * @return What the player is told about the outcome
+	 * @return What the player is told about the outcome, one line each: success or failure, then the actions
 	 */
-	public String choose(User user, Ship ship, int sessionId, int optionId)
+	public List<String> choose(User user, Ship ship, int sessionId, int optionId)
 	{
 		DialogSession session = interactions.findSession(sessionId, user.getId())
 				.filter(s -> s.shipId == ship.getId())
@@ -267,7 +267,13 @@ public class DialogService
 		{
 			interactions.moveSession(session.id, result.nextNodeId);
 		}
-		return result.chance == null ? "" : (result.success ? "Das hat geklappt." : "Das ist leider misslungen.");
+		List<String> outcome = new ArrayList<>();
+		if (result.chance != null)
+		{
+			outcome.add(result.success ? "Das hat geklappt." : "Das ist leider misslungen.");
+		}
+		outcome.addAll(result.playerMessages);
+		return outcome;
 	}
 
 	/**
@@ -288,7 +294,7 @@ public class DialogService
 		em.clear();
 		em.getTransaction().begin();
 		interactions.log(new InteractionLogEntry(campaign.getId(), campaign.getTickCount(), user.getId(), ship.getId(), interaction.id, node.id,
-				option.id, null, false, "abgebrochen: " + e.getMessage(), Common.time()));
+				option.id, null, false, InteractionRepository.ABORTED_PREFIX + e.getMessage(), Common.time()));
 	}
 
 	/**

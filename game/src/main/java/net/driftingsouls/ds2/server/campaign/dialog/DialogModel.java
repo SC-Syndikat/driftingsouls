@@ -59,13 +59,16 @@ public final class DialogModel
 		/** {@code null}: always succeeds. */
 		public final Integer baseChance;
 		public final boolean hideIfUnavailable;
+		/** The player may choose it only once per campaign. */
+		public final boolean oncePerUser;
 		public final List<Condition> conditions;
 		public final List<Modifier> modifiers;
 		public final List<ActionRef> actions;
 
 		public Option(int id, int nodeId, int sort, String text, Integer nextNodeId, Integer failureNodeId, Integer baseChance,
-					  boolean hideIfUnavailable, List<Condition> conditions, List<Modifier> modifiers, List<ActionRef> actions)
+					  boolean hideIfUnavailable, boolean oncePerUser, List<Condition> conditions, List<Modifier> modifiers, List<ActionRef> actions)
 		{
+			this.oncePerUser = oncePerUser;
 			this.id = id;
 			this.nodeId = nodeId;
 			this.sort = sort;

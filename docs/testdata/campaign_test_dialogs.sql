@@ -57,6 +57,9 @@ INSERT INTO dialog_option (id, node_id, sort, text, next_node_id, failure_node_i
 -- Auftrag
 (17, 10, 1, 'Wir kümmern uns darum.', NULL, NULL, NULL, 1);
 
+-- Answers that raise trust or pay out may be chosen only once per player (needs V049)
+UPDATE dialog_option SET once_per_user = 1 WHERE id IN (1, 2, 6, 9, 10);
+
 INSERT INTO dialog_option_condition (option_id, type, params, comparator, threshold) VALUES
 (3, 'TRUST', '{}', '>=', 10),
 (4, 'VARIABLE', '{"name":"signal_gefunden","scope":"USER"}', '>=', 1),
