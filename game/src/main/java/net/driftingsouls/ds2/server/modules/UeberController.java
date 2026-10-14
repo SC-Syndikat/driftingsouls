@@ -33,6 +33,7 @@ import net.driftingsouls.ds2.server.discord.DiscordChatMessage;
 import net.driftingsouls.ds2.server.discord.DiscordException;
 import net.driftingsouls.ds2.server.discord.DiscordKanal;
 import net.driftingsouls.ds2.server.discord.DiscordKonfiguration;
+import net.driftingsouls.ds2.server.discord.DiscordNachricht;
 import net.driftingsouls.ds2.server.discord.DiscordService;
 import net.driftingsouls.ds2.server.entities.IntTutorial;
 import net.driftingsouls.ds2.server.entities.User;
@@ -203,12 +204,38 @@ public class UeberController extends Controller
 		try
 		{
 			result.messages = discordService.getMessages(konfiguration, selected.getChannelId(), discordKanalNamen(kanaele));
+			faerbeIngameNachrichten(konfiguration, result.messages);
 		}
 		catch (DiscordException e)
 		{
 			result.error = e.getMessage();
 		}
 		return result;
+	}
+
+	/**
+	 * Nachrichten aus dem Spiel kommen per Webhook und verraten ihren Verfasser nicht.
+	 * Fuer die beim Senden vermerkten Verfasser wird hier die Rollenfarbe nachgetragen.
+	 */
+	private void faerbeIngameNachrichten(DiscordKonfiguration konfiguration, List<DiscordChatMessage> nachrichten)
+	{
+		List<String> ohneFarbe = new ArrayList<>();
+		for (DiscordChatMessage nachricht : nachrichten)
+		{
+			if (nachricht.ingame && nachricht.farbe == null)
+			{
+				ohneFarbe.add(nachricht.id);
+			}
+		}
+		Map<String, String> verfasser = DiscordNachricht.verfasser(getEM(), ohneFarbe);
+		for (DiscordChatMessage nachricht : nachrichten)
+		{
+			String discordUserId = verfasser.get(nachricht.id);
+			if (discordUserId != null)
+			{
+				nachricht.farbe = discordService.getRollenFarbe(konfiguration, discordUserId);
+			}
+		}
 	}
 
 	/**
@@ -245,12 +272,13 @@ public class UeberController extends Controller
 
 		try
 		{
-			discordService.sendMessage(
+			String messageId = discordService.sendMessage(
 					konfiguration,
 					kanal.getChannelId(),
 					user.getId(),
 					discordUserId,
 					text);
+			getEM().persist(new DiscordNachricht(messageId, discordUserId, user.getId()));
 		}
 		catch (DiscordException e)
 		{

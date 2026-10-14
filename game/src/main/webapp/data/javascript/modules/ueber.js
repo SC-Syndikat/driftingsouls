@@ -224,7 +224,13 @@ var DiscordChat = {
 		$('<img class="discord-avatar" alt="" />').attr('src', nachricht.avatarUrl).appendTo(element);
 
 		var kopf = $('<div class="discord-kopf"></div>').appendTo(element);
-		$('<span class="discord-autor"></span>').text(nachricht.author).appendTo(kopf);
+		var autor = $('<span class="discord-autor"></span>').text(nachricht.author).appendTo(kopf);
+		if( /^#[0-9a-f]{6}$/.test(nachricht.farbe || '') ) {
+			autor.css('color', nachricht.farbe);
+		}
+		if( nachricht.ingame ) {
+			$('<span class="discord-ingame-marke" title="Aus Drifting Souls gesendet">DS</span>').appendTo(kopf);
+		}
 		$('<span class="discord-zeit"></span>').text(this.__formatiereZeit(nachricht.timestamp)).appendTo(kopf);
 
 		var text = $('<div class="discord-text"></div>').appendTo(element);

@@ -52,6 +52,11 @@ public class DiscordChatMessage
 	 */
 	public final boolean ingame;
 	public final List<Attachment> attachments;
+	/**
+	 * Die Rollenfarbe des Verfassers als <code>#rrggbb</code> oder <code>null</code>. Bei Nachrichten
+	 * aus dem Spiel setzt sie erst der Controller, der den Verfasser kennt.
+	 */
+	public volatile String farbe;
 
 	public DiscordChatMessage(String id, String author, String avatarUrl, String text, String timestamp, boolean ingame, List<Attachment> attachments)
 	{

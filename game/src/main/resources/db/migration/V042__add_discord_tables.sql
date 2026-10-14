@@ -29,3 +29,12 @@ CREATE TABLE `discord_kanal` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `discord_kanal_guild_channel` (`guild_id`, `channel_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- Aus dem Spiel gesendete Nachrichten: Webhook-Nachrichten verraten nicht, welcher Account sie
+-- geschrieben hat. Damit lassen sich z.B. die Rollenfarben auch fuer sie anzeigen.
+CREATE TABLE `discord_nachricht` (
+  `message_id` varchar(32) NOT NULL,
+  `discord_user_id` varchar(32) NOT NULL,
+  `user_id` int NOT NULL,
+  PRIMARY KEY (`message_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;

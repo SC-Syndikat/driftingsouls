@@ -119,14 +119,28 @@ public class DiscordService
 		final boolean mitglied;
 		final String name;
 		final String avatarUrl;
+		/**
+		 * Die Farbe der hoechsten farbigen Rolle als <code>#rrggbb</code> oder <code>null</code>.
+		 */
+		final String farbe;
 		final long geladen = System.currentTimeMillis();
 
-		Mitglied(boolean mitglied, String name, String avatarUrl)
+		Mitglied(boolean mitglied, String name, String avatarUrl, String farbe)
 		{
 			this.mitglied = mitglied;
 			this.name = name;
 			this.avatarUrl = avatarUrl;
+			this.farbe = farbe;
 		}
+	}
+
+	/**
+	 * Farbe und Position der Rollen eines Servers.
+	 */
+	private static class Rollen
+	{
+		final Map<String, int[]> farbeUndPosition = new HashMap<>();
+		final long geladen = System.currentTimeMillis();
 	}
 
 	static class BotRechte
@@ -143,6 +157,7 @@ public class DiscordService
 	private final Map<String, ChannelCache> messageCache = new ConcurrentHashMap<>();
 	private final Map<String, Webhook> webhooks = new ConcurrentHashMap<>();
 	private final Map<String, Mitglied> mitglieder = new ConcurrentHashMap<>();
+	private final Map<String, Rollen> rollen = new ConcurrentHashMap<>();
 	private final Map<Integer, Long> lastSend = new ConcurrentHashMap<>();
 
 	/**
@@ -156,6 +171,7 @@ public class DiscordService
 			webhooks.clear();
 		}
 		mitglieder.clear();
+		rollen.clear();
 	}
 
 	/**
@@ -308,8 +324,9 @@ public class DiscordService
 	 * @param discordUserId Die ID des verknuepften Discord-Accounts. Name und Avatar der Nachricht
 	 * sind sein Server-Alias und Server-Avatar, wie bei einer direkt in Discord geschriebenen Nachricht.
 	 * @param text Der Text
+	 * @return Die ID der gesendeten Nachricht
 	 */
-	public void sendMessage(DiscordKonfiguration konfiguration, String channelId, int userId, String discordUserId, String text)
+	public String sendMessage(DiscordKonfiguration konfiguration, String channelId, int userId, String discordUserId, String text)
 	{
 		String content = text == null ? "" : text.trim();
 		if (content.isEmpty())
@@ -355,7 +372,7 @@ public class DiscordService
 		{
 			throw new DiscordException("Gerade werden zu viele Nachrichten gesendet. Bitte versuche es gleich noch einmal.");
 		}
-		if (response.statusCode() != 200 && response.statusCode() != 204)
+		if (response.statusCode() != 200)
 		{
 			log.warn("Discord: Senden in Kanal {} fehlgeschlagen ({}): {}", channelId, response.statusCode(), response.body());
 			throw new DiscordException("Die Nachricht konnte nicht an Discord gesendet werden.");
@@ -369,6 +386,8 @@ public class DiscordService
 				cache.fetchedAt = 0;
 			}
 		}
+		// Dank wait=true liefert Discord die angelegte Nachricht zurueck
+		return string(JsonParser.parseString(response.body()).getAsJsonObject(), "id");
 	}
 
 	/**
@@ -630,15 +649,21 @@ public class DiscordService
 			JsonObject user = member.getAsJsonObject("user");
 			String nick = string(member, "nick");
 			String serverAvatar = string(member, "avatar");
+			List<String> rollenIds = new ArrayList<>();
+			for (JsonElement rolle : member.getAsJsonArray("roles"))
+			{
+				rollenIds.add(rolle.getAsString());
+			}
 			mitglied = new Mitglied(true,
 					nick != null && !nick.isEmpty() ? nick : displayName(user),
 					serverAvatar != null
 							? "https://cdn.discordapp.com/guilds/" + konfiguration.getGuildId() + "/users/" + discordUserId + "/avatars/" + serverAvatar + ".png?size=64"
-							: DiscordUser.avatarUrl(discordUserId, string(user, "avatar")));
+							: DiscordUser.avatarUrl(discordUserId, string(user, "avatar")),
+					rollenFarbe(ladeRollen(konfiguration), rollenIds));
 		}
 		else if (response.statusCode() == 404)
 		{
-			mitglied = new Mitglied(false, null, null);
+			mitglied = new Mitglied(false, null, null, null);
 		}
 		else
 		{
@@ -647,6 +672,64 @@ public class DiscordService
 		}
 		mitglieder.put(key, mitglied);
 		return mitglied;
+	}
+
+	/**
+	 * Laedt Farbe und Position der Rollen des Servers (zwischengespeichert). Schlaegt das fehl,
+	 * bleiben die Namen eben ungefaerbt.
+	 */
+	private Rollen ladeRollen(DiscordKonfiguration konfiguration)
+	{
+		Rollen geladen = rollen.get(konfiguration.getGuildId());
+		if (geladen != null && System.currentTimeMillis() - geladen.geladen < MEMBER_CACHE_MILLIS)
+		{
+			return geladen;
+		}
+		geladen = new Rollen();
+		HttpResponse<String> response = send(botRequest(konfiguration, "/guilds/" + konfiguration.getGuildId() + "/roles").GET());
+		if (response.statusCode() != 200)
+		{
+			log.warn("Discord: Laden der Rollen fehlgeschlagen ({}): {}", response.statusCode(), response.body());
+			return geladen;
+		}
+		for (JsonElement element : JsonParser.parseString(response.body()).getAsJsonArray())
+		{
+			JsonObject rolle = element.getAsJsonObject();
+			geladen.farbeUndPosition.put(string(rolle, "id"), new int[]{rolle.get("color").getAsInt(), rolle.get("position").getAsInt()});
+		}
+		rollen.put(konfiguration.getGuildId(), geladen);
+		return geladen;
+	}
+
+	/**
+	 * Wie in Discord: Die Farbe der hoechsten Rolle, die eine Farbe hat.
+	 */
+	private static String rollenFarbe(Rollen rollen, List<String> rollenIds)
+	{
+		int farbe = 0;
+		int position = -1;
+		for (String rolle : rollenIds)
+		{
+			int[] daten = rollen.farbeUndPosition.get(rolle);
+			if (daten != null && daten[0] != 0 && daten[1] > position)
+			{
+				farbe = daten[0];
+				position = daten[1];
+			}
+		}
+		return position == -1 ? null : String.format("#%06x", farbe);
+	}
+
+	/**
+	 * Gibt die Rollenfarbe eines Accounts zurueck.
+	 * @param konfiguration Die Bot-Einstellungen
+	 * @param discordUserId Die ID des Accounts
+	 * @return Die Farbe als <code>#rrggbb</code> oder <code>null</code>, falls er keine hat oder Discord nicht antwortet
+	 */
+	public String getRollenFarbe(DiscordKonfiguration konfiguration, String discordUserId)
+	{
+		Mitglied mitglied = ladeMitgliedOderNull(konfiguration, discordUserId);
+		return mitglied != null ? mitglied.farbe : null;
 	}
 
 	/**
@@ -731,6 +814,7 @@ public class DiscordService
 		// Bei echten Accounts zeigt Discord den Server-Alias an, das REST-API liefert ihn aber nicht mit.
 		String autorName = displayName(author);
 		String autorAvatar = DiscordUser.avatarUrl(authorId, string(author, "avatar"));
+		String autorFarbe = null;
 		if (!webhook)
 		{
 			Mitglied mitglied = ladeMitgliedOderNull(konfiguration, authorId);
@@ -738,6 +822,7 @@ public class DiscordService
 			{
 				autorName = mitglied.name;
 				autorAvatar = mitglied.avatarUrl;
+				autorFarbe = mitglied.farbe;
 			}
 		}
 
@@ -815,7 +900,7 @@ public class DiscordService
 		}
 		attachments.removeIf(attachment -> attachment.url == null);
 
-		return new DiscordChatMessage(
+		DiscordChatMessage result = new DiscordChatMessage(
 				string(message, "id"),
 				autorName,
 				autorAvatar,
@@ -823,6 +908,8 @@ public class DiscordService
 				string(message, "timestamp"),
 				webhook,
 				attachments);
+		result.farbe = autorFarbe;
+		return result;
 	}
 
 	private static DiscordChatMessage.Attachment medium(String art, String name, JsonObject quelle)
