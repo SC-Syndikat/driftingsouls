@@ -165,16 +165,21 @@
 	margin-right: 6px;
 }
 
-a.discord-connect {
-	display: inline-block;
-	padding: 6px 16px;
-	border-radius: 4px;
-	background-color: #5865F2;
-	color: #FFFFFF;
-	font-weight: bold;
-	text-decoration: none;
+/* Seitenverhaeltnis 3:1 wie die Buttongrafik, die sich nicht verzerren laesst */
+.gfxbox .fsbutton.discord-connect {
+	width: 198px;
+	height: 66px;
+	padding: 0;
+	background-color: transparent;
+	background-image: url(../interface/green/button150_tl_BR.svg);
+	background-size: 100% 100%;
+	color: #C7C7C7;
 }
 
-a.discord-connect:hover {
-	background-color: #4752C4;
+.gfxbox .fsbutton.discord-connect .button-text {
+	font-size: 14px;
+}
+
+.gfxbox .fsbutton.discord-connect:hover {
+	color: #FEB626;
 }

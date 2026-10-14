@@ -235,8 +235,10 @@
 				Falls du noch nicht auf unserem <a href="{discord.inviteurl}" target="_blank">Discord-Server</a> bist, wirst du dabei hinzugefügt.
 				<br /><br />
 				<div style="text-align:center">
-					<a class="discord-connect" href="./ds?module=options&amp;action=discordConnect" target="_top"
-					   onclick="window.open(this.href, 'dsDiscord', 'width=520,height=800'); return false;">Mit Discord verbinden</a>
+					<button type="button" class="fsbutton link discord-connect"
+							onclick="window.open('./ds?module=options&amp;action=discordConnect', 'dsDiscord', 'width=520,height=800');">
+						<span class="button-text">Mit Discord verbinden</span>
+					</button>
 				</div>
 			{/endif}
 		{else}
