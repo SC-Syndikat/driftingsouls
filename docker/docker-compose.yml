@@ -49,6 +49,11 @@ services:
       DB_URL: "jdbc:mysql://db:3306/ds?serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false"
       DB_USER: "root"
       DB_PASSWORD: "ds"
+      # Optional: Discord chat on the overview page, see README.md
+      DISCORD_BOT_TOKEN: "${DISCORD_BOT_TOKEN:-}"
+      DISCORD_CLIENT_ID: "${DISCORD_CLIENT_ID:-}"
+      DISCORD_CLIENT_SECRET: "${DISCORD_CLIENT_SECRET:-}"
+      DISCORD_REDIRECT_URI: "${DISCORD_REDIRECT_URI:-}"
 
 volumes:
   db-data:

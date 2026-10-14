@@ -19,6 +19,7 @@
 package net.driftingsouls.ds2.server.modules;
 
 import net.driftingsouls.ds2.server.ContextCommon;
+import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.BaseStatus;
@@ -29,6 +30,11 @@ import net.driftingsouls.ds2.server.cargo.ResourceList;
 import net.driftingsouls.ds2.server.cargo.Resources;
 import net.driftingsouls.ds2.server.config.Rassen;
 import net.driftingsouls.ds2.server.config.items.Item;
+import net.driftingsouls.ds2.server.discord.DiscordChannel;
+import net.driftingsouls.ds2.server.discord.DiscordChatMessage;
+import net.driftingsouls.ds2.server.discord.DiscordException;
+import net.driftingsouls.ds2.server.discord.DiscordService;
+import net.driftingsouls.ds2.server.discord.DiscordUser;
 import net.driftingsouls.ds2.server.entities.IntTutorial;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
@@ -36,7 +42,10 @@ import net.driftingsouls.ds2.server.entities.UserRank;
 import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
 import net.driftingsouls.ds2.server.entities.ally.Ally;
 import net.driftingsouls.ds2.server.framework.Common;
+import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Configuration;
+import net.driftingsouls.ds2.server.framework.ViewMessage;
+import net.driftingsouls.ds2.server.framework.ViewModel;
 import net.driftingsouls.ds2.server.framework.pipeline.Module;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.Action;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
@@ -58,8 +67,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -75,12 +87,19 @@ public class UeberController extends Controller
 {
 	private static final Logger log = LoggerFactory.getLogger(UeberController.class);
 
+	private static final String BOX_FLEETS = "fleets";
+	private static final String BOX_BOOKMARKS = "bookmarks";
+
 	private final TemplateViewResultFactory templateViewResultFactory;
+	private final ConfigService configService;
+	private final DiscordService discordService;
 
 	@Autowired
-	public UeberController(TemplateViewResultFactory templateViewResultFactory)
+	public UeberController(TemplateViewResultFactory templateViewResultFactory, ConfigService configService, DiscordService discordService)
 	{
 		this.templateViewResultFactory = templateViewResultFactory;
+		this.configService = configService;
+		this.discordService = discordService;
 	}
 
 	/**
@@ -124,21 +143,137 @@ public class UeberController extends Controller
 	}
 
 	/**
-	 * Wechselt den Anzeigemodus der Flotten/Bookmark-Box.
+	 * Merkt sich, ob in der Flotten/Bookmark-Box die Flotten oder die Bookmarks angezeigt werden.
 	 *
-	 * @param box Der Name des neuen Anzeigemodus
+	 * @param box Der Name des neuen Anzeigemodus (<code>fleets</code> oder <code>bookmarks</code>)
 	 */
-	@Action(ActionType.DEFAULT)
-	public RedirectViewResult boxAction(String box)
+	@Action(ActionType.AJAX)
+	public ViewMessage boxAction(String box)
 	{
+		if (!BOX_FLEETS.equals(box) && !BOX_BOOKMARKS.equals(box))
+		{
+			return ViewMessage.failure("Unbekannter Anzeigemodus");
+		}
+
 		User user = (User)getUser();
-		String boxSetting = user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_BOX);
-		if (box != null && !box.equals(boxSetting))
+		if (!box.equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_BOX)))
 		{
 			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_BOX, box);
 		}
 
-		return new RedirectViewResult("default");
+		return ViewMessage.success("gespeichert");
+	}
+
+	@ViewModel
+	public static class DiscordChatViewModel
+	{
+		public boolean connected;
+		public String channel;
+		public String error;
+		public List<DiscordChatMessage> messages = new ArrayList<>();
+	}
+
+	/**
+	 * Gibt die neuesten Nachrichten eines Discord-Kanals fuer den Chat auf der Uebersicht zurueck.
+	 *
+	 * @param channel Die ID des Kanals. Ist sie unbekannt, wird der zuletzt gewaehlte Kanal verwendet.
+	 */
+	@Action(ActionType.AJAX)
+	public DiscordChatViewModel discordChatAction(String channel)
+	{
+		User user = (User)getUser();
+		DiscordChatViewModel result = new DiscordChatViewModel();
+		result.connected = !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty();
+
+		List<DiscordChannel> channels = DiscordChannel.parse(configService.getValue(WellKnownConfigValue.DISCORD_CHANNELS));
+		DiscordChannel selected = selectDiscordChannel(user, channels, channel);
+		if (selected == null || !discordService.isChatConfigured())
+		{
+			result.error = "Der Discord-Chat ist nicht eingerichtet.";
+			return result;
+		}
+
+		result.channel = selected.id;
+		if (!selected.id.equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL)))
+		{
+			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL, selected.id);
+		}
+
+		try
+		{
+			result.messages = discordService.getMessages(selected.id, discordChannelNames(channels));
+		}
+		catch (DiscordException e)
+		{
+			result.error = e.getMessage();
+		}
+		return result;
+	}
+
+	/**
+	 * Sendet eine Nachricht des Spielers in einen Discord-Kanal und gibt danach die neuesten Nachrichten zurueck.
+	 *
+	 * @param channel Die ID des Kanals
+	 * @param text Der Text der Nachricht
+	 */
+	@Action(ActionType.AJAX)
+	public DiscordChatViewModel discordSendAction(String channel, String text)
+	{
+		User user = (User)getUser();
+		String discordUserId = user.getUserValue(WellKnownUserValue.DISCORD_USER_ID);
+		List<DiscordChannel> channels = DiscordChannel.parse(configService.getValue(WellKnownConfigValue.DISCORD_CHANNELS));
+
+		DiscordChatViewModel result = new DiscordChatViewModel();
+		result.connected = !discordUserId.isEmpty();
+		if (!result.connected)
+		{
+			result.error = "Verbinde deinen Account zuerst in den Einstellungen mit Discord.";
+			return result;
+		}
+		if (!discordService.isChatConfigured() || channels.stream().noneMatch(c -> c.id.equals(channel)))
+		{
+			result.error = "Dieser Kanal steht im Chat nicht zur Verfügung.";
+			return result;
+		}
+
+		try
+		{
+			discordService.sendMessage(
+					configService.getValue(WellKnownConfigValue.DISCORD_GUILD_ID),
+					channel,
+					user.getId(),
+					discordUserId,
+					user.getPlainname(),
+					DiscordUser.avatarUrl(discordUserId, user.getUserValue(WellKnownUserValue.DISCORD_AVATAR)),
+					text);
+		}
+		catch (DiscordException e)
+		{
+			result.channel = channel;
+			result.error = e.getMessage();
+			return result;
+		}
+
+		return discordChatAction(channel);
+	}
+
+	private DiscordChannel selectDiscordChannel(User user, List<DiscordChannel> channels, String requested)
+	{
+		String preferred = requested != null && !requested.isEmpty() ? requested : user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL);
+		return channels.stream()
+				.filter(c -> c.id.equals(preferred))
+				.findFirst()
+				.orElse(channels.isEmpty() ? null : channels.get(0));
+	}
+
+	private static Map<String, String> discordChannelNames(List<DiscordChannel> channels)
+	{
+		Map<String, String> names = new HashMap<>();
+		for (DiscordChannel channel : channels)
+		{
+			names.put(channel.id, channel.name);
+		}
+		return names;
 	}
 
 	/**
@@ -246,8 +381,20 @@ public class UeberController extends Controller
 		}
 
 		//------------------------------------
+		// Discord-Chat
+		//------------------------------------
+
+		discordChatAnzeigen(user, t);
+
+		//------------------------------------
 		// Die Box (Bookmarks/Flotten)
 		//------------------------------------
+
+		boolean showBookmarks = BOX_BOOKMARKS.equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_BOX));
+		t.setVar("box.fleets.style", showBookmarks ? "display:none" : "",
+				"box.fleets.aktiv", showBookmarks ? "" : "aktiv",
+				"box.bookmarks.style", showBookmarks ? "" : "display:none",
+				"box.bookmarks.aktiv", showBookmarks ? "aktiv" : "");
 
 		t.setBlock("_UEBER", "bookmarks.listitem", "bookmarks.list");
 		t.setBlock("_UEBER", "fleets.listitem", "fleets.list");
@@ -299,6 +446,31 @@ public class UeberController extends Controller
 		}
 
 		return t;
+	}
+
+	private void discordChatAnzeigen(User user, TemplateEngine t)
+	{
+		List<DiscordChannel> channels = DiscordChannel.parse(configService.getValue(WellKnownConfigValue.DISCORD_CHANNELS));
+		DiscordChannel selected = selectDiscordChannel(user, channels, null);
+		String guildId = configService.getValue(WellKnownConfigValue.DISCORD_GUILD_ID);
+
+		t.setVar("discord.chat", selected != null && discordService.isChatConfigured(),
+				"discord.connected", !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty(),
+				"discord.guild", guildId,
+				"discord.channel", selected != null ? selected.id : "",
+				"discord.channel.name", selected != null ? Common.escapeHTML(selected.name) : "",
+				"discord.maxlength", DiscordService.MAX_MESSAGE_LENGTH,
+				"discord.inviteurl", configService.getValue(WellKnownConfigValue.DISCORD_INVITE_URL));
+
+		t.setBlock("_UEBER", "discordchannels.listitem", "discordchannels.list");
+		t.setVar("discordchannels.list", "");
+		for (DiscordChannel channel : channels)
+		{
+			t.setVar("discordchannel.id", channel.id,
+					"discordchannel.name", Common.escapeHTML(channel.name),
+					"discordchannel.aktiv", channel == selected ? "aktiv" : "");
+			t.parse("discordchannels.list", "discordchannels.listitem", true);
+		}
 	}
 
 	private void mangelAufSchiffenAnzeigen(Session db, User user, TemplateEngine t)

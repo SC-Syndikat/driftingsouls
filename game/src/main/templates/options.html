@@ -211,6 +211,38 @@
 	</div>
 
 	</form>
+
+	<div class="gfxbox discord-options" style="width:560px">
+		<div style="text-align:center; font-weight:bold">Discord-Chat</div>
+		<br />
+		{if discord.configured}
+			{if discord.connected}
+				<div class="discord-account">
+					<img src="{discord.avatar}" alt="" />
+					Verbunden als <b>{discord.username}</b>
+				</div>
+				<br />
+				Du kannst im Chat auf der Übersicht in den Kanälen unseres Discord-Servers mitlesen und schreiben.
+				Deine Nachrichten erscheinen dort unter deinem Ingame-Namen mit deinem Discord-Avatar.
+				<br /><br />
+				<form action="ds" method="post" style="text-align:center">
+					{!form_create_hidden discordDisconnect}
+					<input type="submit" value="Verbindung trennen" />
+				</form>
+			{else}
+				Verbinde deinen Account mit Discord, um im Chat auf der Übersicht mitzuschreiben.
+				Du meldest dich dafür direkt bei Discord an; dein Discord-Passwort wird nicht an Drifting Souls übermittelt.
+				Falls du noch nicht auf unserem <a href="{discord.inviteurl}" target="_blank">Discord-Server</a> bist, wirst du dabei hinzugefügt.
+				<br /><br />
+				<div style="text-align:center">
+					<a class="discord-connect" href="./ds?module=options&amp;action=discordConnect" target="_top"
+					   onclick="window.open(this.href, 'dsDiscord', 'width=520,height=800'); return false;">Mit Discord verbinden</a>
+				</div>
+			{/endif}
+		{else}
+			Die Discord-Anbindung ist auf diesem Server noch nicht eingerichtet.
+		{/endif}
+	</div>
 {/endif}
 
 {if options.general}
