@@ -20,27 +20,11 @@ set_setting() {
 	sed -i "s#<setting type=\"string\" name=\"${name}\" value=\"[^\"]*\" />#<setting type=\"string\" name=\"${name}\" value=\"${sed_escaped_value}\" />#" "$CONFIG_FILE"
 }
 
-# Like set_setting, but only when a value is given, and adds the setting if config.xml does
-# not contain it yet (for optional settings missing from older config files)
-set_optional_setting() {
-	local name="$1"
-	local value="$2"
-	[ -n "$value" ] || return 0
-	if ! grep -q "<setting type=\"string\" name=\"${name}\" " "$CONFIG_FILE"; then
-		sed -i "s#</config>#\t<setting type=\"string\" name=\"${name}\" value=\"\" />\n</config>#" "$CONFIG_FILE"
-	fi
-	set_setting "$name" "$value"
-}
-
 set_setting "db_url" "$DB_URL"
 set_setting "db_user" "$DB_USER"
 set_setting "db_password" "$DB_PASSWORD"
 set_setting "ABSOLUTE_PATH" "$ABSOLUTE_PATH"
 set_setting "LOXPATH" "$LOXPATH"
-set_optional_setting "DISCORD_BOT_TOKEN" "$DISCORD_BOT_TOKEN"
-set_optional_setting "DISCORD_CLIENT_ID" "$DISCORD_CLIENT_ID"
-set_optional_setting "DISCORD_CLIENT_SECRET" "$DISCORD_CLIENT_SECRET"
-set_optional_setting "DISCORD_REDIRECT_URI" "$DISCORD_REDIRECT_URI"
 
 mkdir -p "$LOXPATH"
 

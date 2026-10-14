@@ -42,7 +42,23 @@ var DiscordChat = {
 			}
 		});
 
+		this.__aktualisiereEingabe();
 		this.laden();
+	},
+
+	/**
+	 * Sperrt die Eingabe in Kanaelen, in die der Spieler nur lesen darf.
+	 * Das ist nur Komfort - der Server prueft das Schreibrecht bei jedem Senden selbst.
+	 */
+	__aktualisiereEingabe : function() {
+		var chat = $('#discord-chat');
+		var kanal = chat.find('.discord-kanal.aktiv');
+		var darfSchreiben = kanal.attr('data-schreiben') === '1';
+		var form = chat.find('form.discord-eingabe');
+		form.find('input').prop('disabled', !darfSchreiben);
+		form.find('input[name=text]').attr('placeholder', darfSchreiben ?
+			'Nachricht an #' + kanal.attr('data-name') :
+			'In #' + kanal.attr('data-name') + ' darfst du nur mitlesen');
 	},
 
 	__kanal : function() {
@@ -60,7 +76,7 @@ var DiscordChat = {
 		chat.find('.discord-kanal').removeClass('aktiv');
 		kanalElement.addClass('aktiv');
 		chat.find('.discord-extern').attr('href', 'https://discord.com/channels/' + chat.attr('data-guild') + '/' + kanal);
-		chat.find('form.discord-eingabe input[name=text]').attr('placeholder', 'Nachricht an #' + kanalElement.attr('data-name'));
+		this.__aktualisiereEingabe();
 
 		this.__signatur = null;
 		chat.find('.discord-nachrichten').empty().append($('<div class="discord-hinweis"></div>').text('Lade Nachrichten...'));
@@ -132,7 +148,7 @@ var DiscordChat = {
 				DiscordChat.__zeigeFehler('Die Nachricht konnte nicht gesendet werden.');
 			},
 			complete: function() {
-				form.find('input').prop('disabled', false);
+				DiscordChat.__aktualisiereEingabe();
 				eingabe.focus();
 			}
 		});
@@ -153,6 +169,12 @@ var DiscordChat = {
 			// Fehlerantwort des Frameworks (z.B. nicht mehr eingeloggt)
 			this.__zeigeFehler(result.message && result.message.description ? result.message.description : 'Der Chat konnte nicht geladen werden.');
 			return;
+		}
+
+		if( result.channel === this.__kanal() ) {
+			// Rechte koennen sich geaendert haben, seit die Seite geladen wurde
+			chat.find('.discord-kanal.aktiv').attr('data-schreiben', result.schreiben ? '1' : '0');
+			this.__aktualisiereEingabe();
 		}
 
 		if( result.error ) {

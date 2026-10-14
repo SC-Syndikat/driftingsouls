@@ -200,43 +200,4 @@ public class Configuration
 	{
 		return config.get("EXCEPTION_MAIL_PREFIX");
 	}
-
-	/**
-	 * Gibt das Token des Discord-Bots zurueck, ueber den der Ingame-Chat
-	 * Nachrichten liest und Webhooks verwaltet.
-	 * @return Das Token oder <code>null</code>, falls nicht konfiguriert
-	 */
-	public static String getDiscordBotToken()
-	{
-		return config.get("DISCORD_BOT_TOKEN");
-	}
-
-	/**
-	 * Gibt die Client-ID der Discord-Anwendung fuer den OAuth2-Login zurueck.
-	 * @return Die Client-ID oder <code>null</code>, falls nicht konfiguriert
-	 */
-	public static String getDiscordClientId()
-	{
-		return config.get("DISCORD_CLIENT_ID");
-	}
-
-	/**
-	 * Gibt das Client-Secret der Discord-Anwendung fuer den OAuth2-Login zurueck.
-	 * @return Das Client-Secret oder <code>null</code>, falls nicht konfiguriert
-	 */
-	public static String getDiscordClientSecret()
-	{
-		return config.get("DISCORD_CLIENT_SECRET");
-	}
-
-	/**
-	 * Gibt die Redirect-URI zurueck, die bei der Discord-Anwendung fuer den
-	 * OAuth2-Login hinterlegt ist. Sie muss auf
-	 * <code>.../ds?module=options&amp;action=discordCallback</code> zeigen.
-	 * @return Die Redirect-URI oder <code>null</code>, falls nicht konfiguriert
-	 */
-	public static String getDiscordRedirectUri()
-	{
-		return config.get("DISCORD_REDIRECT_URI");
-	}
 }

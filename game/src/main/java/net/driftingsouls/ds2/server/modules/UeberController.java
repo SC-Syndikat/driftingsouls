@@ -19,7 +19,6 @@
 package net.driftingsouls.ds2.server.modules;
 
 import net.driftingsouls.ds2.server.ContextCommon;
-import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.BaseStatus;
@@ -30,9 +29,10 @@ import net.driftingsouls.ds2.server.cargo.ResourceList;
 import net.driftingsouls.ds2.server.cargo.Resources;
 import net.driftingsouls.ds2.server.config.Rassen;
 import net.driftingsouls.ds2.server.config.items.Item;
-import net.driftingsouls.ds2.server.discord.DiscordChannel;
 import net.driftingsouls.ds2.server.discord.DiscordChatMessage;
 import net.driftingsouls.ds2.server.discord.DiscordException;
+import net.driftingsouls.ds2.server.discord.DiscordKanal;
+import net.driftingsouls.ds2.server.discord.DiscordKonfiguration;
 import net.driftingsouls.ds2.server.discord.DiscordService;
 import net.driftingsouls.ds2.server.discord.DiscordUser;
 import net.driftingsouls.ds2.server.entities.IntTutorial;
@@ -42,7 +42,6 @@ import net.driftingsouls.ds2.server.entities.UserRank;
 import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
 import net.driftingsouls.ds2.server.entities.ally.Ally;
 import net.driftingsouls.ds2.server.framework.Common;
-import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.Configuration;
 import net.driftingsouls.ds2.server.framework.ViewMessage;
 import net.driftingsouls.ds2.server.framework.ViewModel;
@@ -91,14 +90,12 @@ public class UeberController extends Controller
 	private static final String BOX_BOOKMARKS = "bookmarks";
 
 	private final TemplateViewResultFactory templateViewResultFactory;
-	private final ConfigService configService;
 	private final DiscordService discordService;
 
 	@Autowired
-	public UeberController(TemplateViewResultFactory templateViewResultFactory, ConfigService configService, DiscordService discordService)
+	public UeberController(TemplateViewResultFactory templateViewResultFactory, DiscordService discordService)
 	{
 		this.templateViewResultFactory = templateViewResultFactory;
-		this.configService = configService;
 		this.discordService = discordService;
 	}
 
@@ -168,6 +165,7 @@ public class UeberController extends Controller
 	public static class DiscordChatViewModel
 	{
 		public boolean connected;
+		public boolean schreiben;
 		public String channel;
 		public String error;
 		public List<DiscordChatMessage> messages = new ArrayList<>();
@@ -175,33 +173,37 @@ public class UeberController extends Controller
 
 	/**
 	 * Gibt die neuesten Nachrichten eines Discord-Kanals fuer den Chat auf der Uebersicht zurueck.
+	 * Es werden nur Kanaele geliefert, die der Spieler lesen darf.
 	 *
-	 * @param channel Die ID des Kanals. Ist sie unbekannt, wird der zuletzt gewaehlte Kanal verwendet.
+	 * @param channel Die ID des Kanals. Ist sie unbekannt oder nicht erlaubt, wird der zuletzt gewaehlte bzw. der Standardkanal verwendet.
 	 */
 	@Action(ActionType.AJAX)
 	public DiscordChatViewModel discordChatAction(String channel)
 	{
 		User user = (User)getUser();
-		DiscordChatViewModel result = new DiscordChatViewModel();
-		result.connected = !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty();
+		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
+		List<DiscordKanal> kanaele = DiscordKanal.lesbare(getEM(), konfiguration, user);
 
-		List<DiscordChannel> channels = DiscordChannel.parse(configService.getValue(WellKnownConfigValue.DISCORD_CHANNELS));
-		DiscordChannel selected = selectDiscordChannel(user, channels, channel);
-		if (selected == null || !discordService.isChatConfigured())
+		DiscordChatViewModel result = new DiscordChatViewModel();
+		result.connected = konfiguration.isLoginEingerichtet() && !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty();
+
+		DiscordKanal selected = waehleDiscordKanal(user, kanaele, channel);
+		if (selected == null)
 		{
-			result.error = "Der Discord-Chat ist nicht eingerichtet.";
+			result.error = "Im Moment ist kein Discord-Kanal verfügbar.";
 			return result;
 		}
 
-		result.channel = selected.id;
-		if (!selected.id.equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL)))
+		result.channel = selected.getChannelId();
+		result.schreiben = result.connected && selected.darfSchreiben(user);
+		if (!selected.getChannelId().equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL)))
 		{
-			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL, selected.id);
+			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL, selected.getChannelId());
 		}
 
 		try
 		{
-			result.messages = discordService.getMessages(selected.id, discordChannelNames(channels));
+			result.messages = discordService.getMessages(konfiguration, selected.getChannelId(), discordKanalNamen(kanaele));
 		}
 		catch (DiscordException e)
 		{
@@ -213,34 +215,40 @@ public class UeberController extends Controller
 	/**
 	 * Sendet eine Nachricht des Spielers in einen Discord-Kanal und gibt danach die neuesten Nachrichten zurueck.
 	 *
-	 * @param channel Die ID des Kanals
+	 * @param channel Die ID des Kanals. Der Spieler muss darin schreiben duerfen.
 	 * @param text Der Text der Nachricht
 	 */
 	@Action(ActionType.AJAX)
 	public DiscordChatViewModel discordSendAction(String channel, String text)
 	{
 		User user = (User)getUser();
+		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
 		String discordUserId = user.getUserValue(WellKnownUserValue.DISCORD_USER_ID);
-		List<DiscordChannel> channels = DiscordChannel.parse(configService.getValue(WellKnownConfigValue.DISCORD_CHANNELS));
 
 		DiscordChatViewModel result = new DiscordChatViewModel();
-		result.connected = !discordUserId.isEmpty();
+		result.connected = konfiguration.isLoginEingerichtet() && !discordUserId.isEmpty();
+		result.channel = channel;
 		if (!result.connected)
 		{
 			result.error = "Verbinde deinen Account zuerst in den Einstellungen mit Discord.";
 			return result;
 		}
-		if (!discordService.isChatConfigured() || channels.stream().noneMatch(c -> c.id.equals(channel)))
+
+		DiscordKanal kanal = DiscordKanal.lesbare(getEM(), konfiguration, user).stream()
+				.filter(k -> k.getChannelId().equals(channel))
+				.findFirst()
+				.orElse(null);
+		if (kanal == null || !kanal.darfSchreiben(user))
 		{
-			result.error = "Dieser Kanal steht im Chat nicht zur Verfügung.";
+			result.error = "Du darfst in diesen Kanal nicht schreiben.";
 			return result;
 		}
 
 		try
 		{
 			discordService.sendMessage(
-					configService.getValue(WellKnownConfigValue.DISCORD_GUILD_ID),
-					channel,
+					konfiguration,
+					kanal.getChannelId(),
 					user.getId(),
 					discordUserId,
 					user.getPlainname(),
@@ -249,31 +257,32 @@ public class UeberController extends Controller
 		}
 		catch (DiscordException e)
 		{
-			result.channel = channel;
+			result.schreiben = true;
 			result.error = e.getMessage();
 			return result;
 		}
 
-		return discordChatAction(channel);
+		return discordChatAction(kanal.getChannelId());
 	}
 
-	private DiscordChannel selectDiscordChannel(User user, List<DiscordChannel> channels, String requested)
+	private DiscordKanal waehleDiscordKanal(User user, List<DiscordKanal> kanaele, String gewuenscht)
 	{
-		String preferred = requested != null && !requested.isEmpty() ? requested : user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL);
-		return channels.stream()
-				.filter(c -> c.id.equals(preferred))
+		String bevorzugt = gewuenscht != null && !gewuenscht.isEmpty() ? gewuenscht : user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL);
+		return kanaele.stream()
+				.filter(k -> k.getChannelId().equals(bevorzugt))
 				.findFirst()
-				.orElse(channels.isEmpty() ? null : channels.get(0));
+				.or(() -> kanaele.stream().filter(DiscordKanal::isStandard).findFirst())
+				.orElse(kanaele.isEmpty() ? null : kanaele.get(0));
 	}
 
-	private static Map<String, String> discordChannelNames(List<DiscordChannel> channels)
+	private static Map<String, String> discordKanalNamen(List<DiscordKanal> kanaele)
 	{
-		Map<String, String> names = new HashMap<>();
-		for (DiscordChannel channel : channels)
+		Map<String, String> namen = new HashMap<>();
+		for (DiscordKanal kanal : kanaele)
 		{
-			names.put(channel.id, channel.name);
+			namen.put(kanal.getChannelId(), kanal.getName());
 		}
-		return names;
+		return namen;
 	}
 
 	/**
@@ -450,25 +459,28 @@ public class UeberController extends Controller
 
 	private void discordChatAnzeigen(User user, TemplateEngine t)
 	{
-		List<DiscordChannel> channels = DiscordChannel.parse(configService.getValue(WellKnownConfigValue.DISCORD_CHANNELS));
-		DiscordChannel selected = selectDiscordChannel(user, channels, null);
-		String guildId = configService.getValue(WellKnownConfigValue.DISCORD_GUILD_ID);
+		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
+		List<DiscordKanal> kanaele = DiscordKanal.lesbare(getEM(), konfiguration, user);
+		DiscordKanal selected = waehleDiscordKanal(user, kanaele, null);
+		boolean connected = konfiguration.isLoginEingerichtet() && !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty();
 
-		t.setVar("discord.chat", selected != null && discordService.isChatConfigured(),
-				"discord.connected", !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty(),
-				"discord.guild", guildId,
-				"discord.channel", selected != null ? selected.id : "",
-				"discord.channel.name", selected != null ? Common.escapeHTML(selected.name) : "",
+		t.setVar("discord.chat", selected != null,
+				"discord.connected", connected,
+				"discord.login", konfiguration.isLoginEingerichtet(),
+				"discord.guild", konfiguration.getGuildId(),
+				"discord.channel", selected != null ? selected.getChannelId() : "",
+				"discord.channel.name", selected != null ? Common.escapeHTML(selected.getName()) : "",
 				"discord.maxlength", DiscordService.MAX_MESSAGE_LENGTH,
-				"discord.inviteurl", configService.getValue(WellKnownConfigValue.DISCORD_INVITE_URL));
+				"discord.inviteurl", konfiguration.getInviteUrl() != null ? Common.escapeHTML(konfiguration.getInviteUrl()) : "");
 
 		t.setBlock("_UEBER", "discordchannels.listitem", "discordchannels.list");
 		t.setVar("discordchannels.list", "");
-		for (DiscordChannel channel : channels)
+		for (DiscordKanal kanal : kanaele)
 		{
-			t.setVar("discordchannel.id", channel.id,
-					"discordchannel.name", Common.escapeHTML(channel.name),
-					"discordchannel.aktiv", channel == selected ? "aktiv" : "");
+			t.setVar("discordchannel.id", kanal.getChannelId(),
+					"discordchannel.name", Common.escapeHTML(kanal.getName()),
+					"discordchannel.aktiv", kanal == selected ? "aktiv" : "",
+					"discordchannel.schreiben", connected && kanal.darfSchreiben(user) ? "1" : "0");
 			t.parse("discordchannels.list", "discordchannels.listitem", true);
 		}
 	}

@@ -122,7 +122,7 @@
 				<div id="discord-chat" data-channel="{discord.channel}" data-guild="{discord.guild}">
 					<div class="discord-kanaele">
 						<!-- BEGIN discordchannels.listitem -->
-						<span class="discord-kanal link {discordchannel.aktiv}" data-channel="{discordchannel.id}" data-name="{discordchannel.name}">#{discordchannel.name}</span>
+						<span class="discord-kanal link {discordchannel.aktiv}" data-channel="{discordchannel.id}" data-name="{discordchannel.name}" data-schreiben="{discordchannel.schreiben}">#{discordchannel.name}</span>
 						<!-- END discordchannels.listitem -->
 						<a class="discord-extern" href="https://discord.com/channels/{discord.guild}/{discord.channel}" target="_blank" title="In Discord öffnen">&#8599;</a>
 					</div>
@@ -136,15 +136,19 @@
 					</form>
 					{else}
 					<div class="discord-eingabe discord-hinweis">
+						{if discord.login}
 						<a href="./ds?module=options&amp;action=xtra">Verbinde deinen Account in den Einstellungen mit Discord</a>, um mitzuschreiben.
+						{else}
+						Mitschreiben ist im Moment nur direkt in Discord möglich.
+						{/endif}
 					</div>
 					{/endif}
 				</div>
 				{else}
 				<div class="discord-nachrichten">
 					<div class="discord-hinweis">
-						Der Discord-Chat ist noch nicht eingerichtet.<br />
-						Besuche uns auf unserem <a href="{discord.inviteurl}" target="_blank">Discord-Server</a>.
+						Im Moment ist kein Discord-Kanal verfügbar.
+						{if discord.inviteurl}<br />Besuche uns auf unserem <a href="{discord.inviteurl}" target="_blank">Discord-Server</a>.{/endif}
 					</div>
 				</div>
 				{/endif}

@@ -229,18 +229,6 @@ public class WellKnownConfigValue<T> implements ConfigValueDescriptor<T>
 	 * Energiekosten fuer einen Asteroidenscan
 	 */
 	public static final ConfigValueDescriptor<Integer> ASTI_SCAN_COST = new WellKnownConfigValue<>(Integer.class, "asti_scan_cost", "75", "Energiekosten für einen Asteroidenscan");
-	/**
-	 * Die ID des Discord-Servers fuer den Ingame-Chat.
-	 */
-	public static final ConfigValueDescriptor<String> DISCORD_GUILD_ID = new WellKnownConfigValue<>(String.class, "discord_guild_id", "471610776126226432", "Die ID des Discord-Servers für den Ingame-Chat");
-	/**
-	 * Die im Ingame-Chat waehlbaren Discord-Kanaele.
-	 */
-	public static final ConfigValueDescriptor<String> DISCORD_CHANNELS = new WellKnownConfigValue<>(String.class, "discord_channels", "", "Die im Ingame-Chat wählbaren Discord-Kanäle im Format KanalID:Name;KanalID:Name (z.B. 123456789:Allgemein;987654321:Handel)");
-	/**
-	 * Der Einladungslink zum Discord-Server.
-	 */
-	public static final ConfigValueDescriptor<String> DISCORD_INVITE_URL = new WellKnownConfigValue<>(String.class, "discord_invite_url", "https://discord.gg/cpxxAGy", "Der Einladungslink zum Discord-Server");
 
 	private final String name;
 	private final String description;
