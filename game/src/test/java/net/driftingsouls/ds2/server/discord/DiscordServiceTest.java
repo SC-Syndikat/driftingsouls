@@ -27,8 +27,34 @@ public class DiscordServiceTest
 		// run
 		String text = DiscordService.formatContent("Hi <@42> und <@!43>, siehe <#7> und <#8> <@&99> <:ds:12345> <a:tanz:6789>", users, channels);
 
-		// assert
-		assertEquals("Hi @Bob und @unbekannt, siehe #handel und #kanal @Rolle :ds: :tanz:", text);
+		// assert: Server-Emojis bleiben stehen, die zeigt der Chat als Bild an
+		assertEquals("Hi @Bob und @unbekannt, siehe #handel und #kanal @Rolle <:ds:12345> <a:tanz:6789>", text);
+	}
+
+	@Test
+	public void kurzformen_formatContent_sollteSieInEmojisUmwandeln()
+	{
+		String text = DiscordService.formatContent("Super :thumbsup: :heart: :gibtsnicht: um 10:30:45", Collections.emptyMap(), Collections.emptyMap());
+
+		assertEquals("Super 👍 ❤ :gibtsnicht: um 10:30:45", text);
+	}
+
+	@Test
+	public void serverEmojiMitUnicodeNamen_formatContent_sollteEsNichtZerstoeren()
+	{
+		String text = DiscordService.formatContent("<:heart:123> <a:smile:456>", Collections.emptyMap(), Collections.emptyMap());
+
+		assertEquals("<:heart:123> <a:smile:456>", text);
+	}
+
+	@Test
+	public void kurzformenBeimSenden_ersetzeKurzformen_sollteServerEmojisBevorzugen()
+	{
+		Map<String, String> serverEmojis = Collections.singletonMap("heart", "<:heart:999>");
+
+		String text = DiscordService.ersetzeKurzformen(":heart: :thumbsup: :small_green_triangle:", serverEmojis);
+
+		assertEquals("<:heart:999> 👍 :small_green_triangle:", text);
 	}
 
 	@Test

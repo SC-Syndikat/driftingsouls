@@ -5,6 +5,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.vdurmont.emoji.Emoji;
+import com.vdurmont.emoji.EmojiManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -84,7 +86,10 @@ public class DiscordService
 	private static final Pattern USER_MENTION = Pattern.compile("<@!?(\\d+)>");
 	private static final Pattern ROLE_MENTION = Pattern.compile("<@&(\\d+)>");
 	private static final Pattern CHANNEL_MENTION = Pattern.compile("<#(\\d+)>");
-	private static final Pattern CUSTOM_EMOJI = Pattern.compile("<a?:(\\w+):\\d+>");
+	/**
+	 * Eine Kurzform wie <code>:thumbsup:</code>, aber nicht der Name in einem Server-Emoji <code>&lt;:name:id&gt;</code>.
+	 */
+	private static final Pattern KURZFORM = Pattern.compile("(?<![<\\w]):([A-Za-z0-9_+\\-]{2,40}):");
 	private static final Pattern TIMESTAMP = Pattern.compile("<t:(-?\\d+)(?::[a-zA-Z])?>");
 	private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.of("Europe/Berlin"));
 
@@ -135,6 +140,15 @@ public class DiscordService
 	}
 
 	/**
+	 * Die eigenen Emojis eines Servers als Name -&gt; Markup.
+	 */
+	private static class ServerEmojis
+	{
+		final Map<String, String> markup = new HashMap<>();
+		final long geladen = System.currentTimeMillis();
+	}
+
+	/**
 	 * Farbe und Position der Rollen eines Servers.
 	 */
 	private static class Rollen
@@ -158,6 +172,7 @@ public class DiscordService
 	private final Map<String, Webhook> webhooks = new ConcurrentHashMap<>();
 	private final Map<String, Mitglied> mitglieder = new ConcurrentHashMap<>();
 	private final Map<String, Rollen> rollen = new ConcurrentHashMap<>();
+	private final Map<String, ServerEmojis> serverEmojis = new ConcurrentHashMap<>();
 	private final Map<Integer, Long> lastSend = new ConcurrentHashMap<>();
 
 	/**
@@ -172,6 +187,7 @@ public class DiscordService
 		}
 		mitglieder.clear();
 		rollen.clear();
+		serverEmojis.clear();
 	}
 
 	/**
@@ -333,6 +349,7 @@ public class DiscordService
 		{
 			throw new DiscordException("Die Nachricht ist leer.");
 		}
+		content = bereiteZumSendenVor(konfiguration, content);
 		if (content.length() > MAX_MESSAGE_LENGTH)
 		{
 			throw new DiscordException("Die Nachricht ist zu lang (maximal " + MAX_MESSAGE_LENGTH + " Zeichen).");
@@ -928,7 +945,9 @@ public class DiscordService
 	}
 
 	/**
-	 * Ersetzt die Discord-Markup-Verweise (Erwaehnungen, Kanaele, Emojis, Zeitstempel) durch lesbaren Text.
+	 * Ersetzt die Discord-Markup-Verweise (Erwaehnungen, Kanaele, Zeitstempel) durch lesbaren Text
+	 * und Emoji-Kurzformen wie <code>:thumbsup:</code> durch das Emoji. Server-Emojis
+	 * (<code>&lt;:name:id&gt;</code>) bleiben stehen, die zeigt der Chat als Bild an.
 	 */
 	static String formatContent(String content, Map<String, String> users, Map<String, String> channels)
 	{
@@ -939,9 +958,78 @@ public class DiscordService
 		String text = replace(USER_MENTION, content, m -> "@" + users.getOrDefault(m.group(1), "unbekannt"));
 		text = replace(ROLE_MENTION, text, m -> "@Rolle");
 		text = replace(CHANNEL_MENTION, text, m -> "#" + channels.getOrDefault(m.group(1), "kanal"));
-		text = replace(CUSTOM_EMOJI, text, m -> ":" + m.group(1) + ":");
 		text = replace(TIMESTAMP, text, m -> TIMESTAMP_FORMAT.format(Instant.ofEpochSecond(Long.parseLong(m.group(1)))));
-		return text;
+		return ersetzeKurzformen(text, Collections.emptyMap());
+	}
+
+	/**
+	 * Bereitet den Text einer Nachricht aus dem Spiel fuer Discord vor. Der Discord-Client wandelt
+	 * Kurzformen beim Tippen selbst um - fuer per Webhook gesendeten Text uebernimmt das DS:
+	 * Namen von Server-Emojis werden zu <code>&lt;:name:id&gt;</code>, alle anderen bekannten Kurzformen zum Emoji.
+	 * @param konfiguration Die Bot-Einstellungen
+	 * @param text Der eingegebene Text
+	 * @return Der Text fuer Discord
+	 */
+	public String bereiteZumSendenVor(DiscordKonfiguration konfiguration, String text)
+	{
+		if (text == null || !KURZFORM.matcher(text).find())
+		{
+			return text;
+		}
+		return ersetzeKurzformen(text, ladeServerEmojis(konfiguration));
+	}
+
+	/**
+	 * Ersetzt <code>:name:</code> durch das Server-Emoji gleichen Namens oder das Unicode-Emoji.
+	 * Unbekannte Namen bleiben stehen, ebenso der Name innerhalb von <code>&lt;:name:id&gt;</code>.
+	 */
+	static String ersetzeKurzformen(String text, Map<String, String> serverEmojis)
+	{
+		return replace(KURZFORM, text, m -> {
+			String name = m.group(1);
+			String serverEmoji = serverEmojis.get(name);
+			if (serverEmoji != null)
+			{
+				return serverEmoji;
+			}
+			Emoji emoji = EmojiManager.getForAlias(name);
+			return emoji != null ? emoji.getUnicode() : m.group();
+		});
+	}
+
+	/**
+	 * Laedt die Emojis des Servers als Name -&gt; Markup (zwischengespeichert). Schlaegt das fehl,
+	 * werden eben nur die Unicode-Kurzformen umgewandelt.
+	 */
+	private Map<String, String> ladeServerEmojis(DiscordKonfiguration konfiguration)
+	{
+		ServerEmojis geladen = serverEmojis.get(konfiguration.getGuildId());
+		if (geladen != null && System.currentTimeMillis() - geladen.geladen < MEMBER_CACHE_MILLIS)
+		{
+			return geladen.markup;
+		}
+		geladen = new ServerEmojis();
+		try
+		{
+			HttpResponse<String> response = send(botRequest(konfiguration, "/guilds/" + konfiguration.getGuildId() + "/emojis").GET());
+			if (response.statusCode() != 200)
+			{
+				log.warn("Discord: Laden der Server-Emojis fehlgeschlagen ({}): {}", response.statusCode(), response.body());
+				return geladen.markup;
+			}
+			for (JsonElement element : JsonParser.parseString(response.body()).getAsJsonArray())
+			{
+				JsonObject emoji = element.getAsJsonObject();
+				boolean animiert = emoji.has("animated") && emoji.get("animated").getAsBoolean();
+				geladen.markup.put(string(emoji, "name"), "<" + (animiert ? "a" : "") + ":" + string(emoji, "name") + ":" + string(emoji, "id") + ">");
+			}
+		}
+		catch (DiscordException e)
+		{
+			return geladen.markup;
+		}
+		serverEmojis.put(konfiguration.getGuildId(), geladen);
+		return geladen.markup;
 	}
 
 	/**

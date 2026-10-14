@@ -139,6 +139,12 @@
 	display: block;
 }
 
+.discord-emoji {
+	width: 18px;
+	height: 18px;
+	vertical-align: -4px;
+}
+
 /* Bilder und Videos aus dem Chat; width/height setzt das Script, damit der Platz schon vor dem Laden feststeht */
 .discord-medium {
 	display: block;

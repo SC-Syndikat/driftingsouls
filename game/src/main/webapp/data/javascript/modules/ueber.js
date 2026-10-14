@@ -276,16 +276,29 @@ var DiscordChat = {
 		medium.attr('height', Math.round(anhang.hoehe * faktor));
 	},
 
+	/**
+	 * Fuegt den Text als reinen Text ein - nur Links und Server-Emojis (<:name:id>, animiert <a:name:id>)
+	 * werden zu Elementen.
+	 */
 	__fuegeTextMitLinksEin : function(ziel, text) {
-		var muster = /https?:\/\/[^\s<>"]+/g;
+		var muster = /(https?:\/\/[^\s<>"]+)|<(a?):(\w{2,32}):(\d{5,25})>/g;
 		var position = 0;
 		var treffer;
 		while( (treffer = muster.exec(text)) !== null ) {
 			ziel.append(document.createTextNode(text.substring(position, treffer.index)));
-			$('<a target="_blank" rel="noopener noreferrer"></a>')
-				.attr('href', treffer[0])
-				.text(treffer[0])
-				.appendTo(ziel);
+			if( treffer[1] ) {
+				$('<a target="_blank" rel="noopener noreferrer"></a>')
+					.attr('href', treffer[1])
+					.text(treffer[1])
+					.appendTo(ziel);
+			}
+			else {
+				$('<img class="discord-emoji" />')
+					.attr('src', 'https://cdn.discordapp.com/emojis/' + treffer[4] + '.' + (treffer[2] ? 'gif' : 'png') + '?size=48')
+					.attr('alt', ':' + treffer[3] + ':')
+					.attr('title', ':' + treffer[3] + ':')
+					.appendTo(ziel);
+			}
 			position = treffer.index + treffer[0].length;
 		}
 		ziel.append(document.createTextNode(text.substring(position)));
