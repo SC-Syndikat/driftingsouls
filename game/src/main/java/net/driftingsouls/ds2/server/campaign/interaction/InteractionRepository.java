@@ -129,6 +129,18 @@ public class InteractionRepository
 		withDb(db -> db.deleteFrom(INTERACTION).where(INTERACTION.ID.eq(id)).execute());
 	}
 
+	/**
+	 * Removes every interaction of the object, with its sessions and log. Interactions belong to NPC objects
+	 * only: a player who captures or receives such a ship must not be able to use them.
+	 */
+	public void deleteForObject(ObjectType type, int objectId)
+	{
+		withDb(db -> db.deleteFrom(INTERACTION)
+				.where(INTERACTION.OBJECT_TYPE.eq(type.name()))
+				.and(INTERACTION.OBJECT_ID.eq(objectId))
+				.execute());
+	}
+
 	// ---------------------------------------------------------------- sessions
 
 	public int startSession(int userId, int shipId, int interactionId, int nodeId)

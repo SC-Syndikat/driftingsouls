@@ -27,6 +27,7 @@ DELETE FROM interaction WHERE id > 4;
 
 -- Dialog progress
 DELETE FROM dialog_session;
+DELETE FROM gm_request WHERE campaign_id = 1;
 DELETE FROM interaction_log;
 DELETE FROM campaign_variable WHERE campaign_id = 1;
 DELETE FROM npc_trust_event WHERE npc_user_id IN (-900, -901);

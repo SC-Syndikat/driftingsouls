@@ -172,6 +172,10 @@ public class CampaignInteractions implements AdminPlugin
 				{
 					throw new CampaignException("Unbekanntes Schiff " + objectId + ".");
 				}
+				if (!ship.getOwner().isNPC())
+				{
+					throw new CampaignException("Interaktionen gibt es nur an NPC-Schiffen, NPC-Basen und Sternensystemen.");
+				}
 				system = ship.getSystem();
 				break;
 			}
@@ -181,6 +185,10 @@ public class CampaignInteractions implements AdminPlugin
 				if (base == null)
 				{
 					throw new CampaignException("Unbekannte Basis " + objectId + ".");
+				}
+				if (!base.getOwner().isNPC())
+				{
+					throw new CampaignException("Interaktionen gibt es nur an NPC-Schiffen, NPC-Basen und Sternensystemen.");
 				}
 				system = base.getSystem();
 				break;
@@ -308,7 +316,7 @@ public class CampaignInteractions implements AdminPlugin
 					+ " – " + Common._plaintitle(ship.getOwner().getName()));
 		}
 		Map<Integer, String> bases = new LinkedHashMap<>();
-		for (Base base : em.createQuery("from Base where system in (:systems) order by system, x, y, id", Base.class)
+		for (Base base : em.createQuery("from Base where system in (:systems) and owner.id < 0 order by system, x, y, id", Base.class)
 				.setParameter("systems", systems).getResultList())
 		{
 			bases.put(base.getId(), Common._plaintitle(base.getName()) + " (" + base.getId() + ") – " + base.getLocation().displayCoordinates(false)

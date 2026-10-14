@@ -7,6 +7,9 @@ import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
 import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.campaign.interaction.DialogService;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequest;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequestRepository;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequestService;
 import net.driftingsouls.ds2.server.campaign.interaction.Interaction;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.entities.User;
@@ -16,6 +19,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.Action;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.modules.admin.CampaignInteractions;
+import net.driftingsouls.ds2.server.modules.admin.CampaignRequests;
 import net.driftingsouls.ds2.server.ships.Ship;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.commons.text.StringEscapeUtils.escapeHtml4;
 
@@ -40,10 +45,11 @@ public class CampaignDialog implements SchiffPlugin
 	public static final String PLUGIN_ID = "campaigndialog";
 
 	@Action(ActionType.DEFAULT)
-	public String action(Parameters caller, String op, int interaction, int session, int option)
+	public String action(Parameters caller, String op, int interaction, int session, int option, int request, String text)
 	{
 		User user = (User) ContextMap.getContext().getActiveUser();
 		DialogService service = new DialogService(ContextMap.getContext().getEM());
+		GmRequestService requests = new GmRequestService(ContextMap.getContext().getEM());
 		try
 		{
 			switch (op)
@@ -63,6 +69,12 @@ public class CampaignDialog implements SchiffPlugin
 				}
 				case "quit":
 					service.quit(user, session);
+					return "";
+				case "request":
+					requests.submit(user, caller.ship, text);
+					return "<span style=\"color:#ffcc00\">Deine Anfrage ist beim GameMaster. Seine Antwort erscheint hier.</span>";
+				case "requestreply":
+					requests.playerReply(user, request, text);
 					return "";
 				default:
 					return "";
@@ -101,7 +113,8 @@ public class CampaignDialog implements SchiffPlugin
 			offers = html.toString();
 		}
 		String gamemaster = gamemasterHtml(ship);
-		if (view.isEmpty() && offers.isEmpty() && gamemaster.isEmpty())
+		String requests = requestsHtml(user, ship);
+		if (view.isEmpty() && offers.isEmpty() && gamemaster.isEmpty() && requests.isEmpty())
 		{
 			// The plugin list shares one output variable; leave nothing behind for the next plugin
 			t.setVar(caller.target, "");
@@ -113,7 +126,8 @@ public class CampaignDialog implements SchiffPlugin
 				"ship.id", ship.getId(),
 				"campaigndialog.active", view.isPresent(),
 				"campaigndialog.offers", offers,
-				"campaigndialog.gamemaster", gamemaster);
+				"campaigndialog.gamemaster", gamemaster,
+				"campaigndialog.requests", requests);
 
 		t.setBlock("_PLUGIN_" + pluginid, "campaigndialog.option.listitem", "campaigndialog.option.list");
 		if (view.isPresent())
@@ -135,6 +149,55 @@ public class CampaignDialog implements SchiffPlugin
 		}
 
 		t.parse(caller.target, "_PLUGIN_" + pluginid);
+	}
+
+	/**
+	 * The player's conversations with the game master about requests from this ship, with a reply field
+	 * while a request is open.
+	 */
+	private static String requestsHtml(User user, Ship ship)
+	{
+		GmRequestService service = new GmRequestService(ContextMap.getContext().getEM());
+		StringBuilder html = new StringBuilder();
+		for (GmRequest request : service.visibleToPlayer(user, ship))
+		{
+			html.append("<div style=\"border:1px solid #555; padding:6px 10px; margin:8px 0\"><b>Deine Anfrage an den GameMaster</b> <span class=\"smallfont\">(")
+					.append(escapeHtml4(request.status.getLabel())).append(")</span><br />");
+			for (GmRequest.Message message : service.messages(request.id))
+			{
+				switch (message.kind)
+				{
+					case PLAYER:
+						html.append("<span style=\"color:#aaaaaa\">Du:</span> ");
+						break;
+					case GAMEMASTER:
+						html.append("<span style=\"color:#66ccff\">GameMaster:</span> ");
+						break;
+					default:
+						html.append("<span style=\"color:#ffcc00\">→</span> ");
+				}
+				html.append(escapeHtml4(message.text).replace("\n", "<br />")).append("<br />");
+			}
+			if (request.isOpen())
+			{
+				html.append("<form action=\"./ds\" method=\"post\" style=\"margin-top:6px\">");
+				hiddenPluginFields(html, ship, "requestreply");
+				html.append("<input type=\"hidden\" name=\"").append(PLUGIN_ID).append("_ops[request]\" value=\"").append(request.id).append("\" />")
+						.append("<textarea name=\"").append(PLUGIN_ID).append("_ops[text]\" rows=\"2\" cols=\"70\"></textarea><br />")
+						.append("<input type=\"submit\" value=\"Antworten\" /></form>");
+			}
+			html.append("</div>");
+		}
+		return html.toString();
+	}
+
+	private static void hiddenPluginFields(StringBuilder html, Ship ship, String op)
+	{
+		html.append("<input type=\"hidden\" name=\"module\" value=\"schiff\" />")
+				.append("<input type=\"hidden\" name=\"action\" value=\"plugin\" />")
+				.append("<input type=\"hidden\" name=\"plugin\" value=\"").append(PLUGIN_ID).append("\" />")
+				.append("<input type=\"hidden\" name=\"ship\" value=\"").append(ship.getId()).append("\" />")
+				.append("<input type=\"hidden\" name=\"").append(PLUGIN_ID).append("_ops[op]\" value=\"").append(op).append("\" />");
 	}
 
 	/**
@@ -187,6 +250,17 @@ public class CampaignDialog implements SchiffPlugin
 		}
 		html.append(" <a class=\"forschinfo\" href=\"").append(CampaignInteractions.objectUrl(ObjectType.SHIP, ship.getId()))
 				.append("\">+ Interaktion hinzufügen / verwalten</a></span><br />");
+		List<GmRequest> open = new GmRequestRepository().findOpenForInteractions(interactions.stream().map(i -> i.id).collect(Collectors.toList()));
+		if (!open.isEmpty())
+		{
+			html.append("<span class=\"smallfont\">Offene Spieler-Anfragen: ");
+			for (GmRequest request : open)
+			{
+				html.append("<a class=\"forschinfo\" href=\"./ds?module=admin&amp;namedplugin=").append(CampaignRequests.class.getName())
+						.append("&amp;request=").append(request.id).append("\">#").append(request.id).append(request.unreadByGm ? " (neu)" : "").append("</a> ");
+			}
+			html.append("</span><br />");
+		}
 		if (!interactions.isEmpty() && !inCampaignSystem(ship))
 		{
 			html.append("<span class=\"smallfont\" style=\"color:orange\">Das Schiff steht außerhalb der Kampagnensysteme. ")

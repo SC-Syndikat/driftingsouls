@@ -28,6 +28,7 @@ public class GameMasterPermissionResolver implements PermissionResolver
 			WellKnownAdminPermission.CAMPAIGN_SHIPGROUPS,
 			WellKnownAdminPermission.CAMPAIGN_DIALOGS,
 			WellKnownAdminPermission.CAMPAIGN_INTERACTIONS,
+			WellKnownAdminPermission.CAMPAIGN_REQUESTS,
 			WellKnownAdminPermission.CAMPAIGN_TRUST,
 			WellKnownAdminPermission.CAMPAIGN_VARIABLES,
 			WellKnownAdminPermission.CAMPAIGN_LOG,

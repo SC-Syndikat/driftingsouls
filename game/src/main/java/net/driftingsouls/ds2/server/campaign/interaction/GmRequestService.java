@@ -1,0 +1,218 @@
+package net.driftingsouls.ds2.server.campaign.interaction;
+
+import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignRepository;
+import net.driftingsouls.ds2.server.campaign.dialog.DialogAction;
+import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
+import net.driftingsouls.ds2.server.campaign.dialog.DialogRepository;
+import net.driftingsouls.ds2.server.campaign.dialog.DialogTypes;
+import net.driftingsouls.ds2.server.campaign.dialog.Params;
+import net.driftingsouls.ds2.server.comm.PM;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.ships.Ship;
+
+import javax.persistence.EntityManager;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Requests to the game master: a player writes one from a dialog when none of the answers fits, the game
+ * master answers, runs actions for the player or continues the dialog, and closes the request.
+ */
+public class GmRequestService
+{
+	static final int MAX_TEXT = 2000;
+
+	private final EntityManager em;
+	private final GmRequestRepository requests = new GmRequestRepository();
+	private final InteractionRepository interactions = new InteractionRepository();
+	private final CampaignRepository campaigns = new CampaignRepository();
+
+	public GmRequestService(EntityManager em)
+	{
+		this.em = em;
+	}
+
+	// ---------------------------------------------------------------- player
+
+	/**
+	 * Writes a request from the dialog the player is in with the ship. A further request about the same
+	 * interaction continues the open one.
+	 *
+	 * @return The request's id
+	 */
+	public int submit(User user, Ship ship, String text)
+	{
+		String message = checkText(text);
+		Campaign campaign = runningCampaign();
+		DialogSession session = interactions.findSessionOf(user.getId())
+				.filter(s -> s.shipId == ship.getId())
+				.orElseThrow(() -> new CampaignException("Anfragen an den GameMaster sind nur aus einem laufenden Gespräch möglich."));
+
+		Optional<GmRequest> open = requests.findVisibleToPlayer(campaign.getId(), user.getId(), ship.getId()).stream()
+				.filter(r -> r.isOpen() && Integer.valueOf(session.interactionId).equals(r.interactionId))
+				.findFirst();
+		int id = open.map(r -> r.id).orElseGet(() -> requests.create(campaign.getId(), user.getId(), ship.getId(), session.interactionId,
+				session.currentNodeId));
+		requests.addMessage(id, user.getId(), GmRequest.Kind.PLAYER, message);
+
+		Integer gamemaster = campaign.getGamemasterId();
+		if (gamemaster != null && open.isEmpty())
+		{
+			String label = interactions.find(session.interactionId).map(i -> i.label).orElse("?");
+			PM.send(user, gamemaster, "Kampagne: neue Anfrage von " + user.getPlainname(),
+					"Anfrage #" + id + " zu „" + label + "“ (Schiff " + ship.getId() + "):\n\n" + message
+							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.", em);
+		}
+		return id;
+	}
+
+	/**
+	 * The player answers in the conversation of an open request of theirs.
+	 */
+	public void playerReply(User user, int requestId, String text)
+	{
+		String message = checkText(text);
+		GmRequest request = requests.find(requestId)
+				.filter(r -> r.userId == user.getId())
+				.orElseThrow(() -> new CampaignException("Diese Anfrage gibt es nicht."));
+		if (!request.isOpen())
+		{
+			throw new CampaignException("Diese Anfrage ist bereits erledigt.");
+		}
+		requests.addMessage(requestId, user.getId(), GmRequest.Kind.PLAYER, message);
+	}
+
+	/**
+	 * @return The player's requests from the ship that are open or have an unread answer; viewing them marks
+	 * them read
+	 */
+	public List<GmRequest> visibleToPlayer(User user, Ship ship)
+	{
+		Optional<Campaign> campaign = campaigns.findOpen();
+		if (campaign.isEmpty())
+		{
+			return List.of();
+		}
+		List<GmRequest> visible = requests.findVisibleToPlayer(campaign.get().getId(), user.getId(), ship.getId());
+		visible.stream().filter(r -> r.unreadByUser).forEach(r -> requests.markReadByUser(r.id));
+		return visible;
+	}
+
+	public List<GmRequest.Message> messages(int requestId)
+	{
+		return requests.findMessages(requestId);
+	}
+
+	// ---------------------------------------------------------------- game master
+
+	/**
+	 * @return The request, if it belongs to the open campaign
+	 */
+	public GmRequest forGamemaster(int requestId)
+	{
+		Campaign campaign = campaigns.findOpen().orElseThrow(() -> new CampaignException("Es läuft keine Kampagne."));
+		return requests.find(requestId)
+				.filter(r -> r.campaignId == campaign.getId())
+				.orElseThrow(() -> new CampaignException("Diese Anfrage gibt es nicht."));
+	}
+
+	public void gamemasterReply(User gamemaster, int requestId, String text)
+	{
+		String message = checkText(text);
+		GmRequest request = forGamemaster(requestId);
+		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.GAMEMASTER, message);
+		PM.send(gamemaster, request.userId, "Kampagne: Antwort des GameMasters",
+				message + "\n\nDie ganze Unterhaltung findest du in der Ansicht deines Schiffs " + request.shipId + ".", em);
+	}
+
+	/**
+	 * Runs a dialog action for the request's player and ship, as if a dialog answer had triggered it.
+	 *
+	 * @return What the action did
+	 */
+	public String runAction(User gamemaster, int requestId, String type, Params params)
+	{
+		GmRequest request = forGamemaster(requestId);
+		DialogContext context = context(request, gamemaster);
+		DialogAction action = DialogTypes.get().action(type);
+		action.execute(context, params);
+
+		String description = action.describe(params);
+		String playerMessage = action.playerMessage(context, params);
+		if (playerMessage != null)
+		{
+			requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION, playerMessage);
+		}
+		return description;
+	}
+
+	/**
+	 * Puts the player's dialog at the node, starting it again if it had ended.
+	 */
+	public void continueDialog(User gamemaster, int requestId, int nodeId)
+	{
+		GmRequest request = forGamemaster(requestId);
+		if (request.interactionId == null)
+		{
+			throw new CampaignException("Die Interaktion dieser Anfrage gibt es nicht mehr.");
+		}
+		if (new DialogRepository().findNode(nodeId).isEmpty())
+		{
+			throw new CampaignException("Unbekannter Dialogknoten " + nodeId + ".");
+		}
+		Optional<DialogSession> session = interactions.findSessionOf(request.userId).filter(s -> s.shipId == request.shipId);
+		if (session.isPresent() && session.get().interactionId == request.interactionId)
+		{
+			interactions.moveSession(session.get().id, nodeId);
+		}
+		else
+		{
+			session.ifPresent(s -> interactions.endSession(s.id));
+			interactions.startSession(request.userId, request.shipId, request.interactionId, nodeId);
+		}
+		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION, "Das Gespräch geht weiter.");
+	}
+
+	public void setStatus(User gamemaster, int requestId, GmRequest.Status status)
+	{
+		GmRequest request = forGamemaster(requestId);
+		requests.setStatus(request.id, status);
+		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION,
+				status == GmRequest.Status.CLOSED ? "Der GameMaster hat die Anfrage abgeschlossen." : "Der GameMaster hat die Anfrage wieder geöffnet.");
+	}
+
+	private DialogContext context(GmRequest request, User gamemaster)
+	{
+		Campaign campaign = runningCampaign();
+		Interaction interaction = Optional.ofNullable(request.interactionId).flatMap(interactions::find)
+				.orElseThrow(() -> new CampaignException("Die Interaktion dieser Anfrage gibt es nicht mehr."));
+		User player = em.find(User.class, request.userId);
+		Ship ship = em.find(Ship.class, request.shipId);
+		if (player == null || ship == null || ship.getOwner() != player)
+		{
+			throw new CampaignException("Das Schiff des Spielers gibt es nicht mehr oder es gehört ihm nicht mehr.");
+		}
+		return new DialogService(em).context(player, ship, interaction, campaign, gamemaster);
+	}
+
+	private Campaign runningCampaign()
+	{
+		return campaigns.findOpen().filter(Campaign::isRunning).orElseThrow(() -> new CampaignException("Es läuft keine Kampagne."));
+	}
+
+	private static String checkText(String text)
+	{
+		String trimmed = text == null ? "" : text.trim();
+		if (trimmed.isEmpty())
+		{
+			throw new CampaignException("Bitte schreibe dein Anliegen auf.");
+		}
+		if (trimmed.length() > MAX_TEXT)
+		{
+			throw new CampaignException("Bitte fasse dich kürzer (höchstens " + MAX_TEXT + " Zeichen).");
+		}
+		return trimmed;
+	}
+}

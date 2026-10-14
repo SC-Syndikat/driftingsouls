@@ -1,5 +1,9 @@
 package net.driftingsouls.ds2.server.modules.thymeleaf;
 
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequest;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequestRepository;
+import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
+import net.driftingsouls.ds2.server.modules.admin.CampaignRequests;
 import net.driftingsouls.ds2.server.AdminCommands;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.campaign.Campaign;
@@ -13,6 +17,7 @@ import net.driftingsouls.ds2.server.modules.admin.CampaignParticipants;
 import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
+import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.ConfigService;
@@ -321,6 +326,8 @@ public class GameMasterController implements DSController {
       ctx.setVariable("participantsPlugin", "./ds?module=admin&namedplugin=" + CampaignParticipants.class.getName());
       ctx.setVariable("gmMenu", GameMasterMenu.ENTRIES);
       ctx.setVariable("show", show.name());
+      ctx.setVariable("gmRequests", running ? RequestView.of(db, campaign.get()) : List.of());
+      ctx.setVariable("requestsPlugin", "./ds?module=admin&namedplugin=" + CampaignRequests.class.getName() + "&" + GameMasterMenu.PARAMETER + "=1");
     }
 
     private static List<User> participants(EntityManager db){
@@ -356,6 +363,52 @@ public class GameMasterController implements DSController {
         {
             this.value = value;
             this.label = label;
+        }
+    }
+
+    /**
+     * An open request of a player, for the overview on the start page.
+     */
+    public static class RequestView
+    {
+        public final int id;
+        public final String player;
+        public final String dialog;
+        public final String excerpt;
+        public final String updated;
+        public final boolean unread;
+        public final String url;
+
+        RequestView(int id, String player, String dialog, String excerpt, String updated, boolean unread, String url)
+        {
+            this.id = id;
+            this.player = player;
+            this.dialog = dialog;
+            this.excerpt = excerpt;
+            this.updated = updated;
+            this.unread = unread;
+            this.url = url;
+        }
+
+        static List<RequestView> of(EntityManager db, Campaign campaign)
+        {
+            GmRequestRepository requests = new GmRequestRepository();
+            InteractionRepository interactions = new InteractionRepository();
+            List<RequestView> views = new ArrayList<>();
+            for (GmRequest request : requests.findForCampaign(campaign.getId(), true))
+            {
+                User player = db.find(User.class, request.userId);
+                List<GmRequest.Message> messages = requests.findMessages(request.id);
+                String text = messages.isEmpty() ? "" : messages.get(messages.size() - 1).text;
+                views.add(new RequestView(request.id,
+                    (player == null ? "?" : player.getPlainname()) + " (" + request.userId + ")",
+                    Optional.ofNullable(request.interactionId).flatMap(interactions::find).map(i -> i.label).orElse("?"),
+                    text.length() > 120 ? text.substring(0, 120) + "…" : text,
+                    Common.date("d.m. H:i", request.updatedAt),
+                    request.unreadByGm,
+                    "./ds?module=admin&namedplugin=" + CampaignRequests.class.getName() + "&request=" + request.id + "&" + GameMasterMenu.PARAMETER + "=1"));
+            }
+            return views;
         }
     }
 

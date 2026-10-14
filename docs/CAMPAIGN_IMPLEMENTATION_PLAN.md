@@ -803,3 +803,14 @@ Beantwortet am 2026-09-25:
     sich weder beenden noch durch ein anderes Gespräch ersetzen; Skarns Forderung ist so markiert.
     Startet eine Antwort eine Schlacht, endet das Gespräch. Dabei geschlossen: Der neue Flugweg
     (`ShipsMovement`) prüfte die Kampagnenregeln bisher gar nicht.
+20. **Anfragen an den GameMaster.** ✅ Migration V055. In jedem Gespräch gibt es zusätzlich „Etwas anderes …
+    (Anfrage an den GameMaster)“ mit Textfeld. Die Anfrage (Spieler, Schiff, Interaktion, Knoten) landet
+    als Unterhaltung beim GM; er bekommt eine PM. Die GM-Startseite zeigt offene Anfragen, das Plugin
+    „Spieler-Anfragen“ die Details mit Links zum Objekt, zur Vorschau und zum Protokoll: antworten
+    (Spieler erhält eine PM), jede Dialog-Aktion für Spieler und Schiff ausführen, das Gespräch bei
+    einem Knoten fortsetzen, abschließen. Der Spieler sieht die Unterhaltung in seiner Schiffsansicht
+    und kann antworten; die GM-Box eines NPC-Schiffs zeigt dessen offene Anfragen.
+21. **Interaktionen nur an NPC-Objekten.** ✅ Wird ein NPC-Schiff gekapert oder an einen Spieler
+    übergeben, werden seine Interaktionen gelöscht (`Ship.consign`, `KapernController`). Zusätzlich
+    bietet der DialogService Interaktionen nur an Schiffen und Basen von NPCs an, und der Editor lässt
+    nur solche Objekte zu.

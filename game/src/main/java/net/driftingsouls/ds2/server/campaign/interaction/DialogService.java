@@ -132,7 +132,7 @@ public class DialogService
 		for (int shipId : shipsWithInteractions)
 		{
 			Ship target = em.find(Ship.class, shipId);
-			if (target != null && target.getId() != ship.getId() && target.getLocation().sameSector(0, ship.getLocation(), 0))
+			if (target != null && target.getOwner().isNPC() && target.getId() != ship.getId() && target.getLocation().sameSector(0, ship.getLocation(), 0))
 			{
 				addOffer(offers, user, ship, campaign.get(), ObjectType.SHIP, shipId, Common._plaintitle(target.getName()));
 			}
@@ -140,7 +140,7 @@ public class DialogService
 		for (int baseId : interactions.findObjectIdsWithActiveInteractions(ObjectType.BASE))
 		{
 			Base base = em.find(Base.class, baseId);
-			if (base != null && base.getLocation().sameSector(0, ship.getLocation(), base.getSize()))
+			if (base != null && base.getOwner().isNPC() && base.getLocation().sameSector(0, ship.getLocation(), base.getSize()))
 			{
 				addOffer(offers, user, ship, campaign.get(), ObjectType.BASE, baseId, Common._plaintitle(base.getName()));
 			}
@@ -423,15 +423,16 @@ public class DialogService
 	{
 		switch (interaction.objectType)
 		{
+			// Only NPC objects talk; a captured or handed-over ship is silent
 			case SHIP:
 			{
 				Ship target = em.find(Ship.class, interaction.objectId);
-				return target == null ? Optional.empty() : Optional.of(target.getLocation());
+				return target == null || !target.getOwner().isNPC() ? Optional.empty() : Optional.of(target.getLocation());
 			}
 			case BASE:
 			{
 				Base base = em.find(Base.class, interaction.objectId);
-				return base == null ? Optional.empty() : Optional.of(base.getLocation());
+				return base == null || !base.getOwner().isNPC() ? Optional.empty() : Optional.of(base.getLocation());
 			}
 			default:
 				return Optional.of(new Location(interaction.objectId, 0, 0));

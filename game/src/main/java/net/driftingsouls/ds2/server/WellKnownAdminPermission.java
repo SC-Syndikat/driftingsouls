@@ -22,6 +22,7 @@ public enum WellKnownAdminPermission implements PermissionDescriptor
 	CAMPAIGN_PARTICIPANTS("CampaignParticipants"),
 	CAMPAIGN_SHIPGROUPS("CampaignShipGroups"),
 	CAMPAIGN_SYSTEMS("CampaignSystems"),
+	CAMPAIGN_REQUESTS("CampaignRequests"),
 	CAMPAIGN_TRUST("CampaignTrust"),
 	CAMPAIGN_VARIABLES("CampaignVariables"),
 	CREATE_OBJECTS("CreateObjects"),

@@ -43,6 +43,28 @@
         <span class="smallfont" th:if="${out && not out.isEmpty()}" th:text="${out}"><br /><br /></span>
       </div>
 
+      <div class="gfxbox" style="width:95%" th:if="${not #lists.isEmpty(gmRequests)}">
+        <b>Offene Spieler-Anfragen</b> &middot; <a class="forschinfo" th:href="${requestsPlugin}">alle anzeigen</a>
+        <table class="noBorderX" width="100%" cellspacing="2" cellpadding="2">
+          <tr>
+            <td class="noBorderX">#</td>
+            <td class="noBorderX">Spieler</td>
+            <td class="noBorderX">Gespräch</td>
+            <td class="noBorderX">Letzte Nachricht</td>
+            <td class="noBorderX">Zeit</td>
+            <td class="noBorderX"></td>
+          </tr>
+          <tr th:each="r: ${gmRequests}">
+            <td class="noBorderX" th:text="${r.id}"></td>
+            <td class="noBorderX" th:text="${r.player}"></td>
+            <td class="noBorderX" th:text="${r.dialog}"></td>
+            <td class="noBorderX" th:text="${r.excerpt}"></td>
+            <td class="noBorderX"><span th:text="${r.updated}"></span> <span th:if="${r.unread}" class="error">neu</span></td>
+            <td class="noBorderX"><a class="forschinfo" th:href="${r.url}">öffnen &raquo;</a></td>
+          </tr>
+        </table>
+      </div>
+
       <div id="tickbox" class="gfxbox gmbox" th:style="'display: '+${show == 'TICK' ? 'flex' : 'none'} + '; flex-direction: row'">
         <div>
           Teilnehmerstatus:

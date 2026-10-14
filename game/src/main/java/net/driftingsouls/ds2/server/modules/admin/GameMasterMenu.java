@@ -55,6 +55,7 @@ public final class GameMasterMenu
 	}
 
 	public static final List<Entry> ENTRIES = List.of(
+			new Entry("Spieler-Anfragen", CampaignRequests.class),
 			new Entry("Teilnehmer", CampaignParticipants.class),
 			new Entry("Systeme", CampaignSystems.class),
 			new Entry("Sprungpunkte", CampaignJumpNodes.class),

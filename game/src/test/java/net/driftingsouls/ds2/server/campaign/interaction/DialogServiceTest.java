@@ -7,6 +7,7 @@ import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.NpcTestUsers;
 import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
 import net.driftingsouls.ds2.server.campaign.dialog.Comparison;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogEngine;
@@ -48,9 +49,10 @@ public class DialogServiceTest extends DBSingleTransactionTest
 	@Before
 	public void setUp()
 	{
+		// NPC first: creating it clears the persistence context
+		npc = NpcTestUsers.create(getEM(), "admiral", -77);
 		User gamemaster = new User("gm", "***", 0, "", new Cargo(), "gm@localhost");
 		gamemaster.setFlag(UserFlag.GAMEMASTER);
-		npc = new User("admiral", "***", 0, "", new Cargo(), "npc@localhost");
 		player = new User("player", "***", 0, "", new Cargo(), "player@localhost");
 		outsider = new User("outsider", "***", 0, "", new Cargo(), "outsider@localhost");
 		StarSystem system = persist(new StarSystem());
