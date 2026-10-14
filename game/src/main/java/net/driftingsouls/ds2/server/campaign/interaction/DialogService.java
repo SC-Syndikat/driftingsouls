@@ -1,5 +1,6 @@
 package net.driftingsouls.ds2.server.campaign.interaction;
 
+import net.driftingsouls.ds2.server.campaign.CampaignText;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.campaign.Campaign;
@@ -134,7 +135,7 @@ public class DialogService
 			Ship target = em.find(Ship.class, shipId);
 			if (target != null && target.getOwner().isNPC() && target.getId() != ship.getId() && target.getLocation().sameSector(0, ship.getLocation(), 0))
 			{
-				addOffer(offers, user, ship, campaign.get(), ObjectType.SHIP, shipId, Common._plaintitle(target.getName()));
+				addOffer(offers, user, ship, campaign.get(), ObjectType.SHIP, shipId, CampaignText.plain(target.getName()));
 			}
 		}
 		for (int baseId : interactions.findObjectIdsWithActiveInteractions(ObjectType.BASE))
@@ -142,7 +143,7 @@ public class DialogService
 			Base base = em.find(Base.class, baseId);
 			if (base != null && base.getOwner().isNPC() && base.getLocation().sameSector(0, ship.getLocation(), base.getSize()))
 			{
-				addOffer(offers, user, ship, campaign.get(), ObjectType.BASE, baseId, Common._plaintitle(base.getName()));
+				addOffer(offers, user, ship, campaign.get(), ObjectType.BASE, baseId, CampaignText.plain(base.getName()));
 			}
 		}
 		addOffer(offers, user, ship, campaign.get(), ObjectType.STAR_SYSTEM, ship.getSystem(), "Signale im System");

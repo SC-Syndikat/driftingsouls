@@ -1,5 +1,6 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.CampaignText;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
@@ -235,7 +236,7 @@ public class CampaignShipGroups implements AdminPlugin
 		Map<Integer, String> types = new TreeMap<>();
 		for (ShipType type : em.createQuery("from ShipType order by id", ShipType.class).getResultList())
 		{
-			types.put(type.getId(), Common._plaintitle(type.getNickname()));
+			types.put(type.getId(), CampaignText.plain(type.getNickname()));
 		}
 		return types;
 	}

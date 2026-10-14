@@ -1,5 +1,7 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.CampaignText;
+import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.GameMasterControl;
 import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
@@ -80,6 +82,11 @@ public final class GmRequestPanel
 			}
 			done.add("Aktion: " + service.runAction(gamemaster, requestId, type, readParams(request, action.getParams(), actionPrefix(type))));
 		}
+		if ("1".equals(request.getParameterString("gm_endbattle")))
+		{
+			service.endBattle(gamemaster, requestId);
+			done.add("Schlacht beendet");
+		}
 		int node = request.getParameterInt("gm_node");
 		if (node != 0)
 		{
@@ -121,8 +128,8 @@ public final class GmRequestPanel
 			return;
 		}
 		ShipTypeData type = ship.getTypeData();
-		echo.append(" mit ").append(esc(Common._plaintitle(ship.getName()))).append(" (").append(ship.getId()).append(", ")
-				.append(esc(type.getNickname())).append(") bei ").append(esc(ship.getLocation().displayCoordinates(false))).append("<br />");
+		echo.append(" mit ").append(esc(CampaignText.plain(ship.getName()))).append(" (").append(ship.getId()).append(", ")
+				.append(esc(CampaignText.plain(type.getNickname()))).append(") bei ").append(esc(ship.getLocation().displayCoordinates(false))).append("<br />");
 		echo.append("Hülle ").append(percent(ship.getHull(), type.getHull())).append(" · Schilde ").append(percent(ship.getShields(), type.getShields()))
 				.append(" · Crew ").append(ship.getCrew()).append("/").append(type.getCrew())
 				.append(" · Energie ").append(ship.getEnergy()).append("/").append(type.getEps()).append("<br />");
@@ -167,6 +174,7 @@ public final class GmRequestPanel
 				.map(e -> e.getKey().substring(e.getKey().indexOf('/') + 1) + " = " + e.getValue())
 				.collect(Collectors.joining(", "));
 		echo.append("Kampagnenvariablen: ").append(own.isEmpty() ? "keine" : esc(own)).append("<br />");
+		battleInfo(echo, em, request);
 		sectorLinks(echo, ship, interaction);
 		echo.append("</div>");
 	}
@@ -189,6 +197,41 @@ public final class GmRequestPanel
 			echo.append(" · <a class='forschinfo' href='").append(esc(GameMasterMenu.controlUrl(interaction.get().npcUserId, "base:" + interaction.get().objectId)))
 					.append("'>zur Basis des Gesprächspartners (als NPC steuern)</a>");
 		}
+	}
+
+	/**
+	 * For a request from a battle: where it is and who fights, with a link to watch it as the NPC.
+	 */
+	private static void battleInfo(StringBuilder echo, EntityManager em, GmRequest request)
+	{
+		if (request.battleId == null)
+		{
+			return;
+		}
+		Battle battle = em.find(Battle.class, request.battleId);
+		if (battle == null)
+		{
+			echo.append("Die Schlacht dieser Anfrage ist zu Ende.<br />");
+			return;
+		}
+		echo.append("Schlacht ").append(battle.getId()).append(" bei ").append(esc(battle.getLocation().displayCoordinates(false))).append(": ");
+		Set<Integer> npcs = GameMasterControl.controllableNpcs().stream().map(User::getId).collect(Collectors.toSet());
+		for (int side = 0; side < 2; side++)
+		{
+			User commander = battle.getCommander(side);
+			echo.append(side == 0 ? "" : " gegen ").append(commander == null ? "?" : esc(commander.getPlainname()));
+		}
+		for (int side = 0; side < 2; side++)
+		{
+			User commander = battle.getCommander(side);
+			if (commander != null && npcs.contains(commander.getId()))
+			{
+				echo.append(" · <a class='forschinfo' href='").append(esc(GameMasterMenu.controlUrl(commander.getId(), "battle:" + battle.getId())))
+						.append("'>Schlacht als ").append(esc(commander.getPlainname())).append(" ansehen</a>");
+				break;
+			}
+		}
+		echo.append("<br />");
 	}
 
 	private static String percent(long current, long max)
@@ -255,6 +298,10 @@ public final class GmRequestPanel
 				echo.append("<option value='").append(node.id).append("'>").append(node.id).append(": ").append(esc(node.title)).append("</option>");
 			}
 			echo.append("</select><br />");
+		}
+		if (request.battleId != null)
+		{
+			echo.append("<label><input type='checkbox' name='gm_endbattle' value='1' /> Schlacht beenden (unentschieden)</label><br />");
 		}
 		echo.append("<label><input type='checkbox' name='gm_close' value='1' /> Anfrage danach abschließen</label><br />");
 		echo.append("<input type='submit' value='Ausführen' /> <span class='campaign-hint'>Aktion, Fortsetzung, Antwort und Abschluss laufen mit einem Klick.</span>");

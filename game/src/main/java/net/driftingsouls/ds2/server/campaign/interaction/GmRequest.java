@@ -59,15 +59,18 @@ public class GmRequest
 	/** {@code null} if the interaction was deleted since. */
 	public final Integer interactionId;
 	public final Integer nodeId;
+	/** The battle the request was written from; {@code null} for requests from a dialog or once the battle ended. */
+	public final Integer battleId;
 	public final Status status;
 	public final long createdAt;
 	public final long updatedAt;
 	public final boolean unreadByGm;
 	public final boolean unreadByUser;
 
-	public GmRequest(int id, int campaignId, int userId, int shipId, Integer interactionId, Integer nodeId, Status status, long createdAt,
-					 long updatedAt, boolean unreadByGm, boolean unreadByUser)
+	public GmRequest(int id, int campaignId, int userId, int shipId, Integer interactionId, Integer nodeId, Integer battleId, Status status,
+					 long createdAt, long updatedAt, boolean unreadByGm, boolean unreadByUser)
 	{
+		this.battleId = battleId;
 		this.id = id;
 		this.campaignId = campaignId;
 		this.userId = userId;

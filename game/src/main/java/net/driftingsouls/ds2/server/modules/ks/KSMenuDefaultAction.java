@@ -20,6 +20,8 @@ package net.driftingsouls.ds2.server.modules.ks;
 
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequestService;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 
 import java.io.IOException;
@@ -55,6 +57,13 @@ public class KSMenuDefaultAction extends BasicKSMenuAction {
 		this.menuEntry(t, "Flucht",	"ship",		ownShip.getId(),
 									"attack",	enemyShip.getId(),
 									"ksaction",	"flucht" );
+
+		// Kampagne: Bedingungen mit dem GameMaster aushandeln
+		if( GmRequestService.battleRequestsPossible((User)this.getController().getUser(), battle) ) {
+			this.menuEntry(t, "Anfrage an den GameMaster",	"ship",		ownShip.getId(),
+												"attack",	enemyShip.getId(),
+												"ksaction",	"gmrequest" );
+		}
 
 		// Kampf beenden weil nur noch Zivilschiffe uebrig?
 		if( this.isPossible(battle, new KSEndBattleCivilAction()) == Result.OK ) {

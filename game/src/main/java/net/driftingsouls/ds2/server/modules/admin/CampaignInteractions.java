@@ -1,5 +1,6 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.CampaignText;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.campaign.Campaign;
@@ -312,15 +313,15 @@ public class CampaignInteractions implements AdminPlugin
 				.setParameter("preset", presetType == ObjectType.SHIP ? presetId : 0)
 				.getResultList())
 		{
-			ships.put(ship.getId(), Common._plaintitle(ship.getName()) + " (" + ship.getId() + ") – " + ship.getLocation().displayCoordinates(false)
-					+ " – " + Common._plaintitle(ship.getOwner().getName()));
+			ships.put(ship.getId(), CampaignText.plain(ship.getName()) + " (" + ship.getId() + ") – " + ship.getLocation().displayCoordinates(false)
+					+ " – " + CampaignText.plain(ship.getOwner().getName()));
 		}
 		Map<Integer, String> bases = new LinkedHashMap<>();
 		for (Base base : em.createQuery("from Base where system in (:systems) and owner.id < 0 order by system, x, y, id", Base.class)
 				.setParameter("systems", systems).getResultList())
 		{
-			bases.put(base.getId(), Common._plaintitle(base.getName()) + " (" + base.getId() + ") – " + base.getLocation().displayCoordinates(false)
-					+ " – " + Common._plaintitle(base.getOwner().getName()));
+			bases.put(base.getId(), CampaignText.plain(base.getName()) + " (" + base.getId() + ") – " + base.getLocation().displayCoordinates(false)
+					+ " – " + CampaignText.plain(base.getOwner().getName()));
 		}
 		Map<Integer, String> starSystems = new LinkedHashMap<>();
 		for (StarSystem system : em.createQuery("from StarSystem where id in (:systems) order by id", StarSystem.class)
@@ -372,7 +373,7 @@ public class CampaignInteractions implements AdminPlugin
 		{
 			User npc = em.find(User.class, id);
 			echo.append("<option value='").append(id).append("'").append(id == selected ? " selected='selected'" : "").append(">")
-					.append(npc == null ? "?" : esc(Common._plaintitle(npc.getName()))).append(" (").append(id).append(")</option>");
+					.append(npc == null ? "?" : esc(CampaignText.plain(npc.getName()))).append(" (").append(id).append(")</option>");
 		}
 		echo.append("</select>");
 	}
@@ -461,7 +462,7 @@ public class CampaignInteractions implements AdminPlugin
 			for (Ship ship : em.createQuery("from Ship where owner = :owner and id > 0 order by id", Ship.class).setParameter("owner", player).getResultList())
 			{
 				echo.append("<option value='").append(ship.getId()).append("'").append(ship.getId() == shipId ? " selected='selected'" : "").append(">")
-						.append(esc(Common._plaintitle(ship.getName()))).append(" (").append(ship.getId()).append(") ").append(ship.getLocation().displayCoordinates(false))
+						.append(esc(CampaignText.plain(ship.getName()))).append(" (").append(ship.getId()).append(") ").append(ship.getLocation().displayCoordinates(false))
 						.append("</option>");
 			}
 			echo.append("</select> ");

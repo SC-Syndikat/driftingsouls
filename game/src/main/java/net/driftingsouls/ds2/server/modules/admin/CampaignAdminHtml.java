@@ -1,12 +1,16 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignText;
 import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
 import net.driftingsouls.ds2.server.campaign.dialog.ParamDef;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
+import net.driftingsouls.ds2.server.cargo.ItemData;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
+import net.driftingsouls.ds2.server.repositories.ItemRepository;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -132,6 +136,19 @@ public final class CampaignAdminHtml
 			String name = prefix + param.name;
 			switch (param.type)
 			{
+				case ITEM:
+				{
+					// Stored as the id; older values may carry the cargo form "i16|0|0"
+					String selected = value == null ? "" : value.replaceAll("^i?(\\d+).*$", "$1");
+					echo.append("<select name='").append(esc(name)).append("'>");
+					ItemRepository.getInstance().getItemsData().values().stream()
+							.sorted(Comparator.comparing((ItemData item) -> CampaignText.plain(item.getName()).toLowerCase()))
+							.forEach(item -> echo.append("<option value='").append(item.getId()).append("'")
+									.append(String.valueOf(item.getId()).equals(selected) ? " selected='selected'" : "").append(">")
+									.append(esc(CampaignText.plain(item.getName()))).append(" (").append(item.getId()).append(")</option>"));
+					echo.append("</select>");
+					break;
+				}
 				case VARIABLE:
 				{
 					if (variables == null)

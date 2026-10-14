@@ -1,12 +1,16 @@
 package net.driftingsouls.ds2.server.campaign.interaction;
 
+import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignBattles;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignMapRepository;
 import net.driftingsouls.ds2.server.campaign.CampaignRepository;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogAction;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogRepository;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogTypes;
+import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.entities.User;
@@ -15,6 +19,7 @@ import net.driftingsouls.ds2.server.ships.Ship;
 import javax.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Requests to the game master: a player writes one from a dialog when none of the answers fits, the game
@@ -66,6 +71,75 @@ public class GmRequestService
 							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.", em);
 		}
 		return id;
+	}
+
+	/**
+	 * Writes a request from a battle in a campaign star system, e.g. to negotiate terms. A further request
+	 * from the same battle continues the open one.
+	 *
+	 * @return The request's id
+	 */
+	public int submitFromBattle(User user, Ship ship, Battle battle, String text)
+	{
+		String message = checkText(text);
+		Campaign campaign = runningCampaign();
+		if (battle == null || ship == null || ship.getOwner() != user || ship.getBattle() != battle
+				|| !new CampaignMapRepository().findSystemIds(campaign.getId()).contains(battle.getSystem()))
+		{
+			throw new CampaignException("Anfragen an den GameMaster gibt es nur aus Schlachten in Kampagnensystemen.");
+		}
+		Optional<GmRequest> open = requests.findVisibleInBattle(user.getId(), battle.getId()).stream().filter(GmRequest::isOpen).findFirst();
+		int id = open.map(r -> r.id).orElseGet(() -> requests.create(campaign.getId(), user.getId(), ship.getId(), null, null, battle.getId()));
+		requests.addMessage(id, user.getId(), GmRequest.Kind.PLAYER, message);
+
+		Integer gamemaster = campaign.getGamemasterId();
+		if (gamemaster != null && open.isEmpty())
+		{
+			PM.send(user, gamemaster, "Kampagne: Anfrage aus einer Schlacht von " + user.getPlainname(),
+					"Anfrage #" + id + " aus der Schlacht bei " + battle.getLocation().displayCoordinates(false) + ":\n\n" + message
+							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.", em);
+		}
+		return id;
+	}
+
+	/**
+	 * @return Whether the player may write to the game master from the battle: a participant fighting in a
+	 * campaign star system while the campaign runs
+	 */
+	public static boolean battleRequestsPossible(User user, Battle battle)
+	{
+		if (user == null || user.isNPC() || battle == null)
+		{
+			return false;
+		}
+		Optional<Campaign> campaign = new CampaignRepository().findOpen().filter(Campaign::isRunning);
+		return campaign.isPresent() && new CampaignMapRepository().findSystemIds(campaign.get().getId()).contains(battle.getSystem());
+	}
+
+	/**
+	 * @return The player's requests from the battle that are open or have an unread answer; viewing them marks
+	 * them read
+	 */
+	public List<GmRequest> visibleInBattle(User user, Battle battle)
+	{
+		List<GmRequest> visible = requests.findVisibleInBattle(user.getId(), battle.getId());
+		visible.stream().filter(r -> r.unreadByUser).forEach(r -> requests.markReadByUser(r.id));
+		return visible;
+	}
+
+	/**
+	 * Ends the battle of a request as a draw.
+	 */
+	public void endBattle(User gamemaster, int requestId)
+	{
+		GmRequest request = forGamemaster(requestId);
+		Battle battle = request.battleId == null ? null : em.find(Battle.class, request.battleId);
+		if (battle == null)
+		{
+			throw new CampaignException("Die Schlacht dieser Anfrage ist bereits zu Ende.");
+		}
+		CampaignBattles.end(em, battle, gamemaster);
+		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION, "Der GameMaster hat die Schlacht beendet.");
 	}
 
 	/**
@@ -203,6 +277,10 @@ public class GmRequestService
 	private DialogContext context(GmRequest request, User gamemaster)
 	{
 		Campaign campaign = runningCampaign();
+		if (request.interactionId == null && request.battleId != null)
+		{
+			return battleContext(request, campaign, gamemaster);
+		}
 		Interaction interaction = Optional.ofNullable(request.interactionId).flatMap(interactions::find)
 				.orElseThrow(() -> new CampaignException("Die Interaktion dieser Anfrage gibt es nicht mehr."));
 		User player = em.find(User.class, request.userId);
@@ -212,6 +290,28 @@ public class GmRequestService
 			throw new CampaignException("Das Schiff des Spielers gibt es nicht mehr oder es gehört ihm nicht mehr.");
 		}
 		return new DialogService(em).context(player, ship, interaction, campaign, gamemaster);
+	}
+
+	/**
+	 * Actions for a request from a battle concern the NPC commanding the other side.
+	 */
+	private DialogContext battleContext(GmRequest request, Campaign campaign, User gamemaster)
+	{
+		Battle battle = em.find(Battle.class, request.battleId);
+		User player = em.find(User.class, request.userId);
+		Ship ship = em.find(Ship.class, request.shipId);
+		if (battle == null || player == null || ship == null)
+		{
+			throw new CampaignException("Die Schlacht dieser Anfrage ist bereits zu Ende.");
+		}
+		int side = battle.getSchlachtMitglied(player);
+		User npc = side < 0 ? null : battle.getCommander(1 - side);
+		if (npc == null || !npc.isNPC())
+		{
+			throw new CampaignException("Aktionen gibt es nur, wenn ein NPC die Gegenseite führt.");
+		}
+		return new DialogContext(em, player, ship, npc, ObjectType.SHIP, ship.getId(), campaign, null, gamemaster,
+				() -> ThreadLocalRandom.current().nextDouble(100));
 	}
 
 	private Campaign runningCampaign()

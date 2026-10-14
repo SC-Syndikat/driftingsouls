@@ -1,5 +1,7 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignRepository;
 import net.driftingsouls.ds2.server.campaign.GameMasterControl;
 import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
 import net.driftingsouls.ds2.server.entities.User;
@@ -10,6 +12,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.Request;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.commons.text.StringEscapeUtils.escapeHtml4;
 
@@ -143,7 +146,7 @@ public final class GameMasterMenu
 		}
 		int active = ContextMap.getContext().getActiveUser().getId();
 		StringBuilder html = new StringBuilder("<div class='gfxbox' style='margin-bottom:6px'><span class='smallfont'>GameMaster – steuern als: ");
-		toggleLink(html, real.getId(), escapeHtml4(Common._plaintitle(real.getName())) + " (du)", active, to);
+		toggleLink(html, real.getId(), Common._title(real.getName()) + " (du)", active, to);
 		for (User npc : npcs)
 		{
 			html.append(" · ");
@@ -172,6 +175,12 @@ public final class GameMasterMenu
 		return "./gamemaster?action=control&user=" + userId + "&to=" + to;
 	}
 
+	private static void menuLink(Appendable out, String label, String url, boolean enabled) throws java.io.IOException
+	{
+		out.append("<li><img src='data/interface/admin/editor.png' /><a class='").append(enabled ? "forschinfo" : "error").append("' href='")
+				.append(enabled ? url : "#").append("'>").append(label).append("</a></li>");
+	}
+
 	/**
 	 * The menu as it stands in place of the admin menu's tree.
 	 */
@@ -179,22 +188,30 @@ public final class GameMasterMenu
 	{
 		try
 		{
+			// The same menu as on the game master page, expanded
+			Optional<Campaign> campaign = new CampaignRepository().findOpen();
+			boolean running = campaign.isPresent() && campaign.get().isRunning();
+			boolean preparing = campaign.isPresent() && campaign.get().isPreparing();
 			out.append("<div class='gfxbox treemenu'><ul style='display:block'>");
-			out.append("<li><a class='forschinfo' href='./gamemaster'>&laquo; GameMaster-Seite</a></li>");
-			out.append("<li><p>Kampagne vorbereiten</p><ul style='display:block'>");
+			out.append("<li class='smallfont'><a class='forschinfo' href='./gamemaster'>")
+					.append(campaign.map(c -> escapeHtml4(c.getName()) + (running ? " (läuft)" : " (in Vorbereitung)")).orElse("GameMaster-Seite"))
+					.append("</a></li>");
+			out.append("<li><img src='data/interface/admin/editor.png' /><span>Kampagne vorbereiten</span>")
+					.append("<ul style='display:block; margin-left:14px; line-height:1.6'>");
 			for (Entry entry : ENTRIES)
 			{
 				boolean active = entry.plugin.equals(activePlugin);
 				out.append("<li><a class='forschinfo").append(active ? " active" : "").append("' href='").append(escapeHtml4(entry.url)).append("'>")
-						.append(escapeHtml4(entry.label)).append("</a></li>");
+						.append(active ? "&gt; " : "").append(escapeHtml4(entry.label)).append("</a></li>");
 			}
 			out.append("</ul></li>");
-			out.append("<li><a class='forschinfo' href='./gamemaster?show=start'>Kampagne starten</a></li>");
-			out.append("<li><a class='forschinfo' href='./gamemaster?show=tick'>Kampagnentick</a></li>");
-			out.append("<li><a class='forschinfo' href='./gamemaster?show=end'>Kampagne beenden</a></li>");
+			menuLink(out, "Kampagne starten", "./gamemaster?show=start", preparing);
+			menuLink(out, "Kampagnentick", "./gamemaster?show=tick", running);
+			menuLink(out, "Kampagne beenden", "./gamemaster?show=end", running);
 			if (withAdminMenu)
 			{
-				out.append("<li><a class='forschinfo' href='./ds?module=admin&amp;").append(PARAMETER).append("=0'>Zum Admin-Menü &raquo;</a></li>");
+				out.append("<li><img src='data/interface/admin/editor.png' /><a class='forschinfo' href='./ds?module=admin&amp;")
+						.append(PARAMETER).append("=0'>Zum Admin-Menü &raquo;</a></li>");
 			}
 			out.append("</ul></div>");
 		}

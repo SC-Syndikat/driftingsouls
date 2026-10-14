@@ -827,3 +827,12 @@ Beantwortet am 2026-09-25:
     Link, als beteiligtes NPC ansehen).
 25. **Kampagnenvariablen.** ✅ Im Dialog-Editor als Auswahl der bekannten Variablen mit „neue Variable“;
     die Übersicht ist eine sortier- und filterbare Tabelle mit direkter Bearbeitung.
+26. **Schlachten.** ✅ Der GM beendet Schlachten in Kampagnensystemen auf der Startseite oder aus einer
+    Anfrage heraus (`CampaignBattles.end`, wie „battle end“ der Admins). Im Schlachtmenü gibt es „Anfrage
+    an den GameMaster“, um Bedingungen auszuhandeln (V056 `gm_request.battle_id`); sie läuft wie die
+    Dialog-Anfragen, Aktionen gelten dem NPC der Gegenseite, das Formular bietet „Schlacht beenden“.
+    Behoben: zwei vorhandene Fehler in der Sensorliste bei Schlachten im Sektor (`Battle.getSchlachtMitglied`,
+    Parameter der Schiffszählung).
+27. **Bedienung.** ✅ Die Sektor-Sperre verlinkt auf das Schiff mit dem Gespräch; das GM-Menü sieht auf
+    allen Seiten aus wie auf der Startseite; Namen erscheinen ohne BB-Code (`CampaignText`); Waren und
+    Items werden im Dialog-Editor aus einer Liste gewählt.

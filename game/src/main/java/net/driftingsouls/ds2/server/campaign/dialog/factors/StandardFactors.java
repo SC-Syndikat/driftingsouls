@@ -436,7 +436,7 @@ public final class StandardFactors
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"));
+			return List.of(ParamDef.item("resource", "Ware / Item"));
 		}
 
 		@Override

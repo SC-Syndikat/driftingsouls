@@ -1,5 +1,6 @@
 package net.driftingsouls.ds2.server.campaign.dialog.actions;
 
+import net.driftingsouls.ds2.server.campaign.CampaignText;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeLimitService;
@@ -228,7 +229,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"), ParamDef.integer("count", "Menge", 1),
+			return List.of(ParamDef.item("resource", "Ware / Item"), ParamDef.integer("count", "Menge", 1),
 					ParamDef.choice("from", "Herkunft", NEW, "neu geschaffen", OBJECT, "aus dem Cargo des Gesprächsschiffs"));
 		}
 
@@ -283,7 +284,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("resource", "Item-ID (z.B. 16 für Nahrung, 17 für Deuterium)"), ParamDef.integer("count", "Menge", 1),
+			return List.of(ParamDef.item("resource", "Ware / Item"), ParamDef.integer("count", "Menge", 1),
 					ParamDef.choice("to", "Verbleib", GONE, "verschwindet", NPC_SHIP, "ins Cargo eines Schiffs des NPC im Sektor"));
 		}
 
@@ -383,7 +384,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("item", "Item-ID", 1));
+			return List.of(ParamDef.item("item", "Item"));
 		}
 
 		@Override
@@ -450,7 +451,7 @@ public final class StandardActions
 		public String playerMessage(DialogContext context, Params params)
 		{
 			Forschung research = context.em.find(Forschung.class, params.getInt("research"));
-			return "Forschung erhalten: " + (research == null ? params.get("research") : Common._plaintitle(research.getName()));
+			return "Forschung erhalten: " + (research == null ? params.get("research") : CampaignText.plain(research.getName()));
 		}
 	}
 
@@ -1070,7 +1071,7 @@ public final class StandardActions
 
 	private static String resourceName(Params params)
 	{
-		return Common._plaintitle(Cargo.getResourceName(StandardFactors.resource(params.get("resource"))));
+		return CampaignText.plain(Cargo.getResourceName(StandardFactors.resource(params.get("resource"))));
 	}
 
 	private static ShipGroupTemplate template(Params params)

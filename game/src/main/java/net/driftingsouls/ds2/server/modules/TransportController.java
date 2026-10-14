@@ -744,9 +744,7 @@ public class TransportController extends Controller
 		{
 			new CampaignActionGuard().check((User) getUser(), from.get(0).getLocation().getSystem(), CampaignAction.TRANSFER);
 			// Goods must not leave or reach ships held by a dialog in this sector
-			new CampaignActionGuard().dialogDenial((User) getUser(), from.get(0).getLocation()).ifPresent(denial -> {
-				throw new ValidierungException(denial);
-			});
+			new CampaignActionGuard().checkDialog((User) getUser(), from.get(0).getLocation());
 		}
 
 		StringBuilder message = new StringBuilder();

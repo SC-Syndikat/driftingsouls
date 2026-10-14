@@ -10,6 +10,8 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
 import net.driftingsouls.ds2.server.ships.Ship;
 
+import org.apache.commons.text.StringEscapeUtils;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -156,11 +158,20 @@ public class CampaignActionGuard
 		check(user, ships.iterator().next().getSystem(), action);
 		for (Ship ship : ships)
 		{
-			Optional<String> denial = dialogDenial(user, ship.getLocation());
-			if (denial.isPresent())
-			{
-				throw new ValidierungException(denial.get());
-			}
+			checkDialog(user, ship.getLocation());
+		}
+	}
+
+	/**
+	 * Refuses with a link to the ship the player talks from, where he can answer.
+	 */
+	public void checkDialog(User user, Location location)
+	{
+		Optional<Ship> talking = dialogShip(user, location);
+		if (talking.isPresent())
+		{
+			throw new ValidierungException(dialogMessage(talking.get()) + " (hier klicken, um zum Gespräch zu gelangen)",
+					Common.buildUrl("default", "module", "schiff", "ship", talking.get().getId()));
 		}
 	}
 
@@ -171,6 +182,14 @@ public class CampaignActionGuard
 	 * @return Why the player's ships at the location cannot act, or empty
 	 */
 	public Optional<String> dialogDenial(User user, Location location)
+	{
+		return dialogShip(user, location).map(CampaignActionGuard::dialogMessage);
+	}
+
+	/**
+	 * @return The player's ship talking in the sector of the location, if a dialog runs there
+	 */
+	private Optional<Ship> dialogShip(User user, Location location)
 	{
 		if (user == null)
 		{
@@ -186,8 +205,13 @@ public class CampaignActionGuard
 		{
 			return Optional.empty();
 		}
-		return Optional.of("In diesem Sektor läuft gerade ein Gespräch mit " + Common._plaintitle(talking.getName()) + " (" + talking.getId()
-				+ "). Bis es abgeschlossen ist, können deine Schiffe hier nicht abfliegen, Waren tauschen oder angreifen.");
+		return Optional.of(talking);
+	}
+
+	private static String dialogMessage(Ship talking)
+	{
+		return "In diesem Sektor läuft gerade ein Gespräch mit " + StringEscapeUtils.escapeHtml4(CampaignText.plain(talking.getName())) + " (" + talking.getId()
+				+ "). Bis es abgeschlossen ist, können deine Schiffe hier nicht abfliegen, Waren tauschen oder angreifen.";
 	}
 
 	static Optional<String> decide(Campaign campaign, boolean campaignSystem, boolean participant, boolean tickReady, CampaignAction action)

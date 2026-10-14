@@ -82,7 +82,14 @@
             <td class="noBorderX" th:text="${b.location}"></td>
             <td class="noBorderX" th:text="${b.side0}"></td>
             <td class="noBorderX" th:text="${b.side1}"></td>
-            <td class="noBorderX"><a class="forschinfo" th:href="${b.url}" th:text="${b.linkLabel} + ' »'">ansehen</a></td>
+            <td class="noBorderX">
+              <a class="forschinfo" th:href="${b.url}" th:text="${b.linkLabel} + ' »'">ansehen</a>
+              <form action="./gamemaster" method="post" style="display:inline" onsubmit="return confirm('Diese Schlacht unentschieden beenden?');">
+                <input type="hidden" name="action" value="endbattle" />
+                <input type="hidden" name="battle" th:value="${b.id}" />
+                <input type="submit" value="beenden" />
+              </form>
+            </td>
           </tr>
         </table>
       </div>

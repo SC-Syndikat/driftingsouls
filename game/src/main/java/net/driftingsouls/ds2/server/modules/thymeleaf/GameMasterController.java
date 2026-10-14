@@ -1,5 +1,6 @@
 package net.driftingsouls.ds2.server.modules.thymeleaf;
 
+import net.driftingsouls.ds2.server.campaign.CampaignBattles;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.campaign.GameMasterControl;
 import net.driftingsouls.ds2.server.campaign.interaction.GmRequest;
@@ -51,6 +52,7 @@ public class GameMasterController implements DSController {
       END,
       RELOCATE,
       CONTROL,
+      ENDBATTLE,
       DEFAULT
     }
 
@@ -101,6 +103,10 @@ public class GameMasterController implements DSController {
             break;
           case RELOCATE:
             relocateAction(ctx, request, user);
+            break;
+          case ENDBATTLE:
+            endBattleAction(ctx, request, user);
+            defaultAction(ctx, request, user, show);
             break;
           case CONTROL:
             if(controlAction(ctx, request, response)){
@@ -271,6 +277,24 @@ public class GameMasterController implements DSController {
         }
       }
       throw new CampaignException("Unbekannter Ausgang.");
+    }
+
+    /**
+     * Beendet eine Schlacht in einem Kampagnensystem unentschieden, wie es Admins mit "battle end" koennen.
+     */
+    private void endBattleAction(WebContext ctx, HttpServletRequest request, User user) {
+      var db = context.getEM();
+      Battle battle = null;
+      try {
+        battle = db.find(Battle.class, Integer.parseInt(request.getParameter("battle")));
+      } catch(NumberFormatException e) {
+        // handled by CampaignBattles
+      }
+      try {
+        ctx.setVariable("out", "Schlacht bei " + CampaignBattles.end(db, battle, user) + " beendet.");
+      } catch(CampaignException e) {
+        ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster"));
+      }
     }
 
     /**
@@ -467,7 +491,8 @@ public class GameMasterController implements DSController {
                 String text = messages.isEmpty() ? "" : messages.get(messages.size() - 1).text;
                 views.add(new RequestView(request.id,
                     (player == null ? "?" : player.getPlainname()) + " (" + request.userId + ")",
-                    Optional.ofNullable(request.interactionId).flatMap(interactions::find).map(i -> i.label).orElse("?"),
+                    request.battleId != null ? "Schlacht " + request.battleId
+                        : Optional.ofNullable(request.interactionId).flatMap(interactions::find).map(i -> i.label).orElse("?"),
                     text.length() > 120 ? text.substring(0, 120) + "…" : text,
                     Common.date("d.m. H:i", request.updatedAt),
                     request.unreadByGm,

@@ -18,6 +18,11 @@ public class GmRequestRepository
 {
 	public int create(int campaignId, int userId, int shipId, Integer interactionId, Integer nodeId)
 	{
+		return create(campaignId, userId, shipId, interactionId, nodeId, null);
+	}
+
+	public int create(int campaignId, int userId, int shipId, Integer interactionId, Integer nodeId, Integer battleId)
+	{
 		long now = Common.time();
 		return withDb(db -> {
 			GmRequestRecord record = db.newRecord(GM_REQUEST);
@@ -26,6 +31,7 @@ public class GmRequestRepository
 			record.setShipId(shipId);
 			record.setInteractionId(interactionId);
 			record.setNodeId(nodeId);
+			record.setBattleId(battleId);
 			record.setStatus(GmRequest.Status.OPEN.name());
 			record.setCreatedAt(now);
 			record.setUpdatedAt(now);
@@ -82,6 +88,20 @@ public class GmRequestRepository
 				.where(GM_REQUEST.INTERACTION_ID.in(interactionIds))
 				.and(GM_REQUEST.STATUS.eq(GmRequest.Status.OPEN.name()))
 				.orderBy(GM_REQUEST.UPDATED_AT.desc())
+				.fetch()
+				.stream().map(GmRequestRepository::toRequest).collect(Collectors.toList()));
+	}
+
+	/**
+	 * @return The player's requests from the battle that are open or have an unread answer
+	 */
+	public List<GmRequest> findVisibleInBattle(int userId, int battleId)
+	{
+		return withDb(db -> db.selectFrom(GM_REQUEST)
+				.where(GM_REQUEST.USER_ID.eq(userId))
+				.and(GM_REQUEST.BATTLE_ID.eq(battleId))
+				.and(GM_REQUEST.STATUS.eq(GmRequest.Status.OPEN.name()).or(GM_REQUEST.UNREAD_BY_USER.eq((byte) 1)))
+				.orderBy(GM_REQUEST.ID)
 				.fetch()
 				.stream().map(GmRequestRepository::toRequest).collect(Collectors.toList()));
 	}
@@ -145,7 +165,7 @@ public class GmRequestRepository
 
 	private static GmRequest toRequest(GmRequestRecord r)
 	{
-		return new GmRequest(r.getId(), r.getCampaignId(), r.getUserId(), r.getShipId(), r.getInteractionId(), r.getNodeId(),
+		return new GmRequest(r.getId(), r.getCampaignId(), r.getUserId(), r.getShipId(), r.getInteractionId(), r.getNodeId(), r.getBattleId(),
 				GmRequest.Status.valueOf(r.getStatus()), r.getCreatedAt(), r.getUpdatedAt(), r.getUnreadByGm() != 0, r.getUnreadByUser() != 0);
 	}
 }

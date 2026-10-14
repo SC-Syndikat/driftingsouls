@@ -142,7 +142,12 @@ public class CampaignRequests implements AdminPlugin
 
 	private static String interactionLabel(GmRequest request)
 	{
-		return Optional.ofNullable(request.interactionId).flatMap(id -> new InteractionRepository().find(id)).map(i -> i.label).orElse("?");
+		if (request.interactionId == null && request.battleId != null)
+		{
+			return "Schlacht " + request.battleId;
+		}
+		return Optional.ofNullable(request.interactionId).flatMap(id -> new InteractionRepository().find(id)).map(i -> i.label)
+				.orElse(request.interactionId == null ? "Schlacht (beendet)" : "?");
 	}
 
 	static String url(GmRequest request)

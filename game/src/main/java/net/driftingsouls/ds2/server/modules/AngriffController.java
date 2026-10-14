@@ -51,6 +51,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import net.driftingsouls.ds2.server.campaign.interaction.CampaignBattleNotes;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequestService;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequest;
+import net.driftingsouls.ds2.server.campaign.CampaignException;
 import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -92,6 +95,7 @@ public class AngriffController extends Controller
         menuActions.put("groupattack_select", KSMenuGroupAttackMuniSelectAction.class);
 		//menuActions.put("batterien", KSMenuBatteriesAction.class);
 		menuActions.put("default", KSMenuDefaultAction.class);
+		menuActions.put("gmrequest", KSMenuDefaultAction.class);
 		menuActions.put("flucht", KSMenuFluchtAction.class);
 		menuActions.put("history", KSMenuHistoryAction.class);
 		menuActions.put("new_commander", KSMenuBattleConsignAction.class);
@@ -364,6 +368,91 @@ public class AngriffController extends Controller
 			}
 		}
 		return html.toString();
+	}
+
+	/**
+	 * Kampagne: die Unterhaltung mit dem GameMaster zu dieser Schlacht, und das Formular fuer eine Anfrage,
+	 * wenn der Spieler sie im Menue gewaehlt hat oder eine offen ist.
+	 */
+	private String campaignGmRequests(Battle battle, User user, String ksaction) {
+		if( !GmRequestService.battleRequestsPossible(user, battle) || battle.getOwnShip() == null ) {
+			return "";
+		}
+		GmRequestService service = new GmRequestService(getEM());
+		List<GmRequest> requests = service.visibleInBattle(user, battle);
+		boolean open = requests.stream().anyMatch(GmRequest::isOpen);
+		if( requests.isEmpty() && !"gmrequest".equals(ksaction) ) {
+			return "";
+		}
+		StringBuilder html = new StringBuilder("<div style=\"border:1px solid #555; padding:6px 10px; margin:6px 0\"><b>Anfrage an den GameMaster</b><br />");
+		for( GmRequest request : requests ) {
+			for( GmRequest.Message message : service.messages(request.id) ) {
+				switch( message.kind ) {
+					case PLAYER:
+						html.append("<span style=\"color:#aaaaaa\">Du:</span> ");
+						break;
+					case GAMEMASTER:
+						html.append("<span style=\"color:#66ccff\">GameMaster:</span> ");
+						break;
+					default:
+						html.append("<span style=\"color:#ffcc00\">&rarr;</span> ");
+				}
+				html.append(StringEscapeUtils.escapeHtml4(message.text).replace("\n", "<br />")).append("<br />");
+			}
+		}
+		int shipId = battle.getOwnShip().getShip().getId();
+		html.append("<form action=\"./ds\" method=\"post\">")
+				.append(gmRequestFields("gmRequest", battle.getId(), shipId))
+				.append("<span class=\"smallfont\">").append(open ? "Antwort an den GameMaster:" : "Was möchtest du mit dem GameMaster aushandeln, z.B. Bedingungen für die Schlacht?")
+				.append("</span><br /><textarea name=\"text\" rows=\"3\" cols=\"70\" maxlength=\"2000\"></textarea><br />")
+				.append("<input type=\"submit\" value=\"An den GameMaster senden\" /></form>");
+		for( GmRequest request : requests ) {
+			if( request.isOpen() ) {
+				html.append("<form action=\"./ds\" method=\"post\" style=\"display:inline\">")
+						.append(gmRequestFields("gmRequestClose", battle.getId(), shipId))
+						.append("<input type=\"hidden\" name=\"request\" value=\"").append(request.id).append("\" />")
+						.append("<input type=\"submit\" value=\"Anfrage abschließen\" /></form>");
+			}
+		}
+		return html.append("</div>").toString();
+	}
+
+	private static String gmRequestFields(String action, int battleId, int shipId) {
+		return "<input type=\"hidden\" name=\"module\" value=\"angriff\" />"
+				+ "<input type=\"hidden\" name=\"action\" value=\"" + action + "\" />"
+				+ "<input type=\"hidden\" name=\"battle\" value=\"" + battleId + "\" />"
+				+ "<input type=\"hidden\" name=\"ship\" value=\"" + shipId + "\" />";
+	}
+
+	/**
+	 * Kampagne: schickt eine Anfrage aus der Schlacht an den GameMaster.
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult gmRequestAction(@UrlParam(name="ship") int shipId, @UrlParam(name="battle") int battleId, String text) {
+		User user = (User)getUser();
+		Ship ship = getEM().find(Ship.class, shipId);
+		Battle battle = getEM().find(Battle.class, battleId);
+		try {
+			new GmRequestService(getEM()).submitFromBattle(user, ship, battle, text);
+		}
+		catch( CampaignException e ) {
+			throw new ValidierungException(e.getMessage(), Common.buildUrl("default", "module", "angriff", "battle", battleId, "ship", shipId));
+		}
+		return new RedirectViewResult("default").setParameter("battle", battleId).setParameter("ship", shipId);
+	}
+
+	/**
+	 * Kampagne: der Spieler schliesst seine Anfrage aus der Schlacht ab.
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult gmRequestCloseAction(@UrlParam(name="ship") int shipId, @UrlParam(name="battle") int battleId, int request) {
+		try {
+			new GmRequestService(getEM()).playerClose((User)getUser(), request);
+		}
+		catch( CampaignException e ) {
+			throw new ValidierungException(e.getMessage(), Common.buildUrl("default", "module", "angriff", "battle", battleId, "ship", shipId));
+		}
+		return new RedirectViewResult("default").setParameter("battle", battleId).setParameter("ship", shipId);
 	}
 
 	private boolean showMenu(TemplateEngine t, Battle battle, StringBuilder action ) throws IOException {
@@ -769,7 +858,7 @@ public class AngriffController extends Controller
 
 		-----------------------------------------------------------*/
 
-		t.setVar("campaign.battlenote", campaignBattleNote(battle, user));
+		t.setVar("campaign.battlenote", campaignBattleNote(battle, user) + campaignGmRequests(battle, user, ksaction));
 
 		StringBuilder actionBuilder = new StringBuilder(ksaction);
 		if( !this.showMenu( t, battle, actionBuilder ) ) {
