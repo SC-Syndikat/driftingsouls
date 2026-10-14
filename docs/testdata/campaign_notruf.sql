@@ -1,4 +1,4 @@
--- The distorted distress call of the "Testkampagne Maelstrom" (needs V049-V051 and campaign_test_dialogs.sql).
+-- The distorted distress call of the "Testkampagne Maelstrom" (needs V050-V052 and campaign_test_dialogs.sql).
 -- Once per campaign tick the player may try to decode it; success reveals the whole message, partial success one
 -- more fragment, failure nothing. The message leads to the wreck (ship 2338365, 621:35/42) with the data disk.
 SET NAMES utf8mb4;

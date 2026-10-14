@@ -1,4 +1,4 @@
--- Pirates at the wreck of the "Testkampagne Maelstrom" (needs V049-V052, campaign_test_dialogs.sql and campaign_notruf.sql).
+-- Pirates at the wreck of the "Testkampagne Maelstrom" (needs V050-V053, campaign_test_dialogs.sql and campaign_notruf.sql).
 -- Searching the wreck may attract pirate captain Skarn: hand over the disk, talk him out of it or fight. If the
 -- disk is lost, Vex lends the player a Raider; Skarn gives the disk back when facing three times his strength.
 SET NAMES utf8mb4;

@@ -23,8 +23,8 @@ Legende: ✅ umgesetzt · ✅* umgesetzt, aber abweichend vom Plan (die Abweichu
 | P8 Interaktionen, Spieler-Dialog | ✅* ❓ | `6ca36289b` |
 | P9 GM-Editor | ✅ | `45e8338c8` |
 
-Migrationen: V042 (Kampagne, Teilnehmer), V043 (Systeme, Sprungpunkte), V044 (Schiffsgruppen),
-V045 (Dialoge, Variablen, Vertrauen), V046 (Interaktionen, Sessions, Protokoll).
+Migrationen: V043 (Kampagne, Teilnehmer), V044 (Systeme, Sprungpunkte), V045 (Schiffsgruppen),
+V046 (Dialoge, Variablen, Vertrauen), V047 (Interaktionen, Sessions, Protokoll).
 
 Vokabular gemäß `CONTEXT.md`. Neuer Code verwendet englische Bezeichner. Bestehende Klassen, in die wir
 nur Hooks einbauen, werden **nicht** umbenannt (das macht Track Zero).
@@ -84,13 +84,13 @@ Pfade relativ zu `game/src/main/java/net/driftingsouls/ds2/server/`.
 | Admin-Framework | `AdminController` (Auto-Discovery via `@AdminMenuEntry`), `WellKnownAdminPermission`, `PermissionDelegatePermissionResolver` | Neue Plugins und Rechte. |
 | Plugin-Discovery | `AnnotationUtils.findeKlassenMitAnnotation` | Wird auch für Dialog-Aktionen und -Bedingungen verwendet. |
 | BBCode | bestehender Text-/BBCode-Renderer (wie in `Handelsposten`) | Dialogtexte. |
-| Migrationen | Flyway `game/src/main/resources/db/migration/`, letzte Version V041 | Neue Migrationen ab V042. |
+| Migrationen | Flyway `game/src/main/resources/db/migration/`, letzte Version V041 | Neue Migrationen ab V043. |
 
 ---
 
 ## 2. Datenmodell (neu, jOOQ-owned)
 
-Die Migrationen beginnen bei V042. Es ist MySQL. Die jOOQ-Codegen läuft nach Flyway (`game/pom.xml`).
+Die Migrationen beginnen bei V043; V042 belegt der Branch `feature/discord-chat`, der zuerst nach main geht. Es ist MySQL. Die jOOQ-Codegen läuft nach Flyway (`game/pom.xml`).
 
 ```text
 campaign
@@ -235,7 +235,7 @@ sich aus den Abhängigkeiten: Das Dialogsystem (P7–P9) braucht P1 und P2, aber
 >   ersten Aufruf von `/gamemaster`. Die GM-Seite verlinkt dorthin.
 > - `UserActivityTracker` ist ein einfaches Singleton und kein Spring-Bean.
 
-- **P1.1** Migration V042 `campaign`, jOOQ-Repository `CampaignRepository`, `CampaignService`.
+- **P1.1** Migration V043 `campaign`, jOOQ-Repository `CampaignRepository`, `CampaignService`.
 - **P1.2** Den `GameMasterController` minimal erweitern. Die Thymeleaf-Seite existiert schon, es
   entsteht keine neue.
   - Beim ersten Aufruf der Einrichtung wird die Kampagne als PREPARING angelegt (Name, GM).
@@ -729,7 +729,7 @@ Beantwortet am 2026-09-25:
 
    Beim Anlegen fielen zwei Fehler auf: Der Prod-Dump enthielt keine Stored Procedures (im Dev
    nachträglich angelegt), und der alte Fremdschlüssel `ships.id → ship_history.id` verhinderte
-   jedes neue Schiff (V048 entfernt ihn; AddShips und CreateObjects speichern die Historie jetzt
+   jedes neue Schiff (V049 entfernt ihn; AddShips und CreateObjects speichern die Historie jetzt
    mit).
 4. **Dropdown für die Objekt-ID** bei den Interaktionen, gefiltert auf den Objekttyp und auf
    Kampagnensysteme, mit Name und Position. ✅ Dazu Besitzer, und der sprechende NPC als Auswahl der
@@ -738,7 +738,7 @@ Beantwortet am 2026-09-25:
    Admins die Interaktionen des Schiffs mit Links zum Bearbeiten und Hinzufügen. EditShip und
    EditBases haben ein Feld „Kampagne“ mit Link auf die Interaktionen des Objekts; neue Interaktionen
    sind dann vorbelegt.
-6. **Limits für Kampagnen-Sprungpunkte.** ✅ Migration V047, `CampaignJumpNodeLimitService`:
+6. **Limits für Kampagnen-Sprungpunkte.** ✅ Migration V048, `CampaignJumpNodeLimitService`:
    - erlaubte Schiffsklassen und erlaubte Schiffstypen;
    - maximale Punkte je Schiff und je Spieler;
    - das Spieler-Limit gilt wahlweise für die ganze Kampagne oder pro Kampagnentick;
@@ -760,7 +760,7 @@ Beantwortet am 2026-09-25:
 8. **Kampagnenvariablen verwalten.** ✅ Eigenes Plugin „Kampagnenvariablen“ (auch im GM-Menü):
    anzeigen, setzen, löschen, global oder je teilnehmendem Spieler. „Quest“ heißt überall
    „Kampagne“.
-9. **Antworten nur einmal wählbar.** ✅ Migration V049 (`dialog_option.once_per_user`): Eine so
+9. **Antworten nur einmal wählbar.** ✅ Migration V050 (`dialog_option.once_per_user`): Eine so
    markierte Antwort kann jeder Spieler je Kampagne nur einmal wählen; danach ist sie versteckt bzw.
    ausgegraut. Zurückgerollte Versuche zählen nicht.
 10. **Spieler sieht, was die Aktionen bewirkt haben.** ✅ Nach einer Antwort erscheinen die sichtbaren
@@ -771,11 +771,11 @@ Beantwortet am 2026-09-25:
 11. **Schlacht aus einem Dialog.** ✅ Startet eine Antwort eine Schlacht, zeigt die folgende Seite statt
     der Fehlermeldung „Das Schiff ist in einen Kampf verwickelt“ die Reaktion des NPCs, die Folgen
     und den Link „Zur Schlacht“. Der Schlachtbildschirm zeigt Antwort und Reaktion oben, solange die
-    Schlacht läuft (Migration V050, `campaign_battle_note`).
+    Schlacht läuft (Migration V051, `campaign_battle_note`).
 12. **GM-Navigation bleibt erhalten.** ✅ Wer als Admin über das GM-Menü ein Werkzeug öffnet, behält
     das GM-Menü auch bei Folgeklicks (Sitzungs-Flag); „Zum Admin-Menü“ oder die Admin-Startseite
     wechseln zurück.
-13. **Teilerfolg.** ✅ Migration V051: Je Antwort eine Teilerfolg-Spanne in Prozentpunkten nach der
+13. **Teilerfolg.** ✅ Migration V052: Je Antwort eine Teilerfolg-Spanne in Prozentpunkten nach der
     Erfolgschance und ein eigener Folgeknoten; Aktionen „bei Teilerfolg“; Vorschau kann ihn erzwingen.
 14. **Bedingter Text in Knoten.** ✅ `[wenn name >= 2]…[sonst]…[/wenn]` (auch `global:name`) zeigt Text
     abhängig von Kampagnenvariablen (`DialogText`).
@@ -789,7 +789,7 @@ Beantwortet am 2026-09-25:
     621:35/42; dort liegt das Trümmerteil mit der Datendisk für Vex.
 17. **Bausteine für NPC-Begegnungen.** ✅ Faktor „Kampfkraft-Verhältnis Spieler / NPC im Sektor“;
     Schlacht gegen „ein Schiff des NPC im Sektor“; Ware an ein NPC-Schiff abgeben bzw. aus dem Cargo des
-    Gesprächsschiffs erhalten (V052 setzt die Standardwerte bestehender Aktionen); Schiffsgruppe
+    Gesprächsschiffs erhalten (V053 setzt die Standardwerte bestehender Aktionen); Schiffsgruppe
     erscheinen lassen und dabei eine Vorlage-Interaktion nur für diesen Spieler auf das erste Schiff
     übertragen; „Schiffe des NPC im Sektor abziehen“.
 18. **Testkampagne: Piraten am Wrack.** ✅ `docs/testdata/campaign_piraten.sql`: Die Durchsuchung
@@ -799,7 +799,7 @@ Beantwortet am 2026-09-25:
 19. **Ein Gespräch bindet den Sektor.** ✅ Solange ein Spieler ein Gespräch führt, können seine Schiffe im
     Sektor des Gesprächs weder abfliegen noch springen, Waren oder Crew tauschen, handeln oder
     angreifen (`CampaignActionGuard.dialogDenial`, an allen Schiffsaktionen). Weitere Schiffe dürfen
-    hineinfliegen und sind dann ebenfalls gebunden. Knoten mit „Spieler muss antworten“ (V053) lassen
+    hineinfliegen und sind dann ebenfalls gebunden. Knoten mit „Spieler muss antworten“ (V054) lassen
     sich weder beenden noch durch ein anderes Gespräch ersetzen; Skarns Forderung ist so markiert.
     Startet eine Antwort eine Schlacht, endet das Gespräch. Dabei geschlossen: Der neue Flugweg
     (`ShipsMovement`) prüfte die Kampagnenregeln bisher gar nicht.
