@@ -110,6 +110,25 @@ public class DiscordService
 	/**
 	 * Die Rechte des Bots auf dem Server: Server-Rechte sowie, was fuer die Kanalrechte gebraucht wird.
 	 */
+	/**
+	 * Ein Account aus Sicht des Discord-Servers: Server-Alias (sonst Anzeigename) und Server-Avatar
+	 * (sonst Account-Avatar). <code>mitglied == false</code>, falls der Account nicht auf dem Server ist.
+	 */
+	private static class Mitglied
+	{
+		final boolean mitglied;
+		final String name;
+		final String avatarUrl;
+		final long geladen = System.currentTimeMillis();
+
+		Mitglied(boolean mitglied, String name, String avatarUrl)
+		{
+			this.mitglied = mitglied;
+			this.name = name;
+			this.avatarUrl = avatarUrl;
+		}
+	}
+
 	static class BotRechte
 	{
 		String botId;
@@ -123,7 +142,7 @@ public class DiscordService
 	private final Gson gson = new Gson();
 	private final Map<String, ChannelCache> messageCache = new ConcurrentHashMap<>();
 	private final Map<String, Webhook> webhooks = new ConcurrentHashMap<>();
-	private final Map<String, Long> confirmedMembers = new ConcurrentHashMap<>();
+	private final Map<String, Mitglied> mitglieder = new ConcurrentHashMap<>();
 	private final Map<Integer, Long> lastSend = new ConcurrentHashMap<>();
 
 	/**
@@ -136,7 +155,7 @@ public class DiscordService
 		{
 			webhooks.clear();
 		}
-		confirmedMembers.clear();
+		mitglieder.clear();
 	}
 
 	/**
@@ -221,7 +240,8 @@ public class DiscordService
 				.PUT(HttpRequest.BodyPublishers.ofString(gson.toJson(body))));
 		if (response.statusCode() == 201 || response.statusCode() == 204)
 		{
-			confirmedMembers.put(memberKey(konfiguration, user.id), System.currentTimeMillis());
+			// Beim naechsten Zugriff mit Server-Alias und -Avatar neu laden
+			mitglieder.remove(memberKey(konfiguration, user.id));
 			return true;
 		}
 		log.warn("Discord: Beitritt von {} zum Server fehlgeschlagen ({}): {}", user.id, response.statusCode(), response.body());
@@ -272,7 +292,7 @@ public class DiscordService
 				{
 					continue;
 				}
-				result.add(toChatMessage(message, channelNames));
+				result.add(toChatMessage(konfiguration, message, channelNames));
 			}
 			cache.messages = Collections.unmodifiableList(result);
 			return cache.messages;
@@ -285,12 +305,11 @@ public class DiscordService
 	 * @param konfiguration Die Bot-Einstellungen
 	 * @param channelId Die ID des Kanals
 	 * @param userId Die ID des Spielers in DS
-	 * @param discordUserId Die ID des verknuepften Discord-Accounts
-	 * @param displayName Der anzuzeigende Name
-	 * @param avatarUrl Die URL des anzuzeigenden Avatars
+	 * @param discordUserId Die ID des verknuepften Discord-Accounts. Name und Avatar der Nachricht
+	 * sind sein Server-Alias und Server-Avatar, wie bei einer direkt in Discord geschriebenen Nachricht.
 	 * @param text Der Text
 	 */
-	public void sendMessage(DiscordKonfiguration konfiguration, String channelId, int userId, String discordUserId, String displayName, String avatarUrl, String text)
+	public void sendMessage(DiscordKonfiguration konfiguration, String channelId, int userId, String discordUserId, String text)
 	{
 		String content = text == null ? "" : text.trim();
 		if (content.isEmpty())
@@ -309,7 +328,8 @@ public class DiscordService
 			throw new DiscordException("Bitte warte einen Moment, bevor du die nächste Nachricht sendest.");
 		}
 
-		if (!isMember(konfiguration, discordUserId))
+		Mitglied mitglied = ladeMitglied(konfiguration, discordUserId);
+		if (!mitglied.mitglied)
 		{
 			throw new DiscordException("Dein Discord-Account ist kein Mitglied unseres Discord-Servers. Tritt dem Server bei und versuche es erneut.");
 		}
@@ -319,8 +339,8 @@ public class DiscordService
 		allowedMentions.add("parse", new JsonArray());
 		JsonObject body = new JsonObject();
 		body.addProperty("content", content);
-		body.addProperty("username", webhookUsername(displayName));
-		body.addProperty("avatar_url", avatarUrl);
+		body.addProperty("username", webhookUsername(mitglied.name));
+		body.addProperty("avatar_url", mitglied.avatarUrl);
 		body.add("allowed_mentions", allowedMentions);
 		String json = gson.toJson(body);
 
@@ -357,7 +377,7 @@ public class DiscordService
 	 */
 	public void forgetMember(String discordUserId)
 	{
-		confirmedMembers.keySet().removeIf(key -> key.endsWith(":" + discordUserId));
+		mitglieder.keySet().removeIf(key -> key.endsWith(":" + discordUserId));
 	}
 
 	/**
@@ -591,27 +611,58 @@ public class DiscordService
 		return fehlend;
 	}
 
-	private boolean isMember(DiscordKonfiguration konfiguration, String discordUserId)
+	/**
+	 * Laedt einen Account als Mitglied des Servers (zwischengespeichert).
+	 * @throws DiscordException Falls Discord nicht sauber antwortet
+	 */
+	private Mitglied ladeMitglied(DiscordKonfiguration konfiguration, String discordUserId)
 	{
 		String key = memberKey(konfiguration, discordUserId);
-		Long confirmedAt = confirmedMembers.get(key);
-		if (confirmedAt != null && System.currentTimeMillis() - confirmedAt < MEMBER_CACHE_MILLIS)
+		Mitglied mitglied = mitglieder.get(key);
+		if (mitglied != null && System.currentTimeMillis() - mitglied.geladen < MEMBER_CACHE_MILLIS)
 		{
-			return true;
+			return mitglied;
 		}
 		HttpResponse<String> response = send(botRequest(konfiguration, "/guilds/" + konfiguration.getGuildId() + "/members/" + discordUserId).GET());
 		if (response.statusCode() == 200)
 		{
-			confirmedMembers.put(key, System.currentTimeMillis());
-			return true;
+			JsonObject member = JsonParser.parseString(response.body()).getAsJsonObject();
+			JsonObject user = member.getAsJsonObject("user");
+			String nick = string(member, "nick");
+			String serverAvatar = string(member, "avatar");
+			mitglied = new Mitglied(true,
+					nick != null && !nick.isEmpty() ? nick : displayName(user),
+					serverAvatar != null
+							? "https://cdn.discordapp.com/guilds/" + konfiguration.getGuildId() + "/users/" + discordUserId + "/avatars/" + serverAvatar + ".png?size=64"
+							: DiscordUser.avatarUrl(discordUserId, string(user, "avatar")));
 		}
-		confirmedMembers.remove(key);
-		if (response.statusCode() == 404)
+		else if (response.statusCode() == 404)
 		{
-			return false;
+			mitglied = new Mitglied(false, null, null);
 		}
-		log.warn("Discord: Pruefen der Mitgliedschaft von {} fehlgeschlagen ({}): {}", discordUserId, response.statusCode(), response.body());
-		throw new DiscordException("Discord ist gerade nicht erreichbar. Bitte versuche es später erneut.");
+		else
+		{
+			log.warn("Discord: Laden des Mitglieds {} fehlgeschlagen ({}): {}", discordUserId, response.statusCode(), response.body());
+			throw new DiscordException("Discord ist gerade nicht erreichbar. Bitte versuche es später erneut.");
+		}
+		mitglieder.put(key, mitglied);
+		return mitglied;
+	}
+
+	/**
+	 * Wie {@link #ladeMitglied}, wirft aber nicht: Beim Anzeigen von Nachrichten reicht notfalls der Accountname.
+	 */
+	private Mitglied ladeMitgliedOderNull(DiscordKonfiguration konfiguration, String discordUserId)
+	{
+		try
+		{
+			Mitglied mitglied = ladeMitglied(konfiguration, discordUserId);
+			return mitglied.mitglied ? mitglied : null;
+		}
+		catch (DiscordException e)
+		{
+			return null;
+		}
 	}
 
 	private static String memberKey(DiscordKonfiguration konfiguration, String discordUserId)
@@ -670,10 +721,25 @@ public class DiscordService
 		return webhook;
 	}
 
-	private DiscordChatMessage toChatMessage(JsonObject message, Map<String, String> channelNames)
+	private DiscordChatMessage toChatMessage(DiscordKonfiguration konfiguration, JsonObject message, Map<String, String> channelNames)
 	{
 		JsonObject author = message.getAsJsonObject("author");
 		String authorId = string(author, "id");
+		boolean webhook = message.has("webhook_id") && !message.get("webhook_id").isJsonNull();
+
+		// Nachrichten von Webhooks (auch aus dem Spiel) tragen ihren Namen schon selbst.
+		// Bei echten Accounts zeigt Discord den Server-Alias an, das REST-API liefert ihn aber nicht mit.
+		String autorName = displayName(author);
+		String autorAvatar = DiscordUser.avatarUrl(authorId, string(author, "avatar"));
+		if (!webhook)
+		{
+			Mitglied mitglied = ladeMitgliedOderNull(konfiguration, authorId);
+			if (mitglied != null)
+			{
+				autorName = mitglied.name;
+				autorAvatar = mitglied.avatarUrl;
+			}
+		}
 
 		Map<String, String> mentionedUsers = new HashMap<>();
 		if (message.has("mentions"))
@@ -681,47 +747,97 @@ public class DiscordService
 			for (JsonElement element : message.getAsJsonArray("mentions"))
 			{
 				JsonObject mentioned = element.getAsJsonObject();
-				mentionedUsers.put(string(mentioned, "id"), displayName(mentioned));
+				String nick = string(mentioned.getAsJsonObject("member"), "nick");
+				mentionedUsers.put(string(mentioned, "id"), nick != null && !nick.isEmpty() ? nick : displayName(mentioned));
 			}
 		}
 
 		String text = formatContent(string(message, "content"), mentionedUsers, channelNames);
-		if (text.isEmpty() && message.has("embeds"))
+		List<DiscordChatMessage.Attachment> attachments = new ArrayList<>();
+		if (message.has("embeds"))
 		{
 			List<String> parts = new ArrayList<>();
 			for (JsonElement element : message.getAsJsonArray("embeds"))
 			{
 				JsonObject embed = element.getAsJsonObject();
-				for (String key : new String[]{"title", "description"})
+				String typ = string(embed, "type");
+				if ("image".equals(typ))
 				{
-					String value = string(embed, key);
-					if (value != null && !value.isEmpty())
+					// Eine gepostete Bild-URL: Discord zeigt dafuer das Bild an
+					attachments.add(medium(DiscordChatMessage.ART_BILD, "", embed.getAsJsonObject("thumbnail")));
+					continue;
+				}
+				if ("gifv".equals(typ))
+				{
+					// Animierte GIFs (z.B. von Tenor) liefert Discord als Video
+					attachments.add(medium(DiscordChatMessage.ART_VIDEO, "", embed.getAsJsonObject("video")));
+					continue;
+				}
+				if (text.isEmpty())
+				{
+					for (String key : new String[]{"title", "description"})
 					{
-						parts.add(formatContent(value, mentionedUsers, channelNames));
+						String value = string(embed, key);
+						if (value != null && !value.isEmpty())
+						{
+							parts.add(formatContent(value, mentionedUsers, channelNames));
+						}
 					}
 				}
+				if (embed.has("image"))
+				{
+					attachments.add(medium(DiscordChatMessage.ART_BILD, "", embed.getAsJsonObject("image")));
+				}
 			}
-			text = String.join("\n", parts);
+			if (text.isEmpty())
+			{
+				text = String.join("\n", parts);
+			}
 		}
 
-		List<DiscordChatMessage.Attachment> attachments = new ArrayList<>();
 		if (message.has("attachments"))
 		{
 			for (JsonElement element : message.getAsJsonArray("attachments"))
 			{
 				JsonObject attachment = element.getAsJsonObject();
-				attachments.add(new DiscordChatMessage.Attachment(string(attachment, "filename"), string(attachment, "url")));
+				String contentType = string(attachment, "content_type");
+				String art = DiscordChatMessage.ART_DATEI;
+				if (contentType != null && contentType.startsWith("image/"))
+				{
+					art = DiscordChatMessage.ART_BILD;
+				}
+				else if (contentType != null && contentType.startsWith("video/"))
+				{
+					art = DiscordChatMessage.ART_VIDEO;
+				}
+				attachments.add(medium(art, string(attachment, "filename"), attachment));
 			}
 		}
+		attachments.removeIf(attachment -> attachment.url == null);
 
 		return new DiscordChatMessage(
 				string(message, "id"),
-				displayName(author),
-				DiscordUser.avatarUrl(authorId, string(author, "avatar")),
+				autorName,
+				autorAvatar,
 				text,
 				string(message, "timestamp"),
-				message.has("webhook_id") && !message.get("webhook_id").isJsonNull(),
+				webhook,
 				attachments);
+	}
+
+	private static DiscordChatMessage.Attachment medium(String art, String name, JsonObject quelle)
+	{
+		if (quelle == null)
+		{
+			return new DiscordChatMessage.Attachment(art, name, null, 0, 0);
+		}
+		JsonElement breite = quelle.get("width");
+		JsonElement hoehe = quelle.get("height");
+		// proxy_url liefert Discord ueber das eigene CDN aus, auch fuer Bilder fremder Seiten
+		String url = string(quelle, "proxy_url") != null ? string(quelle, "proxy_url") : string(quelle, "url");
+		return new DiscordChatMessage.Attachment(art, name, url,
+				breite != null && !breite.isJsonNull() ? breite.getAsInt() : 0,
+				hoehe != null && !hoehe.isJsonNull() ? hoehe.getAsInt() : 0);
 	}
 
 	/**

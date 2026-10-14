@@ -8,15 +8,34 @@ import java.util.List;
  */
 public class DiscordChatMessage
 {
+	public static final String ART_BILD = "bild";
+	public static final String ART_VIDEO = "video";
+	public static final String ART_DATEI = "datei";
+
+	/**
+	 * Ein Anhang oder ein von Discord eingebettetes Bild bzw. Video.
+	 */
 	public static class Attachment
 	{
+		/**
+		 * {@link #ART_BILD} und {@link #ART_VIDEO} werden direkt angezeigt, {@link #ART_DATEI} als Link.
+		 */
+		public final String art;
 		public final String name;
 		public final String url;
+		/**
+		 * Die Abmessungen in Pixeln, falls Discord sie kennt, sonst 0.
+		 */
+		public final int breite;
+		public final int hoehe;
 
-		public Attachment(String name, String url)
+		public Attachment(String art, String name, String url, int breite, int hoehe)
 		{
+			this.art = art;
 			this.name = name;
 			this.url = url;
+			this.breite = breite;
+			this.hoehe = hoehe;
 		}
 	}
 

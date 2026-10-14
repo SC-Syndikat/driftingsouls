@@ -22,6 +22,7 @@ var DiscordChat = {
 	__timer : null,
 	__signatur : null,
 	__laedt : false,
+	__folgeEnde : true,
 
 	init : function() {
 		var chat = $('#discord-chat');
@@ -31,6 +32,9 @@ var DiscordChat = {
 
 		chat.find('.discord-kanal').on('click', function() {
 			DiscordChat.wechsleKanal($(this));
+		});
+		chat.find('.discord-nachrichten').on('scroll', function() {
+			DiscordChat.__folgeEnde = this.scrollTop + this.clientHeight >= this.scrollHeight - 30;
 		});
 		chat.find('form.discord-eingabe').on('submit', function(event) {
 			event.preventDefault();
@@ -196,6 +200,7 @@ var DiscordChat = {
 
 		var liste = chat.find('.discord-nachrichten');
 		var amEnde = zumEnde || liste.scrollTop() + liste.innerHeight() >= liste[0].scrollHeight - 30;
+		this.__folgeEnde = amEnde;
 
 		liste.empty();
 		if( result.messages.length === 0 && !result.error ) {
@@ -229,13 +234,40 @@ var DiscordChat = {
 			if( !/^https:\/\//.test(anhang.url) ) {
 				return;
 			}
-			$('<a class="discord-anhang" target="_blank" rel="noopener noreferrer"></a>')
-				.attr('href', anhang.url)
-				.text('[Anhang] ' + anhang.name)
-				.appendTo(text);
+			var link = $('<a class="discord-anhang" target="_blank" rel="noopener noreferrer"></a>').attr('href', anhang.url);
+			if( anhang.art === 'bild' || anhang.art === 'video' ) {
+				var medium = anhang.art === 'bild' ?
+					$('<img class="discord-medium" alt="" />').attr('alt', anhang.name || '') :
+					$('<video class="discord-medium" autoplay loop muted playsinline></video>');
+				DiscordChat.__setzeGroesse(medium, anhang);
+				// Ohne bekannte Groesse verschiebt das Laden den Inhalt - dann ggf. wieder ans Ende scrollen
+				medium.on('load loadeddata', function() {
+					if( DiscordChat.__folgeEnde ) {
+						var liste = $('#discord-chat .discord-nachrichten');
+						liste.scrollTop(liste[0].scrollHeight);
+					}
+				});
+				medium.attr('src', anhang.url);
+				link.append(medium).appendTo(text);
+			}
+			else {
+				link.text('[Anhang] ' + anhang.name).appendTo(text);
+			}
 		});
 
 		return element;
+	},
+
+	MAX_BREITE : 320,
+	MAX_HOEHE : 220,
+
+	__setzeGroesse : function(medium, anhang) {
+		if( !anhang.breite || !anhang.hoehe ) {
+			return;
+		}
+		var faktor = Math.min(1, this.MAX_BREITE / anhang.breite, this.MAX_HOEHE / anhang.hoehe);
+		medium.attr('width', Math.round(anhang.breite * faktor));
+		medium.attr('height', Math.round(anhang.hoehe * faktor));
 	},
 
 	__fuegeTextMitLinksEin : function(ziel, text) {

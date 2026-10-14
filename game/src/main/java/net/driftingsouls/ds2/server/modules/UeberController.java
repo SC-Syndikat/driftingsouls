@@ -34,7 +34,6 @@ import net.driftingsouls.ds2.server.discord.DiscordException;
 import net.driftingsouls.ds2.server.discord.DiscordKanal;
 import net.driftingsouls.ds2.server.discord.DiscordKonfiguration;
 import net.driftingsouls.ds2.server.discord.DiscordService;
-import net.driftingsouls.ds2.server.discord.DiscordUser;
 import net.driftingsouls.ds2.server.entities.IntTutorial;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
@@ -251,8 +250,6 @@ public class UeberController extends Controller
 					kanal.getChannelId(),
 					user.getId(),
 					discordUserId,
-					user.getPlainname(),
-					DiscordUser.avatarUrl(discordUserId, user.getUserValue(WellKnownUserValue.DISCORD_AVATAR)),
 					text);
 		}
 		catch (DiscordException e)

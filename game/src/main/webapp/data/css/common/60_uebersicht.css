@@ -127,6 +127,16 @@
 	display: block;
 }
 
+/* Bilder und Videos aus dem Chat; width/height setzt das Script, damit der Platz schon vor dem Laden feststeht */
+.discord-medium {
+	display: block;
+	max-width: 100%;
+	max-height: 220px;
+	height: auto;
+	margin-top: 4px;
+	border-radius: 4px;
+}
+
 .discord-hinweis {
 	color: #A0A0A0;
 	text-align: center;
