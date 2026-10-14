@@ -814,3 +814,16 @@ Beantwortet am 2026-09-25:
     übergeben, werden seine Interaktionen gelöscht (`Ship.consign`, `KapernController`). Zusätzlich
     bietet der DialogService Interaktionen nur an Schiffen und Basen von NPCs an, und der Editor lässt
     nur solche Objekte zu.
+22. **GM steuert NPCs ohne Kontowechsel.** ✅ Auf Schiffs- und Basenübersicht schaltet ein Umschalter
+    zwischen dem eigenen Account und den teilnehmenden NPCs der laufenden Kampagne um
+    (`GameMasterControl`, `./gamemaster?action=control`); der GM bleibt dahinter angehängt. Im
+    Steuermodus zeigen die Übersichten nur Kampagnensysteme, Schiffs- und Basisansicht sowie alle
+    Aktionen sind außerhalb gesperrt (`CampaignActionGuard.controlDenial`).
+23. **Anfragen vor Ort bearbeiten.** ✅ Ein Formular für Antwort, Aktion, Fortsetzung und Abschluss
+    (`GmRequestPanel`), im GM-Werkzeug und in der Dialogbox des NPC-Schiffs; dort mit Infos zum Spieler
+    (Schiff, Offizier, Kampfkraft im Sektor, Vertrauen, Beziehung, Variablen) und Links zum Sektor und
+    zum Schiff des Gesprächspartners. Der Spieler kann seine Anfrage selbst abschließen.
+24. **GM-Startseite.** ✅ Kästen „Offene Spieler-Anfragen“ und „Schlachten in Kampagnensystemen“ (mit
+    Link, als beteiligtes NPC ansehen).
+25. **Kampagnenvariablen.** ✅ Im Dialog-Editor als Auswahl der bekannten Variablen mit „neue Variable“;
+    die Übersicht ist eine sortier- und filterbare Tabelle mit direkter Bearbeitung.

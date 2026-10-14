@@ -762,7 +762,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("name", "Name"), scope(), ParamDef.integer("value", "Wert", 1));
+			return List.of(ParamDef.variable("name", "Kampagnenvariable"), scope(), ParamDef.integer("value", "Wert", 1));
 		}
 
 		@Override
@@ -796,7 +796,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("name", "Name"), scope(), ParamDef.integer("delta", "Änderung", 1));
+			return List.of(ParamDef.variable("name", "Kampagnenvariable"), scope(), ParamDef.integer("delta", "Änderung", 1));
 		}
 
 		@Override

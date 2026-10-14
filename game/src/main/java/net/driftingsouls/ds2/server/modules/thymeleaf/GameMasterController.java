@@ -1,5 +1,7 @@
 package net.driftingsouls.ds2.server.modules.thymeleaf;
 
+import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
 import net.driftingsouls.ds2.server.campaign.interaction.GmRequest;
 import net.driftingsouls.ds2.server.campaign.interaction.GmRequestRepository;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
@@ -48,6 +50,7 @@ public class GameMasterController implements DSController {
       START,
       END,
       RELOCATE,
+      CONTROL,
       DEFAULT
     }
 
@@ -68,7 +71,8 @@ public class GameMasterController implements DSController {
         context = ContextMap.getContext();
         WebContext ctx = new WebContext(request, response, servletContext, request.getLocale());
 
-        User user = (User) context.getActiveUser();
+        // While the game master steers an NPC, he is the one behind the session
+        User user = (User) GameMasterControl.realUser();
         if(user == null || ! user.hasFlag(UserFlag.GAMEMASTER)) {
           Error error = new Error("Du hast keine Berechtigung f&uuml;r diese Seite.","./ds?module=ueber&amp;action=default");
           ctx.setVariable("error",error);
@@ -97,6 +101,12 @@ public class GameMasterController implements DSController {
             break;
           case RELOCATE:
             relocateAction(ctx, request, user);
+            break;
+          case CONTROL:
+            if(controlAction(ctx, request, response)){
+              return;
+            }
+            defaultAction(ctx, request, user, show);
             break;
           default:
             defaultAction(ctx, request, user, show);
@@ -264,6 +274,60 @@ public class GameMasterController implements DSController {
     }
 
     /**
+     * Steuert ein teilnehmendes NPC (oder wieder den eigenen Account) und springt zur gewuenschten Ansicht.
+     * @return <code>true</code>, wenn weitergeleitet wurde
+     */
+    private boolean controlAction(WebContext ctx, HttpServletRequest request, HttpServletResponse response) throws java.io.IOException {
+      int userId;
+      try {
+        userId = Integer.parseInt(request.getParameter("user"));
+      } catch(NumberFormatException e) {
+        ctx.setVariable("error", new Error("Ung&uuml;ltiger Account.", "./gamemaster"));
+        return false;
+      }
+      try {
+        GameMasterControl.switchTo(userId);
+      } catch(CampaignException e) {
+        ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster"));
+        return false;
+      }
+      response.sendRedirect(controlTarget(request.getParameter("to")));
+      return true;
+    }
+
+    /**
+     * Only the known views; the parameter must not lead anywhere else.
+     */
+    private static String controlTarget(String to) {
+      if(to == null) {
+        return "./gamemaster";
+      }
+      String[] parts = to.split(":", 2);
+      int id = 0;
+      if(parts.length == 2) {
+        try {
+          id = Integer.parseInt(parts[1]);
+        } catch(NumberFormatException e) {
+          return "./gamemaster";
+        }
+      }
+      switch(parts[0]) {
+        case "ships":
+          return "./ds?module=schiffe";
+        case "bases":
+          return "./ds?module=basen";
+        case "ship":
+          return "./ds?module=schiff&ship=" + id;
+        case "base":
+          return "./base?col=" + id;
+        case "battle":
+          return "./ds?module=angriff&battle=" + id;
+        default:
+          return "./gamemaster";
+      }
+    }
+
+    /**
      * Zeigt die GameMasterSeite an
      * @param ctx der WebContext
      * @param request der HttpServletRequest (enthaelt die uebergebenen Parameter)
@@ -327,6 +391,7 @@ public class GameMasterController implements DSController {
       ctx.setVariable("gmMenu", GameMasterMenu.ENTRIES);
       ctx.setVariable("show", show.name());
       ctx.setVariable("gmRequests", running ? RequestView.of(db, campaign.get()) : List.of());
+      ctx.setVariable("gmBattles", running ? BattleView.of(db, mapService.getSystemIds(campaign.get())) : List.of());
       ctx.setVariable("requestsPlugin", "./ds?module=admin&namedplugin=" + CampaignRequests.class.getName() + "&" + GameMasterMenu.PARAMETER + "=1");
     }
 
@@ -409,6 +474,69 @@ public class GameMasterController implements DSController {
                     "./ds?module=admin&namedplugin=" + CampaignRequests.class.getName() + "&request=" + request.id + "&" + GameMasterMenu.PARAMETER + "=1"));
             }
             return views;
+        }
+    }
+
+    /**
+     * A battle in a campaign star system, for the overview on the start page.
+     */
+    public static class BattleView
+    {
+        public final int id;
+        public final String location;
+        public final String side0;
+        public final String side1;
+        public final String url;
+        public final String linkLabel;
+
+        BattleView(int id, String location, String side0, String side1, String url, String linkLabel)
+        {
+            this.id = id;
+            this.location = location;
+            this.side0 = side0;
+            this.side1 = side1;
+            this.url = url;
+            this.linkLabel = linkLabel;
+        }
+
+        static List<BattleView> of(EntityManager db, Set<Integer> systems)
+        {
+            List<BattleView> views = new ArrayList<>();
+            if (systems.isEmpty())
+            {
+                return views;
+            }
+            Set<Integer> npcs = GameMasterControl.controllableNpcs().stream().map(User::getId).collect(Collectors.toSet());
+            for (Battle battle : db.createQuery("from Battle where system in (:systems) order by id", Battle.class)
+                .setParameter("systems", systems).getResultList())
+            {
+                String url = "./ds?module=angriff&battle=" + battle.getId();
+                String label = "ansehen";
+                for (int side = 0; side < 2; side++)
+                {
+                    User commander = battle.getCommander(side);
+                    if (commander != null && npcs.contains(commander.getId()))
+                    {
+                        // Seen through the NPC's eyes, which the game master may steer
+                        url = GameMasterMenu.controlUrl(commander.getId(), "battle:" + battle.getId());
+                        label = "als " + commander.getPlainname() + " ansehen";
+                        break;
+                    }
+                }
+                views.add(new BattleView(battle.getId(), battle.getLocation().displayCoordinates(false),
+                    side(db, battle, 0), side(db, battle, 1), url, label));
+            }
+            return views;
+        }
+
+        private static String side(EntityManager db, Battle battle, int side)
+        {
+            User commander = battle.getCommander(side);
+            Long ships = db.createQuery("select count(*) from BattleShip where battle = :battle and side = :side", Long.class)
+                .setParameter("battle", battle)
+                .setParameter("side", side)
+                .getSingleResult();
+            return (commander == null ? "?" : commander.getPlainname() + " (" + commander.getId() + ")") + ", " + ships + " Schiff(e)";
         }
     }
 

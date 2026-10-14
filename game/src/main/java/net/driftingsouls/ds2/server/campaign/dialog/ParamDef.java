@@ -16,7 +16,9 @@ public class ParamDef
 		INTEGER,
 		NUMBER,
 		/** One of {@link #choices}. */
-		CHOICE
+		CHOICE,
+		/** The name of a campaign variable: chosen from the known ones, or a new one. */
+		VARIABLE
 	}
 
 	public final String name;
@@ -35,6 +37,11 @@ public class ParamDef
 		this.required = required;
 		this.choices = choices;
 		this.defaultValue = defaultValue;
+	}
+
+	public static ParamDef variable(String name, String label)
+	{
+		return new ParamDef(name, label, Type.VARIABLE, true, Map.of(), "");
 	}
 
 	public static ParamDef text(String name, String label)
@@ -106,6 +113,8 @@ public class ParamDef
 				return null;
 			case CHOICE:
 				return choices.containsKey(v) ? null : label + " hat einen ungültigen Wert.";
+			case VARIABLE:
+				return v.length() <= 64 && v.matches("[\\w.-]+") ? null : label + ": nur Buchstaben, Ziffern, _ . - (höchstens 64 Zeichen).";
 			default:
 				return null;
 		}

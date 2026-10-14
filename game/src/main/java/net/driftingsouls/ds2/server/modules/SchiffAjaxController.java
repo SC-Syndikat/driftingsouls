@@ -67,6 +67,9 @@ public class SchiffAjaxController extends Controller
 		{
 			throw new ValidierungException("Das angegebene Schiff existiert nicht.");
 		}
+		new CampaignActionGuard().controlDenial(user, ship.getSystem()).ifPresent(denial -> {
+			throw new ValidierungException(denial);
+		});
 
 		if (ship.getBattle() != null)
 		{

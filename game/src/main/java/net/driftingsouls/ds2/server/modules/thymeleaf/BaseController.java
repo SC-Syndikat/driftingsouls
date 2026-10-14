@@ -82,6 +82,12 @@ public class BaseController implements DSController {
             ctx.setVariable("error",error);
             return false;
 		}
+		Optional<String> control = new CampaignActionGuard().controlDenial(user, base.getSystem());
+		if (control.isPresent())
+		{
+			ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(control.get())));
+			return false;
+		}
 
 		base.getCargo().setOption( Cargo.Option.LINKCLASS, "schiffwaren" );
         return true;

@@ -1,7 +1,11 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
 import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.BasicUser;
+import net.driftingsouls.ds2.server.framework.Common;
+import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
 
 import java.io.Serializable;
@@ -117,6 +121,55 @@ public final class GameMasterMenu
 			navigation.active = false;
 		}
 		return navigation.active;
+	}
+
+	/**
+	 * The switch between the game master's own account and the running campaign's NPCs, for the ship and base
+	 * overviews; empty for everyone else.
+	 *
+	 * @param to Where to land after switching: {@code ships} or {@code bases}
+	 */
+	public static String controlToggle(String to)
+	{
+		BasicUser real = GameMasterControl.realUser();
+		if (!GameMasterControl.mayControl(real))
+		{
+			return "";
+		}
+		List<User> npcs = GameMasterControl.controllableNpcs();
+		if (npcs.isEmpty())
+		{
+			return "";
+		}
+		int active = ContextMap.getContext().getActiveUser().getId();
+		StringBuilder html = new StringBuilder("<div class='gfxbox' style='margin-bottom:6px'><span class='smallfont'>GameMaster – steuern als: ");
+		toggleLink(html, real.getId(), escapeHtml4(Common._plaintitle(real.getName())) + " (du)", active, to);
+		for (User npc : npcs)
+		{
+			html.append(" · ");
+			toggleLink(html, npc.getId(), escapeHtml4(npc.getPlainname()) + " (" + npc.getId() + ")", active, to);
+		}
+		html.append(GameMasterControl.isControlling() ? " – nur Schiffe und Basen in Kampagnensystemen" : "").append("</span></div>");
+		return html.toString();
+	}
+
+	private static void toggleLink(StringBuilder html, int userId, String label, int active, String to)
+	{
+		if (userId == active)
+		{
+			html.append("<b>").append(label).append("</b>");
+			return;
+		}
+		html.append("<a class='forschinfo' href='").append(escapeHtml4(controlUrl(userId, to))).append("'>").append(label).append("</a>");
+	}
+
+	/**
+	 * @param to {@code ships}, {@code bases}, {@code ship:<id>}, {@code base:<id>} or {@code battle:<id>}
+	 * @return The link that switches to the user and lands there
+	 */
+	public static String controlUrl(int userId, String to)
+	{
+		return "./gamemaster?action=control&user=" + userId + "&to=" + to;
 	}
 
 	/**

@@ -1,10 +1,17 @@
 package net.driftingsouls.ds2.server.campaign.dialog;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import static net.driftingsouls.ds2.server.campaign.CampaignDb.withDb;
 import static net.driftingsouls.ds2.server.entities.jooq.Tables.CAMPAIGN_VARIABLE;
+import static net.driftingsouls.ds2.server.entities.jooq.Tables.DIALOG_OPTION_ACTION;
+import static net.driftingsouls.ds2.server.entities.jooq.Tables.DIALOG_OPTION_CONDITION;
+import static net.driftingsouls.ds2.server.entities.jooq.Tables.DIALOG_OPTION_MODIFIER;
 
 /**
  * Named numbers per campaign, either per player or global, for campaign progress: "has talked to the
@@ -44,6 +51,32 @@ public class CampaignVariableService
 				.onDuplicateKeyUpdate()
 				.set(CAMPAIGN_VARIABLE.VALUE, CAMPAIGN_VARIABLE.VALUE.plus(delta))
 				.execute());
+	}
+
+	/**
+	 * @return Every variable name in use: set in any campaign, or read or written by a dialog
+	 */
+	public SortedSet<String> knownNames()
+	{
+		return withDb(db -> {
+			SortedSet<String> names = new TreeSet<>(db.selectDistinct(CAMPAIGN_VARIABLE.NAME).from(CAMPAIGN_VARIABLE).fetch(CAMPAIGN_VARIABLE.NAME));
+			List<String> params = new ArrayList<>();
+			params.addAll(db.select(DIALOG_OPTION_CONDITION.PARAMS).from(DIALOG_OPTION_CONDITION)
+					.where(DIALOG_OPTION_CONDITION.TYPE.eq("VARIABLE")).fetch(DIALOG_OPTION_CONDITION.PARAMS));
+			params.addAll(db.select(DIALOG_OPTION_MODIFIER.PARAMS).from(DIALOG_OPTION_MODIFIER)
+					.where(DIALOG_OPTION_MODIFIER.TYPE.eq("VARIABLE")).fetch(DIALOG_OPTION_MODIFIER.PARAMS));
+			params.addAll(db.select(DIALOG_OPTION_ACTION.PARAMS).from(DIALOG_OPTION_ACTION)
+					.where(DIALOG_OPTION_ACTION.TYPE.in("SET_VARIABLE", "ADD_VARIABLE")).fetch(DIALOG_OPTION_ACTION.PARAMS));
+			for (String json : params)
+			{
+				String name = Params.fromJson(json).get("name");
+				if (name != null && !name.isBlank())
+				{
+					names.add(name);
+				}
+			}
+			return names;
+		});
 	}
 
 	public void delete(int campaignId, int userId, String name)

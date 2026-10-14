@@ -18,7 +18,10 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.Action;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml;
 import net.driftingsouls.ds2.server.modules.admin.CampaignInteractions;
+import net.driftingsouls.ds2.server.modules.admin.GmRequestPanel;
 import net.driftingsouls.ds2.server.modules.admin.CampaignRequests;
 import net.driftingsouls.ds2.server.ships.Ship;
 import org.springframework.stereotype.Component;
@@ -76,6 +79,19 @@ public class CampaignDialog implements SchiffPlugin
 				case "requestreply":
 					requests.playerReply(user, request, text);
 					return "";
+				case "requestclose":
+					requests.playerClose(user, request);
+					return "";
+				case "gmrespond":
+				{
+					BasicUser real = GameMasterControl.realUser();
+					if (!GameMasterControl.mayControl(real))
+					{
+						return "";
+					}
+					List<String> done = GmRequestPanel.handle(ContextMap.getContext().getEM(), ContextMap.getContext().getRequest(), (User) real, request);
+					return "<span style=\"color:#ffcc00\">" + escapeHtml4(String.join(" · ", done)) + ".</span>";
+				}
 				default:
 					return "";
 			}
@@ -185,6 +201,10 @@ public class CampaignDialog implements SchiffPlugin
 				html.append("<input type=\"hidden\" name=\"").append(PLUGIN_ID).append("_ops[request]\" value=\"").append(request.id).append("\" />")
 						.append("<textarea name=\"").append(PLUGIN_ID).append("_ops[text]\" rows=\"2\" cols=\"70\"></textarea><br />")
 						.append("<input type=\"submit\" value=\"Antworten\" /></form>");
+				html.append("<form action=\"./ds\" method=\"post\" style=\"display:inline\">");
+				hiddenPluginFields(html, ship, "requestclose");
+				html.append("<input type=\"hidden\" name=\"").append(PLUGIN_ID).append("_ops[request]\" value=\"").append(request.id).append("\" />")
+						.append("<input type=\"submit\" value=\"Anfrage abschließen\" /></form>");
 			}
 			html.append("</div>");
 		}
@@ -250,16 +270,20 @@ public class CampaignDialog implements SchiffPlugin
 		}
 		html.append(" <a class=\"forschinfo\" href=\"").append(CampaignInteractions.objectUrl(ObjectType.SHIP, ship.getId()))
 				.append("\">+ Interaktion hinzufügen / verwalten</a></span><br />");
+		// Requests about this ship: the game master answers and acts right here, in the sector
 		List<GmRequest> open = new GmRequestRepository().findOpenForInteractions(interactions.stream().map(i -> i.id).collect(Collectors.toList()));
-		if (!open.isEmpty())
+		for (GmRequest request : open)
 		{
-			html.append("<span class=\"smallfont\">Offene Spieler-Anfragen: ");
-			for (GmRequest request : open)
-			{
-				html.append("<a class=\"forschinfo\" href=\"./ds?module=admin&amp;namedplugin=").append(CampaignRequests.class.getName())
-						.append("&amp;request=").append(request.id).append("\">#").append(request.id).append(request.unreadByGm ? " (neu)" : "").append("</a> ");
-			}
-			html.append("</span><br />");
+			StringBuilder panel = new StringBuilder();
+			CampaignAdminHtml.begin(panel);
+			panel.append("<b>Spieler-Anfrage #").append(request.id).append("</b> <a class=\"forschinfo\" href=\"./ds?module=admin&amp;namedplugin=")
+					.append(CampaignRequests.class.getName()).append("&amp;request=").append(request.id).append("\">im GM-Menü öffnen</a>");
+			StringBuilder hidden = new StringBuilder();
+			hiddenPluginFields(hidden, ship, "gmrespond");
+			hidden.append("<input type=\"hidden\" name=\"").append(PLUGIN_ID).append("_ops[request]\" value=\"").append(request.id).append("\" />");
+			GmRequestPanel.render(panel, ContextMap.getContext().getEM(), request, "./ds", hidden.toString());
+			CampaignAdminHtml.end(panel);
+			html.append(panel);
 		}
 		if (!interactions.isEmpty() && !inCampaignSystem(ship))
 		{

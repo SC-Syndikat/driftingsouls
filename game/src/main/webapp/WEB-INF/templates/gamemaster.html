@@ -43,9 +43,10 @@
         <span class="smallfont" th:if="${out && not out.isEmpty()}" th:text="${out}"><br /><br /></span>
       </div>
 
-      <div class="gfxbox" style="width:95%" th:if="${not #lists.isEmpty(gmRequests)}">
+      <div class="gfxbox" style="width:95%" th:if="${campaign}">
         <b>Offene Spieler-Anfragen</b> &middot; <a class="forschinfo" th:href="${requestsPlugin}">alle anzeigen</a>
-        <table class="noBorderX" width="100%" cellspacing="2" cellpadding="2">
+        <div th:if="${#lists.isEmpty(gmRequests)}" class="smallfont">Keine offenen Anfragen.</div>
+        <table class="noBorderX" width="100%" cellspacing="2" cellpadding="2" th:unless="${#lists.isEmpty(gmRequests)}">
           <tr>
             <td class="noBorderX">#</td>
             <td class="noBorderX">Spieler</td>
@@ -61,6 +62,27 @@
             <td class="noBorderX" th:text="${r.excerpt}"></td>
             <td class="noBorderX"><span th:text="${r.updated}"></span> <span th:if="${r.unread}" class="error">neu</span></td>
             <td class="noBorderX"><a class="forschinfo" th:href="${r.url}">öffnen &raquo;</a></td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="gfxbox" style="width:95%" th:if="${campaign}">
+        <b>Schlachten in Kampagnensystemen</b>
+        <div th:if="${#lists.isEmpty(gmBattles)}" class="smallfont">Keine Schlachten.</div>
+        <table class="noBorderX" width="100%" cellspacing="2" cellpadding="2" th:unless="${#lists.isEmpty(gmBattles)}">
+          <tr>
+            <td class="noBorderX">#</td>
+            <td class="noBorderX">Ort</td>
+            <td class="noBorderX">Seite 1</td>
+            <td class="noBorderX">Seite 2</td>
+            <td class="noBorderX"></td>
+          </tr>
+          <tr th:each="b: ${gmBattles}">
+            <td class="noBorderX" th:text="${b.id}"></td>
+            <td class="noBorderX" th:text="${b.location}"></td>
+            <td class="noBorderX" th:text="${b.side0}"></td>
+            <td class="noBorderX" th:text="${b.side1}"></td>
+            <td class="noBorderX"><a class="forschinfo" th:href="${b.url}" th:text="${b.linkLabel} + ' »'">ansehen</a></td>
           </tr>
         </table>
       </div>

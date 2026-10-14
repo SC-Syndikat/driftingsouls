@@ -85,6 +85,23 @@ public class GmRequestService
 	}
 
 	/**
+	 * The player is done with an open request of theirs.
+	 */
+	public void playerClose(User user, int requestId)
+	{
+		GmRequest request = requests.find(requestId)
+				.filter(r -> r.userId == user.getId())
+				.orElseThrow(() -> new CampaignException("Diese Anfrage gibt es nicht."));
+		if (!request.isOpen())
+		{
+			return;
+		}
+		requests.setStatus(request.id, GmRequest.Status.CLOSED);
+		requests.addMessage(request.id, user.getId(), GmRequest.Kind.PLAYER, "(hat die Anfrage abgeschlossen)");
+		requests.markReadByUser(request.id);
+	}
+
+	/**
 	 * @return The player's requests from the ship that are open or have an unread answer; viewing them marks
 	 * them read
 	 */

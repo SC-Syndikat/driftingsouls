@@ -588,7 +588,7 @@ public final class StandardFactors
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("name", "Name"), scope());
+			return List.of(ParamDef.variable("name", "Kampagnenvariable"), scope());
 		}
 
 		@Override

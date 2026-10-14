@@ -107,6 +107,9 @@ public class SchiffController extends Controller
 		{
 			throw new ValidierungException("Das angegebene Schiff existiert nicht", Common.buildUrl("default", "module", "schiffe"));
 		}
+		new CampaignActionGuard().controlDenial(user, ship.getSystem()).ifPresent(denial -> {
+			throw new ValidierungException(denial, Common.buildUrl("default", "module", "schiffe"));
+		});
 
 		if (ship.getBattle() != null)
 		{

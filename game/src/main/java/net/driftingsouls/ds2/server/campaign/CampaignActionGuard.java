@@ -49,6 +49,11 @@ public class CampaignActionGuard
 	 */
 	public Optional<String> denial(User user, int starSystemId, CampaignAction action)
 	{
+		Optional<String> control = controlDenial(user, starSystemId);
+		if (control.isPresent())
+		{
+			return control;
+		}
 		if (user == null || user.isNPC() || user.hasFlag(UserFlag.GAMEMASTER))
 		{
 			return Optional.empty();
@@ -75,6 +80,11 @@ public class CampaignActionGuard
 	 */
 	public Optional<String> jumpDenial(User user, int sourceSystemId, int targetSystemId, Integer jumpNodeId)
 	{
+		Optional<String> control = controlDenial(user, sourceSystemId).or(() -> controlDenial(user, targetSystemId));
+		if (control.isPresent())
+		{
+			return control;
+		}
 		if (user == null || user.isNPC() || user.hasFlag(UserFlag.GAMEMASTER))
 		{
 			return Optional.empty();
@@ -105,6 +115,24 @@ public class CampaignActionGuard
 		{
 			throw new ValidierungException(denial.get());
 		}
+	}
+
+	/**
+	 * While the game master steers an NPC through {@link GameMasterControl}, the NPC acts only in campaign
+	 * star systems.
+	 */
+	public Optional<String> controlDenial(User user, int starSystemId)
+	{
+		if (user == null || !user.isNPC() || !GameMasterControl.isControlling())
+		{
+			return Optional.empty();
+		}
+		Optional<Campaign> campaign = campaigns.findOpen();
+		if (campaign.isPresent() && map.findSystemIds(campaign.get().getId()).contains(starSystemId))
+		{
+			return Optional.empty();
+		}
+		return Optional.of("Als GameMaster steuerst du NPCs nur in Kampagnensystemen.");
 	}
 
 	/**
