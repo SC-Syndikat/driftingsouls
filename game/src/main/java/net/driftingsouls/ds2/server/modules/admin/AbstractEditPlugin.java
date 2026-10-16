@@ -7,6 +7,7 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.DynamicContent;
 import net.driftingsouls.ds2.server.framework.DynamicContentManager;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
+import net.driftingsouls.ds2.server.modules.admin.editoren.Confirmation;
 import org.apache.commons.fileupload.FileItem;
 import org.hibernate.Session;
 
@@ -51,8 +52,16 @@ public abstract class AbstractEditPlugin<T> implements AdminPlugin
 				@SuppressWarnings("unchecked") T entity = (T) db.get(this.clazz, entityId);
 				if (entity != null && visible.test(entity) && isUpdatePossible(entity))
 				{
-					update(new DefaultStatusWriter(echo), entity);
-					echo.append("<p>Update abgeschlossen.</p>");
+					Confirmation confirmation = getUpdateConfirmation(entity);
+					if (confirmation != null && !Confirmation.isConfirmed(request))
+					{
+						confirmation.render(echo, request, "Trotzdem ausführen");
+					}
+					else
+					{
+						update(new DefaultStatusWriter(echo), entity);
+						echo.append("<p>Update abgeschlossen.</p>");
+					}
 				}
 			}
 			catch (IOException | RuntimeException e)
@@ -141,6 +150,15 @@ public abstract class AbstractEditPlugin<T> implements AdminPlugin
 	protected boolean isUpdatePossible(T entity)
 	{
 		return true;
+	}
+
+	/**
+	 * @return What the requested update affects that has to be confirmed first, or {@code null} if it
+	 * needs no confirmation
+	 */
+	protected Confirmation getUpdateConfirmation(T entity) throws IOException
+	{
+		return null;
 	}
 
 	/**

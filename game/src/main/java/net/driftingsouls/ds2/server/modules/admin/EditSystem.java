@@ -25,9 +25,12 @@ import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignMapRepository;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.CampaignObject;
 import net.driftingsouls.ds2.server.campaign.CampaignRepository;
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.SystemChangeImpact;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.config.StarSystem_;
 import net.driftingsouls.ds2.server.entities.Jump;
@@ -35,6 +38,7 @@ import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.entities.Nebel;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ContextMap;
+import net.driftingsouls.ds2.server.modules.admin.editoren.Confirmation;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EditorForm8;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EntityEditor;
 import net.driftingsouls.ds2.server.repositories.BasesRepository;
@@ -43,6 +47,9 @@ import org.hibernate.Session;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Aktualisierungstool fuer die Systeme.
@@ -105,6 +112,12 @@ public class EditSystem implements EntityEditor<StarSystem>
 		form.field("Beschreibung", String.class, StarSystem::getDescription, StarSystem::setDescription);
 		form.field("Ressourcenvorkommen", String.class, StarSystem::getSpawnableRess, StarSystem::setSpawnableRess);
 
+
+		// Players' ships and bases are only moved, hidden or removed after a confirmation listing them
+		form.confirmUpdate((before, after) -> confirmation(SystemChangeImpact.ofUpdate(
+				before.getWidth(), before.getHeight(), before.getAccess(),
+				after.getWidth(), after.getHeight(), after.getAccess(), playerObjects(after.getID()))));
+		form.confirmDelete(system -> confirmation(SystemChangeImpact.ofDelete(playerObjects(system.getID()))));
 
 		form.postUpdateTask("Schiffe an Systemgrenzen anpassen",
 				(s) -> Common.cast(ContextMap.getContext().getDB().createQuery("select id from Ship where system = :system and (x>:width or y>:height)")
@@ -186,6 +199,28 @@ public class EditSystem implements EntityEditor<StarSystem>
 						.list()),
 				this::destroyBase
 		);
+	}
+
+	/**
+	 * @return The ships and bases of players in the star system
+	 */
+	static List<CampaignObject> playerObjects(int starSystemId)
+	{
+		return new CampaignMapRepository().findPlayerObjects(Set.of(starSystemId));
+	}
+
+	/**
+	 * @return The confirmation listing the affected objects, or {@code null} if none is affected
+	 */
+	static Confirmation confirmation(SystemChangeImpact impact)
+	{
+		if (impact.isEmpty())
+		{
+			return null;
+		}
+		return new Confirmation(impact.reasons, impact.objects.stream()
+				.map(o -> o.type.getLabel() + " " + o.name + " (" + o.id + ") – " + o.ownerName + " (" + o.ownerId + ") – " + o.getLocation())
+				.collect(Collectors.toList()));
 	}
 
 	private void destroyBase(StarSystem oldsystem, StarSystem system, Serializable baseid)

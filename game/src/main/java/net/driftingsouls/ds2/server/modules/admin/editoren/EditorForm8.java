@@ -5,6 +5,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.Request;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -26,6 +27,8 @@ public class EditorForm8<E> implements FormElementCreator<E>
 	private final List<Job<E,?>> updateTasks = new ArrayList<>();
 	private final List<Job<E,?>> deleteTasks = new ArrayList<>();
 	private final List<BiConsumer<E,E>> updateValidators = new ArrayList<>();
+	private BiFunction<E,E,Confirmation> updateConfirmation = (before, after) -> null;
+	private Function<E,Confirmation> deleteConfirmation = (entity) -> null;
 	private Function<E,Boolean> visible = (entity) -> true;
 	private VisibilityQuery<E> visibilityQuery = null;
 	private Class<? extends E> defaultEntityClass = null;
@@ -123,6 +126,40 @@ public class EditorForm8<E> implements FormElementCreator<E>
 		{
 			validator.accept(before, after);
 		}
+	}
+
+	/**
+	 * Asks for confirmation before an update is saved. The check gets the entity before and after the
+	 * update and returns what the update affects, or {@code null} if nothing needs confirming.
+	 */
+	public void confirmUpdate(BiFunction<E, E, Confirmation> check)
+	{
+		this.updateConfirmation = check;
+	}
+
+	/**
+	 * @return What the update affects, or {@code null} if it needs no confirmation
+	 */
+	public Confirmation getUpdateConfirmation(E before, E after)
+	{
+		return this.updateConfirmation.apply(before, after);
+	}
+
+	/**
+	 * Asks for confirmation before an entity is deleted. The check returns what deleting it affects, or
+	 * {@code null} if nothing needs confirming.
+	 */
+	public void confirmDelete(Function<E, Confirmation> check)
+	{
+		this.deleteConfirmation = check;
+	}
+
+	/**
+	 * @return What deleting the entity affects, or {@code null} if it needs no confirmation
+	 */
+	public Confirmation getDeleteConfirmation(E entity)
+	{
+		return this.deleteConfirmation.apply(entity);
 	}
 
 	/**

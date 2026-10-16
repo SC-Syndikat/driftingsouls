@@ -87,8 +87,18 @@ public class EditPlugin8<T> implements AdminPlugin
 						db.evict(updatedEntity);
 						throw e;
 					}
-					processJobs(echo, entity, updatedEntity, form.getUpdateTasks());
-					echo.append("<p>Update abgeschlossen.</p>");
+					Confirmation confirmation = form.getUpdateConfirmation(entity, updatedEntity);
+					if (confirmation != null && !Confirmation.isConfirmed(request))
+					{
+						// Nothing is saved until the update is confirmed
+						db.evict(updatedEntity);
+						confirmation.render(echo, request, "Trotzdem speichern");
+					}
+					else
+					{
+						processJobs(echo, entity, updatedEntity, form.getUpdateTasks());
+						echo.append("<p>Update abgeschlossen.</p>");
+					}
 				}
 			}
 			catch (IOException | RuntimeException e)
@@ -221,6 +231,13 @@ public class EditPlugin8<T> implements AdminPlugin
 		T entity = db.find(this.clazz, toEntityId(this.clazz, entityId));
 		if( entity != null && form.isDeleteAllowed(entity) )
 		{
+			Confirmation confirmation = form.getDeleteConfirmation(entity);
+			if( confirmation != null && !Confirmation.isConfirmed(request) )
+			{
+				confirmation.render(echo, request, "Trotzdem löschen");
+				return;
+			}
+
 			processJobs(echo, entity, entity, form.getDeleteTasks());
 
 			db.getTransaction().commit();

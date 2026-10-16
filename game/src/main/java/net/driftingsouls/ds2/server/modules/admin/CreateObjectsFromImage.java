@@ -25,6 +25,7 @@ import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.BaseType;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.SystemChangeImpact;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.Nebel;
 import net.driftingsouls.ds2.server.entities.Offizier;
@@ -35,6 +36,7 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.db.batch.UnitOfWork;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
 import net.driftingsouls.ds2.server.map.TileCache;
+import net.driftingsouls.ds2.server.modules.admin.editoren.Confirmation;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -124,6 +126,27 @@ public class CreateObjectsFromImage extends AbstractEditPlugin<StarSystem> imple
 		// A game master only fills star systems of the campaign
 		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
 		return system -> restriction.isSystemAllowed(system.getID());
+	}
+
+	@Override
+	protected Confirmation getUpdateConfirmation(StarSystem system) throws IOException
+	{
+		if (!"true".equalsIgnoreCase(ContextMap.getContext().getRequest().getParameterString("clearSystem")))
+		{
+			return null;
+		}
+		Confirmation confirmation = EditSystem.confirmation(SystemChangeImpact.ofClearingBases(EditSystem.playerObjects(system.getID())));
+		if (confirmation == null)
+		{
+			return null;
+		}
+		SystemImg img = loadImageFromRequest();
+		if (img != null)
+		{
+			// The confirmation cannot upload the image again; it refers to the copy saved by now
+			confirmation.withParameter("imgName", new File(img.getPath()).getName());
+		}
+		return confirmation;
 	}
 
 	@Override
