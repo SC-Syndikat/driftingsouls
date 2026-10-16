@@ -23,6 +23,8 @@ import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.BaseStatus;
 import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignRepository;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.cargo.ResourceList;
@@ -213,6 +215,14 @@ public class UeberController extends Controller
 				"global.ticks", ticks,
 				"global.ticktime", ticktime,
 				"campaign.attacknotice", StringEscapeUtils.escapeHtml4(user.getUserValue(WellKnownUserValue.CAMPAIGN_ATTACK_NOTICE)));
+
+		// The tick's progress is not shown here: players are locked out while it runs
+		if (Boolean.TRUE.equals(user.isCampaignParticipant()))
+		{
+			new CampaignRepository().findOpen().filter(Campaign::isRunning)
+					.ifPresent(campaign -> t.setVar("campaign.running", true,
+							"campaign.tick", campaign.getTickCount()));
+		}
 
 		//
 		// Ingame-Zeit setzen

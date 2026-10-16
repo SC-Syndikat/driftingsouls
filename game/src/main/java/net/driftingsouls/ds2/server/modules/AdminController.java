@@ -321,8 +321,8 @@ public class AdminController extends Controller
 			}
 			finally
 			{
+				// No Admin.initMenu(): it would fold the game master's menu, which stays fully open
 				echo.append("</div></div>");
-				echo.append("<script type='text/javascript'>$(document).ready(function() {Admin.initMenu();});</script>");
 			}
 			return;
 		}

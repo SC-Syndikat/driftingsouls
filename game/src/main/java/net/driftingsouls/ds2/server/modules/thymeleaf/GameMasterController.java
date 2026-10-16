@@ -411,6 +411,7 @@ public class GameMasterController implements DSController {
       ctx.setVariable("campaign", running);
       ctx.setVariable("preparing", preparing);
       ctx.setVariable("campaignName", campaign.map(Campaign::getName).orElse(null));
+      ctx.setVariable("tickInfo", GameMasterMenu.tickInfo(campaign));
       ctx.setVariable("participantsPlugin", "./ds?module=admin&namedplugin=" + CampaignParticipants.class.getName());
       ctx.setVariable("gmMenu", GameMasterMenu.ENTRIES);
       ctx.setVariable("show", show.name());

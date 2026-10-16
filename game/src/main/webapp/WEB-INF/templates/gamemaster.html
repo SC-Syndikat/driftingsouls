@@ -27,6 +27,7 @@
     <div class="gfxbox treemenu">
       <ul style="display: block;">
         <li th:if="${campaignName}" class="smallfont" th:text="${campaignName} + ${campaign ? ' (läuft)' : ' (in Vorbereitung)'}"></li>
+        <th:block th:utext="${tickInfo}"></th:block>
         <li><img src="data/interface/admin/editor.png"><span>Kampagne vorbereiten</span>
           <ul style="display:block; margin-left:14px; line-height:1.6">
             <li th:each="entry: ${gmMenu}"><a class="forschinfo" th:href="${entry.url}" th:text="${entry.label}">Teilnehmer</a></li>

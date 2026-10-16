@@ -9,6 +9,7 @@ import net.driftingsouls.ds2.server.framework.BasicUser;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
+import net.driftingsouls.ds2.server.tick.CampaignTickStatus;
 
 import java.io.Serializable;
 import java.util.List;
@@ -182,6 +183,43 @@ public final class GameMasterMenu
 	}
 
 	/**
+	 * The running campaign's tick count and how far the last campaign tick has got, as menu entries.
+	 * @return The entries, empty without a running campaign
+	 */
+	public static String tickInfo(Optional<Campaign> campaign)
+	{
+		if (campaign.isEmpty() || !campaign.get().isRunning())
+		{
+			return "";
+		}
+		StringBuilder html = new StringBuilder();
+		html.append("<li class='smallfont'>Kampagnentick ").append(campaign.get().getTickCount()).append("</li>");
+		CampaignTickStatus status = CampaignTickStatus.get();
+		switch (status.getState())
+		{
+			case STARTED:
+				html.append("<li class='smallfont' style='color:orange'>Tick gestartet um ").append(Common.date("H:i:s", status.getStartedAt()))
+						.append(", wartet auf den Scheduler</li>");
+				break;
+			case RUNNING:
+				html.append("<li class='smallfont' style='color:orange'>Tick läuft seit ").append(Common.date("H:i:s", status.getStartedAt()));
+				if (status.getStep() != null)
+				{
+					html.append(": ").append(escapeHtml4(status.getStep()));
+				}
+				html.append("</li>");
+				break;
+			case FINISHED:
+				html.append("<li class='smallfont' style='color:#33dd33'>Tick beendet um ").append(Common.date("H:i:s", status.getFinishedAt()))
+						.append(" (Dauer ").append(status.getFinishedAt() - status.getStartedAt()).append(" s)</li>");
+				break;
+			default:
+				break;
+		}
+		return html.toString();
+	}
+
+	/**
 	 * The menu as it stands in place of the admin menu's tree.
 	 */
 	public static void render(Appendable out, String activePlugin, boolean withAdminMenu)
@@ -196,13 +234,14 @@ public final class GameMasterMenu
 			out.append("<li class='smallfont'><a class='forschinfo' href='./gamemaster'>")
 					.append(campaign.map(c -> escapeHtml4(c.getName()) + (running ? " (läuft)" : " (in Vorbereitung)")).orElse("GameMaster-Seite"))
 					.append("</a></li>");
+			out.append(tickInfo(campaign));
 			out.append("<li><img src='data/interface/admin/editor.png' /><span>Kampagne vorbereiten</span>")
 					.append("<ul style='display:block; margin-left:14px; line-height:1.6'>");
 			for (Entry entry : ENTRIES)
 			{
 				boolean active = entry.plugin.equals(activePlugin);
 				out.append("<li><a class='forschinfo").append(active ? " active" : "").append("' href='").append(escapeHtml4(entry.url)).append("'>")
-						.append(active ? "&gt; " : "").append(escapeHtml4(entry.label)).append("</a></li>");
+						.append(escapeHtml4(entry.label)).append("</a></li>");
 			}
 			out.append("</ul></li>");
 			menuLink(out, "Kampagne starten", "./gamemaster?show=start", preparing);

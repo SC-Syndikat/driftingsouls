@@ -95,7 +95,9 @@
 					{if user.campaign_participant}
 					<div>
 						<div class="gfxbox" style="margin-left: -40px;width: 250px;padding-left: 30px">
-							Kampagne<br /><br />
+							Kampagne<br />
+							{if campaign.running}<span class="smallfont">Kampagnentick {campaign.tick}</span><br />{/endif}
+							<br />
 							{if campaign.attacknotice}
 							<span style="color:red;font-weight:bold">{campaign.attacknotice}</span><br />
 							{!link_to gelesen, dismissAttackNotice, css_class:error}<br /><br />

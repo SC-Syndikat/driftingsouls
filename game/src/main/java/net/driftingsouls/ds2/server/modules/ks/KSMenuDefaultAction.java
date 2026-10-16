@@ -58,13 +58,6 @@ public class KSMenuDefaultAction extends BasicKSMenuAction {
 									"attack",	enemyShip.getId(),
 									"ksaction",	"flucht" );
 
-		// Kampagne: Bedingungen mit dem GameMaster aushandeln
-		if( GmRequestService.battleRequestsPossible((User)this.getController().getUser(), battle) ) {
-			this.menuEntry(t, "Anfrage an den GameMaster",	"ship",		ownShip.getId(),
-												"attack",	enemyShip.getId(),
-												"ksaction",	"gmrequest" );
-		}
-
 		// Kampf beenden weil nur noch Zivilschiffe uebrig?
 		if( this.isPossible(battle, new KSEndBattleCivilAction()) == Result.OK ) {
 			this.menuEntry(t, "Kampf beenden",	"ship",		ownShip.getId(),
@@ -142,6 +135,12 @@ public class KSMenuDefaultAction extends BasicKSMenuAction {
 		menuEntry(t, "Sonstiges",	"ship",		ownShip.getId(),
 								"attack",	enemyShip.getId(),
 								"ksaction",	"other" );
+
+		// Kampagne: Bedingungen mit dem GameMaster aushandeln; als letzter Eintrag in eigener Farbe
+		if( GmRequestService.battleRequestsPossible((User)this.getController().getUser(), battle) ) {
+			menuEntryColored(t, "Anfrage an den GameMaster",
+					"&amp;ship=" + ownShip.getId() + "&amp;attack=" + enemyShip.getId() + "&amp;ksaction=gmrequest", "#2A5DB0");
+		}
 
 		return Result.OK;
 	}
