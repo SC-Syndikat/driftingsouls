@@ -124,7 +124,8 @@ public abstract class BasicUser {
 	 * @param user Der Benutzer, der temporaer an diesen gekoppelt werden soll
 	 */
 	public void attachToUser( BasicUser user ) {
-		this.attachedUser = user;
+		// Attached to itself, getAccessLevel() would never return
+		this.attachedUser = user == this ? null : user;
 	}
 
 	/**

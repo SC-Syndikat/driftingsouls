@@ -82,7 +82,11 @@ public final class GmRequestPanel
 			}
 			done.add("Aktion: " + service.runAction(gamemaster, requestId, type, readParams(request, action.getParams(), actionPrefix(type))));
 		}
-		if ("1".equals(request.getParameterString("gm_endbattle")))
+		if ("1".equals(request.getParameterString("gm_capitulate")))
+		{
+			done.add("Kapitulation: " + service.capitulate(gamemaster, requestId) + " Schiff(e) übergeben, Schlacht beendet");
+		}
+		else if ("1".equals(request.getParameterString("gm_endbattle")))
 		{
 			service.endBattle(gamemaster, requestId);
 			done.add("Schlacht beendet");
@@ -302,6 +306,7 @@ public final class GmRequestPanel
 		if (request.battleId != null)
 		{
 			echo.append("<label><input type='checkbox' name='gm_endbattle' value='1' /> Schlacht beenden (unentschieden)</label><br />");
+			echo.append("<label><input type='checkbox' name='gm_capitulate' value='1' /> Gegenseite kapituliert: alle ihre Schiffe an den Spieler übergeben und die Schlacht beenden</label><br />");
 		}
 		echo.append("<label><input type='checkbox' name='gm_close' value='1' /> Anfrage danach abschließen</label><br />");
 		echo.append("<input type='submit' value='Ausführen' /> <span class='campaign-hint'>Aktion, Fortsetzung, Antwort und Abschluss laufen mit einem Klick.</span>");

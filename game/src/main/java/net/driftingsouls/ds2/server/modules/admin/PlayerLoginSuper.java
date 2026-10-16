@@ -70,7 +70,8 @@ public class PlayerLoginSuper implements AdminPlugin {
 					User npc = (User)context.getDB().get(User.class, npcId);
 					if( npc != null ) {
 						echo.append("<option value=\"").append(npcId).append("\">")
-								.append(StringEscapeUtils.escapeHtml4(npc.getPlainname())).append(" (").append(npcId).append(")</option>");
+								.append(StringEscapeUtils.escapeHtml4(npc.getPlainname())).append(" (").append(npcId).append(")")
+								.append(npc.getDisabled() ? " – gesperrt" : "").append("</option>");
 					}
 				}
 				echo.append("</select>\n");
@@ -93,6 +94,12 @@ public class PlayerLoginSuper implements AdminPlugin {
 			User userObj = (User)context.getDB().get(User.class, user);
 			if( userObj == null ) {
 				echo.append("<span style=\"color:red\">Der angegebene Spieler existiert nicht</span>");
+				return;
+			}
+
+			if( userObj.getDisabled() ) {
+				// The next request would reject the session and log out
+				echo.append("<span style=\"color:red\">Der Account ").append(user).append(" ist gesperrt. Ein Masterlogin ist erst möglich, wenn ein Admin ihn entsperrt.</span>");
 				return;
 			}
 

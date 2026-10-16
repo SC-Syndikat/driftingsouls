@@ -34,8 +34,10 @@ import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.services.SchlachtErstellenService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The actions dialog choices can trigger. Each is one nested class, found by its annotation.
@@ -455,6 +457,41 @@ public final class StandardActions
 		}
 	}
 
+	/**
+	 * @throws CampaignException naming the ships that may not be handed over
+	 */
+	public static void checkConsignable(List<Ship> ships, User newOwner)
+	{
+		List<String> refused = new ArrayList<>();
+		for (Ship ship : ships)
+		{
+			Ship.MESSAGE.get().setLength(0);
+			if (ship.consign(newOwner, true))
+			{
+				refused.add(Ship.MESSAGE.getMessage());
+			}
+		}
+		if (!refused.isEmpty())
+		{
+			throw new CampaignException("Die Schiffe können nicht übergeben werden: " + String.join(" ", refused));
+		}
+	}
+
+	/**
+	 * Hands all ships over, or none if one of them may not be handed over.
+	 *
+	 * @throws CampaignException naming the ships that may not be handed over
+	 */
+	public static void consignAll(List<Ship> ships, User newOwner)
+	{
+		checkConsignable(ships, newOwner);
+		for (Ship ship : ships)
+		{
+			Ship.MESSAGE.get().setLength(0);
+			ship.consign(newOwner, false);
+		}
+	}
+
 	@DialogAction.Type("GIVE_SHIP")
 	public static class GiveShip implements DialogAction
 	{
@@ -473,7 +510,8 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.choice("source", "Schiff", OBJECT, "das Gesprächsschiff", TEMPLATE, "neu aus einer Schiffsgruppen-Vorlage"),
+			return List.of(ParamDef.choice("source", "Schiff", OBJECT, "das Gesprächsschiff", SECTOR, "alle Schiffe des NPCs im Sektor",
+							TEMPLATE, "neu aus einer Schiffsgruppen-Vorlage"),
 					ParamDef.optionalInteger("template", "Vorlagen-ID (bei Vorlage)"));
 		}
 
@@ -485,6 +523,11 @@ public final class StandardActions
 				new ShipGroupSpawner(context.em).spawn(template(params), context.user, context.ship.getLocation());
 				return;
 			}
+			if (SECTOR.equals(params.get("source")))
+			{
+				giveSector(context);
+				return;
+			}
 			Ship ship = context.requireObjectShip();
 			Ship.MESSAGE.get().setLength(0);
 			if (ship.consign(context.user, false))
@@ -493,15 +536,39 @@ public final class StandardActions
 			}
 		}
 
+		/**
+		 * Hands over the NPC's ships in the player's sector outside a battle. Docked and landed ships go along
+		 * with their carrier.
+		 */
+		private static void giveSector(DialogContext context)
+		{
+			List<Ship> ships = DialogShips.of(context, context.npc, DialogShips.Scope.SECTOR);
+			if (ships.stream().noneMatch(s -> s.getBattle() == null))
+			{
+				throw new CampaignException(ships.isEmpty() ? "Im Sektor ist kein Schiff von " + context.npc.getPlainname() + "."
+						: "Die Schiffe von " + context.npc.getPlainname() + " im Sektor kämpfen in einer Schlacht – nutze dort die Kapitulation.");
+			}
+			List<Ship> carriers = ships.stream().filter(s -> s.getBattle() == null && s.getDocked().isEmpty()).collect(Collectors.toList());
+			consignAll(carriers, context.user);
+		}
+
 		@Override
 		public String describe(Params params)
 		{
+			if (SECTOR.equals(params.get("source")))
+			{
+				return "alle Schiffe des NPCs im Sektor übergeben";
+			}
 			return TEMPLATE.equals(params.get("source")) ? "Schiffe aus Vorlage " + params.get("template") + " übergeben" : "Gesprächsschiff übergeben";
 		}
 
 		@Override
 		public String playerMessage(DialogContext context, Params params)
 		{
+			if (SECTOR.equals(params.get("source")))
+			{
+				return "Die Schiffe von " + context.npc.getPlainname() + " in deinem Sektor gehören jetzt dir.";
+			}
 			return TEMPLATE.equals(params.get("source")) ? "Dir wurden neue Schiffe übergeben." : "Das Schiff gehört jetzt dir.";
 		}
 	}

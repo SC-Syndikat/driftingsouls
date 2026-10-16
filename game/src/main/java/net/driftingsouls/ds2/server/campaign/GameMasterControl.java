@@ -62,7 +62,8 @@ public final class GameMasterControl
 	}
 
 	/**
-	 * @return The NPCs taking part in the running campaign, which the game master may steer
+	 * @return The NPCs taking part in the running campaign, which the game master may steer; not locked
+	 * accounts, whose session the next request would reject
 	 */
 	public static List<User> controllableNpcs()
 	{
@@ -77,7 +78,7 @@ public final class GameMasterControl
 		for (int id : ids)
 		{
 			User user = id < 0 ? context.getEM().find(User.class, id) : null;
-			if (user != null)
+			if (user != null && !user.getDisabled())
 			{
 				npcs.add(user);
 			}

@@ -1,6 +1,9 @@
 package net.driftingsouls.ds2.server.campaign.interaction;
 
 import net.driftingsouls.ds2.server.DBSingleTransactionTest;
+import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.framework.ConfigService;
+import net.driftingsouls.ds2.server.services.SchlachtErstellenService;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
@@ -15,6 +18,7 @@ import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
+import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipType;
@@ -31,6 +35,7 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 	private User gamemaster;
 	private User npc;
 	private User player;
+	private ShipType type;
 	private Ship npcShip;
 	private Ship playerShip;
 	private DialogService dialogs;
@@ -50,7 +55,7 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 		system.setWidth(50);
 		system.setHeight(50);
 		system.setAccess(StarSystem.Access.NORMAL);
-		ShipType type = persist(new ShipType(ShipClasses.AWACS));
+		type = persist(new ShipType(ShipClasses.AWACS));
 		type.setCrew(10);
 		npcShip = persist(new Ship(npc, type, system.getID(), 5, 5));
 		playerShip = persist(new Ship(player, type, system.getID(), 5, 5));
@@ -58,7 +63,7 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 
 		CampaignService campaigns = new CampaignService(getEM());
 		Campaign prepared = campaigns.prepare("Test", gamemaster);
-		campaigns.updateParticipants(prepared, Set.of(player.getId()), gamemaster);
+		campaigns.updateParticipants(prepared, Set.of(player.getId(), npc.getId()), gamemaster);
 		new CampaignMapService(getEM()).addSystem(prepared, system.getID());
 		campaigns.start(prepared);
 
@@ -119,5 +124,46 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 		assertFalse(npcShip.consign(player, false));
 
 		assertTrue(new InteractionRepository().findFor(ObjectType.SHIP, npcShip.getId()).isEmpty());
+	}
+
+	@Test
+	public void gegebenMehrereNpcSchiffe_schiffUebergebenImSektor_sollteAlleSchiffeDesNpcsImSektorUebergeben()
+	{
+		Ship escort = persist(new Ship(npc, type, npcShip.getSystem(), 5, 5));
+		Ship elsewhere = persist(new Ship(npc, type, npcShip.getSystem(), 9, 9));
+		dialogs.start(player, playerShip, interactionId);
+		int id = requests.submit(player, playerShip, "Wir übernehmen eure Flotte.");
+
+		requests.runAction(gamemaster, id, "GIVE_SHIP", Params.of("source", "SECTOR"));
+
+		assertEquals(player, npcShip.getOwner());
+		assertEquals(player, escort.getOwner());
+		assertEquals("Schiffe in anderen Sektoren bleiben beim NPC", npc, elsewhere.getOwner());
+	}
+
+	@Test
+	public void gegebenEineSchlachtGegenDenNpc_kapitulieren_sollteDemSpielerDieSchiffeUebergebenUndDieSchlachtBeenden()
+	{
+		for (User user : List.of(player, npc))
+		{
+			user.setFlag(UserFlag.NOOB, false);
+			user.setUserValue(WellKnownUserValue.GAMEPLAY_USER_BATTLE_PM, false);
+		}
+		Ship escort = persist(new Ship(npc, type, npcShip.getSystem(), 5, 5));
+		Battle battle = new SchlachtErstellenService(getEM(), new ConfigService(getEM())).erstelle(npc, npcShip, playerShip, true);
+		int battleId = battle.getId();
+		int id = requests.submitFromBattle(player, playerShip, battle, "Gebt auf, dann verschonen wir euch.");
+
+		assertEquals(2, requests.capitulate(gamemaster, id));
+		getEM().flush();
+		getEM().clear();
+
+		assertNull(getEM().find(Battle.class, battleId));
+		for (int shipId : List.of(npcShip.getId(), escort.getId()))
+		{
+			Ship ship = getEM().find(Ship.class, shipId);
+			assertEquals(player.getId(), ship.getOwner().getId());
+			assertNull("Das Beenden der Schlacht darf nicht überschrieben werden", ship.getBattle());
+		}
 	}
 }

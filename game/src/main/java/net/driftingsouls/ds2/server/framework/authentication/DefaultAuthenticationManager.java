@@ -150,6 +150,8 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
 		JavaSession jsession = context.get(JavaSession.class);
 		jsession.setUser(user);
+		// A fresh login ends a master login still recorded in the session
+		jsession.setAttach(null);
 		jsession.setIP("<"+context.getRequest().getRemoteAddress()+">");
 
 		return user;
@@ -235,6 +237,13 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 		if(user == null)
 		{
 			return false;
+		}
+
+		// Sessions from before logins cleared the master login can be attached to their own user
+		BasicUser attach = jsession.getAttach();
+		if( attach != null && attach.getId() == user.getId() )
+		{
+			jsession.setAttach(null);
 		}
 
 		try

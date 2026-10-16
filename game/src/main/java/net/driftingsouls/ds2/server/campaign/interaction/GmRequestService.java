@@ -12,14 +12,18 @@ import net.driftingsouls.ds2.server.campaign.dialog.DialogRepository;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogTypes;
 import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
+import net.driftingsouls.ds2.server.campaign.dialog.actions.StandardActions;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.ships.Ship;
 
 import javax.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * Requests to the game master: a player writes one from a dialog when none of the answers fits, the game
@@ -140,6 +144,66 @@ public class GmRequestService
 		}
 		CampaignBattles.end(em, battle, gamemaster);
 		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION, "Der GameMaster hat die Schlacht beendet.");
+	}
+
+	/**
+	 * The other side of the request's battle gives up: the ships of campaign NPCs fighting there go to the
+	 * player and the battle ends. Ships that defected to another NPC during the battle count as long as that
+	 * NPC takes part in the campaign.
+	 *
+	 * @return How many ships the player got
+	 */
+	public int capitulate(User gamemaster, int requestId)
+	{
+		GmRequest request = forGamemaster(requestId);
+		Campaign campaign = runningCampaign();
+		Battle battle = request.battleId == null ? null : em.find(Battle.class, request.battleId);
+		User player = em.find(User.class, request.userId);
+		if (battle == null || player == null)
+		{
+			throw new CampaignException("Die Schlacht dieser Anfrage ist bereits zu Ende.");
+		}
+		int side = battle.getSchlachtMitglied(player);
+		if (side < 0)
+		{
+			throw new CampaignException("Der Spieler kämpft nicht mehr in dieser Schlacht.");
+		}
+		List<Ship> enemies = em.createQuery("select bs.ship from BattleShip bs where bs.battle = :battle and bs.side != :side and bs.ship.id > 0", Ship.class)
+				.setParameter("battle", battle)
+				.setParameter("side", side)
+				.getResultList();
+		Set<Integer> participants = campaigns.findParticipantIds(campaign.getId());
+		List<String> foreign = enemies.stream().map(Ship::getOwner).filter(o -> !o.isNPC() || !participants.contains(o.getId()))
+				.map(o -> o.getPlainname() + " (" + o.getId() + ")").distinct().collect(Collectors.toList());
+		if (!foreign.isEmpty())
+		{
+			throw new CampaignException("Auf der Gegenseite kämpfen Schiffe, die keinem NPC der Kampagne gehören: " + String.join(", ", foreign) + ".");
+		}
+		// Docked and landed ships go along with their carrier
+		List<Ship> carriersInBattle = enemies.stream().filter(s -> s.getDocked().isEmpty()).collect(Collectors.toList());
+		if (carriersInBattle.isEmpty())
+		{
+			throw new CampaignException("Die Gegenseite hat keine Schiffe mehr.");
+		}
+		// Before the battle ends, so that it goes on if the ships may not be handed over
+		StandardActions.checkConsignable(carriersInBattle, player);
+		List<Integer> carrierIds = carriersInBattle.stream().map(Ship::getId).collect(Collectors.toList());
+
+		CampaignBattles.end(em, battle, gamemaster);
+		// Ending the battle clears it from the ships in the database only; loaded ships would write it back
+		List<Ship> carriers = new ArrayList<>();
+		for (int id : carrierIds)
+		{
+			Ship ship = em.find(Ship.class, id);
+			em.refresh(ship);
+			carriers.add(ship);
+		}
+		StandardActions.consignAll(carriers, player);
+
+		int count = enemies.size();
+		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION,
+				"Die Gegenseite hat kapituliert: " + count + " Schiff(e) gehören jetzt dir, die Schlacht ist zu Ende.");
+		return count;
 	}
 
 	/**
@@ -310,7 +374,8 @@ public class GmRequestService
 		{
 			throw new CampaignException("Aktionen gibt es nur, wenn ein NPC die Gegenseite führt.");
 		}
-		return new DialogContext(em, player, ship, npc, ObjectType.SHIP, ship.getId(), campaign, null, gamemaster,
+		// A battle has no conversation ship; the request's ship is the player's own
+		return new DialogContext(em, player, ship, npc, ObjectType.STAR_SYSTEM, battle.getSystem(), campaign, null, gamemaster,
 				() -> ThreadLocalRandom.current().nextDouble(100));
 	}
 
