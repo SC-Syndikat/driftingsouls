@@ -311,6 +311,14 @@ public class CreateObjects implements AdminPlugin {
 		DialogEntry[] entries = OPTIONS.get(objekt);
 		for (DialogEntry entry : entries)
 		{
+			if (restriction.applies() && entry instanceof TextEntry && "system".equals(((TextEntry) entry).name))
+			{
+				// A game master chooses from the campaign star systems
+				echo.append("<tr><td class=\"noBorderX\">").append(((TextEntry) entry).title).append("</td><td class=\"noBorderX\">");
+				CampaignAdminHtml.select(echo, "system", CampaignOptions.systems(context.getEM(), restriction.getSystems()), system == 0 ? null : system, null);
+				echo.append("</td></tr>\n");
+				continue;
+			}
 			echo.append(entry.toHtml(context.getRequest()));
 		}
 		

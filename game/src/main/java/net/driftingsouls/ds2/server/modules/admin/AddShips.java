@@ -121,12 +121,31 @@ public class AddShips implements AdminPlugin {
 			echo.append("</tr>\n");
 			echo.append("<tr>\n");
 			echo.append("<td class=\"noBorderX\">Spieler:</td>\n");
-			echo.append("<td class=\"noBorderX\"><input type=\"text\" name=\"owner\" size=\"6\" /></td>\n");
+			GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+			if (restriction.applies())
+			{
+				// A game master gives ships only to the campaign's NPCs, in campaign star systems
+				echo.append("<td class=\"noBorderX\">");
+				CampaignAdminHtml.select(echo, "owner", CampaignOptions.users(context.getEM(), restriction.getMasterLoginIds()), null, null);
+				echo.append("</td>\n");
+			}
+			else
+			{
+				echo.append("<td class=\"noBorderX\"><input type=\"text\" name=\"owner\" size=\"6\" /></td>\n");
+			}
 			echo.append("</tr>\n");
 			echo.append("<tr>\n");
 			echo.append("<td class=\"noBorderX\">Pos:</td>\n");
 			echo.append("<td class=\"noBorderX\">\n");
-			echo.append("<input type=\"text\" name=\"system\" size=\"3\" />:<input type=\"text\" name=\"x\" size=\"3\" />/<input type=\"text\" name=\"y\" size=\"3\" />\n");
+			if (restriction.applies())
+			{
+				CampaignAdminHtml.select(echo, "system", CampaignOptions.systems(context.getEM(), restriction.getSystems()), null, null);
+			}
+			else
+			{
+				echo.append("<input type=\"text\" name=\"system\" size=\"3\" />");
+			}
+			echo.append(":<input type=\"text\" name=\"x\" size=\"3\" />/<input type=\"text\" name=\"y\" size=\"3\" />\n");
 			echo.append("</td>\n");
 			echo.append("</tr>\n");
 			echo.append("<tr>\n");

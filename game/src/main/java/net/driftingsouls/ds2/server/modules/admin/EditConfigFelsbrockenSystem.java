@@ -39,7 +39,11 @@ public class EditConfigFelsbrockenSystem implements EntityEditor<ConfigFelsbrock
 			form.validateUpdate((before, after) -> restriction.checkSystem(after.getSystem().getID()));
 		}
 		form.ifUpdating().label("Sternensystem", ConfigFelsbrockenSystem::getSystem);
-		form.ifAdding().field("Sternensystem", StarSystem.class, ConfigFelsbrockenSystem::getSystem, ConfigFelsbrockenSystem::setSystem);
+		var system = form.ifAdding().field("Sternensystem", StarSystem.class, ConfigFelsbrockenSystem::getSystem, ConfigFelsbrockenSystem::setSystem);
+		if (restriction.applies())
+		{
+			system.withOptions(GameMasterOptions.systems(restriction));
+		}
 		form.field("Name der Felsbrocken", String.class, ConfigFelsbrockenSystem::getName, ConfigFelsbrockenSystem::setName);
         form.field("Anzahl Felsbrocken", Integer.class, ConfigFelsbrockenSystem::getCount, ConfigFelsbrockenSystem::setCount);
 		form.label("Anzahl Layouts", (t) -> t.getFelsbrocken().size());

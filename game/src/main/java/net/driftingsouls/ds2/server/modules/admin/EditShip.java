@@ -63,8 +63,13 @@ public class EditShip implements EntityEditor<Ship>
 
 		form.label("Kampagne", ship -> "<a class='forschinfo' href='" + CampaignInteractions.objectUrl(ObjectType.SHIP, ship.getId()) + "'>Interaktionen</a>");
 		form.field("Name", String.class, Ship::getName, Ship::setName);
-		form.field("Besitzer", User.class, Ship::getOwner, Ship::setOwner).dbColumn(Ship_.owner);
-		form.field("System", Integer.class, Ship::getSystem, Ship::setSystem).dbColumn(Ship_.system);
+		var owner = form.field("Besitzer", User.class, Ship::getOwner, Ship::setOwner).dbColumn(Ship_.owner);
+		var system = form.field("System", Integer.class, Ship::getSystem, Ship::setSystem).dbColumn(Ship_.system);
+		if (restriction.applies())
+		{
+			owner.withOptions(GameMasterOptions.owners(restriction));
+			system.withOptions(GameMasterOptions.systemIds(restriction));
+		}
 		form.field("x", Integer.class, Ship::getX, Ship::setX);
 		form.field("y", Integer.class, Ship::getY, Ship::setY);
 		form.field("Schiffstyp", ShipType.class, Ship::getBaseType, Ship::setBaseType).dbColumn(Ship_.shiptype);

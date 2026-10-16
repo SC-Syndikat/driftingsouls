@@ -12,7 +12,9 @@ import net.driftingsouls.ds2.server.repositories.ItemRepository;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -132,6 +134,64 @@ public final class CampaignAdminHtml
 		options.forEach((key, label) -> echo.append("<option value='").append(esc(key)).append("'")
 				.append(key.toString().equals(current) ? " selected='selected'" : "").append(">").append(esc(label)).append("</option>"));
 		echo.append("</select>");
+	}
+
+	/**
+	 * A select with several choices; the request carries one value per chosen entry.
+	 */
+	static void multiSelect(StringBuilder echo, String name, Map<?, String> options, Collection<?> selected)
+	{
+		Set<String> current = new HashSet<>();
+		selected.forEach(value -> current.add(value.toString()));
+		echo.append("<select name='").append(esc(name)).append("' multiple='multiple' size='").append(Math.max(2, Math.min(8, options.size()))).append("'>");
+		options.forEach((key, label) -> echo.append("<option value='").append(esc(key)).append("'")
+				.append(current.contains(key.toString()) ? " selected='selected'" : "").append(">").append(esc(label)).append("</option>"));
+		echo.append("</select> <span class='campaign-hint'>Mehrfachauswahl mit Strg</span>");
+	}
+
+	/**
+	 * A select whose choices are grouped under headings; empty groups are left out.
+	 */
+	static void groupedSelect(StringBuilder echo, String name, Map<String, ? extends Map<?, String>> groups, Object selected)
+	{
+		String current = selected == null ? "" : selected.toString();
+		echo.append("<select name='").append(esc(name)).append("'>");
+		groups.forEach((group, options) -> {
+			if (options.isEmpty())
+			{
+				return;
+			}
+			echo.append("<optgroup label='").append(esc(group)).append("'>");
+			options.forEach((key, label) -> echo.append("<option value='").append(esc(key)).append("'")
+					.append(key.toString().equals(current) ? " selected='selected'" : "").append(">").append(esc(label)).append("</option>"));
+			echo.append("</optgroup>");
+		});
+		echo.append("</select>");
+	}
+
+	/**
+	 * @return The integer values the request carries for a {@link #multiSelect}
+	 * @throws CampaignException if one is not a number
+	 */
+	static Set<Integer> multiSelectIds(Request request, String name)
+	{
+		Set<Integer> ids = new LinkedHashSet<>();
+		for (String value : request.getParameterValues(name))
+		{
+			if (value.isBlank())
+			{
+				continue;
+			}
+			try
+			{
+				ids.add(Integer.parseInt(value.trim()));
+			}
+			catch (NumberFormatException e)
+			{
+				throw new CampaignException("Ungültige Auswahl: " + value);
+			}
+		}
+		return ids;
 	}
 
 	/** Choice of a variable select meaning "a new variable, named in the text field". */

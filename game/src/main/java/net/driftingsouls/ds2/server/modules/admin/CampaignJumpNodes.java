@@ -9,6 +9,8 @@ import net.driftingsouls.ds2.server.campaign.JumpNodeLimits;
 import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeState;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.dialog.ParamChoices;
+import net.driftingsouls.ds2.server.campaign.dialog.ParamDef;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
@@ -22,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
 
@@ -94,21 +95,7 @@ public class CampaignJumpNodes implements AdminPlugin
 							classes.add(shipClass.name());
 						}
 					}
-					Set<Integer> types = new LinkedHashSet<>();
-					for (String id : request.getParameterString("types").split("[,;\\s]+"))
-					{
-						if (!id.isBlank())
-						{
-							try
-							{
-								types.add(Integer.parseInt(id.trim()));
-							}
-							catch (NumberFormatException e)
-							{
-								throw new CampaignException("Ungültige Schiffstyp-ID: " + id);
-							}
-						}
-					}
+					Set<Integer> types = multiSelectIds(request, "types");
 					new CampaignJumpNodeLimitService(em).save(node, new JumpNodeLimits(classes, types,
 							optionalInt(request, "pership"), optionalInt(request, "perplayer"),
 							JumpNodeLimits.Period.valueOf(request.getParameterString("period")),
@@ -145,7 +132,7 @@ public class CampaignJumpNodes implements AdminPlugin
 		}
 		campaignNodes(echo, em, states, campaign);
 		normalNodesIntoCampaign(echo, em, systems, states);
-		createForm(echo);
+		createForm(echo, em);
 	}
 
 	private void limitsForm(StringBuilder echo, EntityManager em, Campaign campaign, int nodeId)
@@ -167,8 +154,9 @@ public class CampaignJumpNodes implements AdminPlugin
 					.append(limits.allowedShipClasses.contains(shipClass.name()) ? " checked='checked'" : "").append(" /> ")
 					.append(esc(shipClass.getSingular())).append("</label>");
 		}
-		echo.append("<br /><br />Erlaubte Schiffstyp-IDs (leer = alle): <input type='text' name='types' size='40' value='")
-				.append(esc(limits.allowedShipTypes.stream().map(String::valueOf).collect(Collectors.joining(", ")))).append("' /><br />");
+		echo.append("<br /><br />Erlaubte Schiffstypen (keiner gewählt = alle):<br />");
+		multiSelect(echo, "types", ParamChoices.forCurrentRequest().get(ParamDef.Type.SHIP_TYPES), limits.allowedShipTypes);
+		echo.append("<br />");
 		echo.append("Max. Punkte je Schiff: <input type='text' name='pership' size='6' value='").append(limits.maxPointsPerShip == null ? "" : limits.maxPointsPerShip).append("' /> ");
 		echo.append("Max. Punkte je Spieler: <input type='text' name='perplayer' size='6' value='").append(limits.maxPointsPerPlayer == null ? "" : limits.maxPointsPerPlayer).append("' /> ");
 		echo.append("<select name='period'>");
@@ -269,15 +257,20 @@ public class CampaignJumpNodes implements AdminPlugin
 		echo.append("</table></div><br />");
 	}
 
-	private void createForm(StringBuilder echo)
+	private void createForm(StringBuilder echo, EntityManager em)
 	{
+		Map<String, Map<Integer, String>> systems = CampaignOptions.allSystemsCampaignFirst(em);
 		echo.append("<div class='gfxbox' style='width:900px'>");
 		echo.append("<h3>Neuen Kampagnen-Sprungpunkt anlegen</h3>");
 		echo.append("<form action='./ds' method='post'>");
 		hiddenFields(echo, getClass(), "create");
 		echo.append("Name: <input type='text' name='name' size='30' value='Kampagnenzugang' /><br />");
-		echo.append("Von System <input type='text' name='sys' size='4' /> Position <input type='text' name='x' size='4' />/<input type='text' name='y' size='4' /><br />");
-		echo.append("Nach System <input type='text' name='sysout' size='4' /> Position <input type='text' name='xout' size='4' />/<input type='text' name='yout' size='4' /><br />");
+		echo.append("Von System ");
+		groupedSelect(echo, "sys", systems, null);
+		echo.append(" Position <input type='text' name='x' size='4' />/<input type='text' name='y' size='4' /><br />");
+		echo.append("Nach System ");
+		groupedSelect(echo, "sysout", systems, null);
+		echo.append(" Position <input type='text' name='xout' size='4' />/<input type='text' name='yout' size='4' /><br />");
 		echo.append("<label><input type='checkbox' name='withreturn' value='1' checked='checked' /> Rückweg ebenfalls anlegen</label><br />");
 		echo.append("<input type='submit' value='Anlegen' />");
 		echo.append("</form></div>");

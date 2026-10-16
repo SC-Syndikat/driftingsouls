@@ -97,7 +97,11 @@ public class EditSystem implements EntityEditor<StarSystem>
 		form.field("In Sternenkarte sichtbar", Boolean.class, StarSystem::isStarmapVisible, StarSystem::setStarmapVisible);
 		form.field("OrderLocations(Form: x/y|x/y)", String.class, StarSystem::getOrderLocationString, StarSystem::setOrderLocations);
 		form.field("GTU Dropzone(Form: x/y)", String.class, StarSystem::getDropZoneString, (s, v) -> s.setDropZone(!"".equals(v) ? Location.fromString(v) : new Location(0, 0, 0)));
-		form.field("Zugriffsrechte", StarSystem.Access.class, StarSystem::getAccess, StarSystem::setAccess);
+		var access = form.field("Zugriffsrechte", StarSystem.Access.class, StarSystem::getAccess, StarSystem::setAccess);
+		if (restriction.applies())
+		{
+			access.withOptions(GameMasterOptions.access());
+		}
 		form.field("Beschreibung", String.class, StarSystem::getDescription, StarSystem::setDescription);
 		form.field("Ressourcenvorkommen", String.class, StarSystem::getSpawnableRess, StarSystem::setSpawnableRess);
 

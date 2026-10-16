@@ -41,7 +41,11 @@ public class EditConfigFelsbrocken implements EntityEditor<ConfigFelsbrocken>
 			form.allowDelete(layout -> restriction.isSystemAllowed(layout.getSystem().getSystem().getID()));
 			form.validateUpdate((before, after) -> restriction.checkSystem(after.getSystem().getSystem().getID()));
 		}
-		form.field("System mit Felsbrocken", ConfigFelsbrockenSystem.class, ConfigFelsbrocken::getSystem, ConfigFelsbrocken::setSystem);
+		var system = form.field("System mit Felsbrocken", ConfigFelsbrockenSystem.class, ConfigFelsbrocken::getSystem, ConfigFelsbrocken::setSystem);
+		if (restriction.applies())
+		{
+			system.withOptions(GameMasterOptions.felsbrockenSystems(restriction));
+		}
 		form.field("Schiffstyp", ShipType.class, ConfigFelsbrocken::getShiptype, ConfigFelsbrocken::setShiptype);
 		form.field("Wahrscheinlichkeitsfaktor", Integer.class, ConfigFelsbrocken::getChance, ConfigFelsbrocken::setChance);
 		form.field("Cargo", Cargo.class, ConfigFelsbrocken::getCargo, ConfigFelsbrocken::setCargo);

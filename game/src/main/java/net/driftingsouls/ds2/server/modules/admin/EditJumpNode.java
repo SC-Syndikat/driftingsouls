@@ -39,10 +39,15 @@ public class EditJumpNode implements EntityEditor<JumpNode>
 			form.validateUpdate((before, after) -> restriction.checkJumpNode(after.getSystem(), after.getSystemOut()));
 		}
 		form.field("Name", String.class, JumpNode::getName, JumpNode::setName);
-		form.field("System", Integer.class, JumpNode::getSystem, JumpNode::setSystem);
+		var system = form.field("System", Integer.class, JumpNode::getSystem, JumpNode::setSystem);
 		form.field("x", Integer.class, JumpNode::getX, JumpNode::setX);
 		form.field("y", Integer.class, JumpNode::getY, JumpNode::setY);
-		form.field("System (Ausgang)", Integer.class, JumpNode::getSystemOut, JumpNode::setSystemOut);
+		var systemOut = form.field("System (Ausgang)", Integer.class, JumpNode::getSystemOut, JumpNode::setSystemOut);
+		if (restriction.applies())
+		{
+			system.withOptions(GameMasterOptions.systemIds(restriction));
+			systemOut.withOptions(GameMasterOptions.systemIds(restriction));
+		}
 		form.field("x (Ausgang)", Integer.class, JumpNode::getXOut, JumpNode::setXOut);
 		form.field("y (Ausgang)", Integer.class, JumpNode::getYOut, JumpNode::setYOut);
 		form.field("GCP blockiert", Boolean.class, JumpNode::isGcpColonistBlock, JumpNode::setGcpColonistBlock);

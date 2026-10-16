@@ -71,8 +71,13 @@ public class EditBases implements EntityEditor<Base>
 
 		form.label("Kampagne", base -> "<a class='forschinfo' href='" + CampaignInteractions.objectUrl(ObjectType.BASE, base.getId()) + "'>Interaktionen</a>");
 		form.field("Name", String.class, Base::getName, Base::setName);
-		form.field("Besitzer", User.class, Base::getOwner, Base::setOwner).dbColumn(Base_.owner);
-		form.field("System", Integer.class, Base::getSystem, Base::setSystem).dbColumn(Base_.system);
+		var owner = form.field("Besitzer", User.class, Base::getOwner, Base::setOwner).dbColumn(Base_.owner);
+		var system = form.field("System", Integer.class, Base::getSystem, Base::setSystem).dbColumn(Base_.system);
+		if (restriction.applies())
+		{
+			owner.withOptions(GameMasterOptions.owners(restriction));
+			system.withOptions(GameMasterOptions.systemIds(restriction));
+		}
 		form.field("x", Integer.class, Base::getX, Base::setX);
 		form.field("y", Integer.class, Base::getY, Base::setY);
 		form.field("Aktuelle Energie", Integer.class, Base::getEnergy, Base::setEnergy);

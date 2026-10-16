@@ -24,14 +24,12 @@ import net.driftingsouls.ds2.server.framework.pipeline.Request;
 import net.driftingsouls.ds2.server.ships.Ship;
 
 import javax.persistence.EntityManager;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
 
@@ -154,7 +152,7 @@ public class CampaignInteractions implements AdminPlugin
 		Interaction.Audience audience = Interaction.Audience.valueOf(request.getParameterString("audience"));
 		return repository.save(new Interaction(id, label, type, objectId, startNode, npcId, "1".equals(request.getParameterString("active")),
 				optionalInt(request, "maxuses"), optionalInt(request, "cooldown"), audience,
-				ids(request.getParameterString("audienceusers")), ids(request.getParameterString("audiencealliances"))));
+				multiSelectIds(request, "audienceusers"), multiSelectIds(request, "audiencealliances")));
 	}
 
 	/**
@@ -207,24 +205,6 @@ public class CampaignInteractions implements AdminPlugin
 		}
 	}
 
-	private static Set<Integer> ids(String csv)
-	{
-		return Arrays.stream(csv.split("[,;\\s]+"))
-				.map(String::trim)
-				.filter(s -> !s.isEmpty())
-				.map(s -> {
-					try
-					{
-						return Integer.parseInt(s);
-					}
-					catch (NumberFormatException e)
-					{
-						throw new CampaignException("Ungültige ID: " + s);
-					}
-				})
-				.collect(Collectors.toSet());
-	}
-
 	private void form(StringBuilder echo, EntityManager em, Request request, Interaction interaction, List<DialogModel.Node> nodes)
 	{
 		// Preset from a link, e.g. "add interaction" in the ship view
@@ -268,9 +248,14 @@ public class CampaignInteractions implements AdminPlugin
 			echo.append("<option value='").append(audience.name()).append("'").append(interaction != null && interaction.audience == audience ? " selected='selected'" : "")
 					.append(">").append(esc(audience.getLabel())).append("</option>");
 		}
-		echo.append("</select> Spieler-IDs: <input type='text' name='audienceusers' size='20' value='")
-				.append(interaction == null ? "" : esc(join(interaction.audienceUserIds))).append("' /> Allianz-IDs: <input type='text' name='audiencealliances' size='12' value='")
-				.append(interaction == null ? "" : esc(join(interaction.audienceAllianceIds))).append("' /><br />");
+		echo.append("</select><br />");
+		Set<Integer> audienceUsers = interaction == null ? Set.of() : interaction.audienceUserIds;
+		Set<Integer> audienceAlliances = interaction == null ? Set.of() : interaction.audienceAllianceIds;
+		echo.append("<span class='campaign-hint'>Bei „nur bestimmte Spieler / Allianzen“:</span><br />Spieler ");
+		multiSelect(echo, "audienceusers", CampaignOptions.campaignPlayers(em, audienceUsers), audienceUsers);
+		echo.append(" Allianzen ");
+		multiSelect(echo, "audiencealliances", CampaignOptions.campaignAlliances(em, audienceAlliances), audienceAlliances);
+		echo.append("<br />");
 		echo.append("<input type='submit' value='Speichern' /></form></div><br />");
 	}
 
@@ -376,11 +361,6 @@ public class CampaignInteractions implements AdminPlugin
 					.append(npc == null ? "?" : esc(CampaignText.plain(npc.getName()))).append(" (").append(id).append(")</option>");
 		}
 		echo.append("</select>");
-	}
-
-	private static String join(Set<Integer> ids)
-	{
-		return ids.stream().sorted().map(String::valueOf).collect(Collectors.joining(", "));
 	}
 
 	/**

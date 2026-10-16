@@ -47,7 +47,9 @@ public class CampaignLog implements AdminPlugin
 		echo.append("<div class='gfxbox' style='width:950px'><h3>Protokoll der Interaktionen</h3>");
 		echo.append("<form action='./ds' method='get'>");
 		hiddenFields(echo, getClass(), "");
-		echo.append("Spieler-ID <input type='text' name='user' size='6' value='").append(userId == null ? "" : userId).append("' /> ");
+		echo.append("Spieler ");
+		select(echo, "user", CampaignOptions.campaignParticipants(em, userId == null ? 0 : userId), userId, "alle");
+		echo.append(" ");
 		echo.append("Interaktion <select name='interaction'><option value=''>alle</option>");
 		labels.forEach((id, label) -> echo.append("<option value='").append(id).append("'").append(id.equals(interactionId) ? " selected='selected'" : "")
 				.append(">").append(id).append(": ").append(esc(label)).append("</option>"));
