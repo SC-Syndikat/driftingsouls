@@ -1398,6 +1398,7 @@
 	 * @typedef {object} ds.viewmodel.modules.MainController.Status
 	 * @property {boolean} pm
 	 * @property {boolean} comNet
+	 * @property {boolean} gmRequests
 	 * @property {string} version
 	 **/
 	/**

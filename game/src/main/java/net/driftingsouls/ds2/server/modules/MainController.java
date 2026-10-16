@@ -19,12 +19,19 @@
 package net.driftingsouls.ds2.server.modules;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.modules.admin.CampaignRequests;
 import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
 import net.driftingsouls.ds2.server.bases.Base;
+import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignRepository;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequestRepository;
 import net.driftingsouls.ds2.server.entities.GuiHelpText;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
 import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
+import net.driftingsouls.ds2.server.framework.BasicUser;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Version;
 import net.driftingsouls.ds2.server.framework.ViewMessage;
@@ -42,6 +49,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -79,6 +87,8 @@ public class MainController extends Controller {
 	public static class Status {
 		public boolean pm;
 		public boolean comNet;
+		/** Whether the game master has requests of the running campaign he has not read yet. */
+		public boolean gmRequests;
 		public String version;
 	}
 
@@ -98,9 +108,24 @@ public class MainController extends Controller {
 				.iterate().next()).intValue();
 		status.pm = pmcount > 0;
 		status.comNet = new ComNetService().hatAktiverUserUngeleseneComNetNachrichten();
+		status.gmRequests = hatUngeleseneGmAnfragen();
 		status.version = version.getVersion();
 
 		return status;
+	}
+
+	private boolean hatUngeleseneGmAnfragen() {
+		// While steering an NPC, the game master is the one behind the session
+		BasicUser real = GameMasterControl.realUser();
+		boolean gameMaster = GameMasterPermissionResolver.isGameMaster(real);
+		if (real == null || !(gameMaster || real.isAdmin())) {
+			return false;
+		}
+		Optional<Campaign> campaign = new CampaignRepository().findOpen();
+		if (campaign.isEmpty() || !(gameMaster || Integer.valueOf(real.getId()).equals(campaign.get().getGamemasterId()))) {
+			return false;
+		}
+		return new GmRequestRepository().countOpenUnread(campaign.get().getId()) > 0;
 	}
 
 	/**
@@ -131,6 +156,7 @@ public class MainController extends Controller {
 				// A game master reaches the campaign tools through his own page, not the admin menu
 				"user.adminSichtbar", hasPermission(WellKnownAdminPermission.SICHTBAR) && !GameMasterMenu.appliesTo(user),
 				"user.gamemaster", user.hasFlag(UserFlag.GAMEMASTER),
+				"gamemaster.requestsUrl", "./ds?module=admin&namedplugin=" + CampaignRequests.class.getName() + "&" + GameMasterMenu.PARAMETER + "=1",
 				"user.spezial", user.hasFlag(UserFlag.ORDER_MENU) || hasPermission(WellKnownAdminPermission.SICHTBAR) || user.hasFlag(UserFlag.GAMEMASTER),
 				"admin.showconsole", hasPermission(WellKnownAdminPermission.CONSOLE),
 				"user.notizen", user.getUserValue(WellKnownUserValue.TBLORDER_MAIN_NOTIZEN),
