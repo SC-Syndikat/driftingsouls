@@ -1,8 +1,9 @@
 /**
  * Formular fuer einen Eintrag einer Schiffsgruppen-Vorlage: Cargo- und Einheiten-Editor,
- * die Grenzen des gewaehlten Schiffstyps und ein Offizier mit Zufallswerten.
- * Erwartet die Daten des Plugins in sgShipTypes ({id: {cargo, unitSpace, maxUnitSize}}),
- * sgUnitTypes ([{id, name, size, picture}]) und sgMaxRank.
+ * die Grenzen des gewaehlten Schiffstyps, Module je Slot und ein Offizier mit Zufallswerten.
+ * Erwartet die Daten des Plugins in sgShipTypes ({id: {cargo, unitSpace, maxUnitSize, slots: [[slot, slotTyp]]}}),
+ * sgSlotTypes ({slotTyp: {name, modules: [itemId]}}), sgModuleNames ({itemId: name}),
+ * sgCurrentModules ({slot: itemId}), sgUnitTypes ([{id, name, size, picture}]) und sgMaxRank.
  */
 $(function() {
 	var form = $('#sgEntryForm');
@@ -14,6 +15,32 @@ $(function() {
 	var unitEditor = UnitEditor('#sgUnits', sgUnitTypes);
 
 	var shipType = form.find('select[name=shiptype]');
+	var modulesBox = form.find('.sgModules');
+	var chosenModules = $.extend({}, sgCurrentModules);
+
+	function showModules(type) {
+		// Keep what was chosen per slot number when switching between ship types
+		modulesBox.find('select').each(function() {
+			chosenModules[$(this).attr('data-slot')] = $(this).val();
+		});
+		modulesBox.empty();
+		if( !type.slots || type.slots.length === 0 ) {
+			modulesBox.text('Dieser Schiffstyp hat keine Modul-Slots.');
+			return;
+		}
+		type.slots.forEach(function(slot) {
+			var slotType = sgSlotTypes[slot[1]] || {name: slot[1], modules: []};
+			var select = $('<select />').attr('name', 'module_'+slot[0]).attr('data-slot', slot[0]);
+			select.append($('<option value="0" />').text('– leer –'));
+			slotType.modules.forEach(function(id) {
+				select.append($('<option />').attr('value', id).text(sgModuleNames[id]));
+			});
+			var chosen = String(chosenModules[slot[0]] || 0);
+			select.val(select.find('option[value="'+chosen+'"]').length ? chosen : '0');
+			modulesBox.append($('<div />').text('Slot '+slot[0]+' ('+slotType.name+') ').append(select));
+		});
+	}
+
 	function showShipType() {
 		var type = sgShipTypes[shipType.val()];
 		if( !type ) {
@@ -24,6 +51,7 @@ $(function() {
 		if( unitEditor ) {
 			unitEditor.setCapacity(type.unitSpace, type.maxUnitSize);
 		}
+		showModules(type);
 	}
 	shipType.on('change', showShipType);
 	showShipType();

@@ -96,6 +96,7 @@ public class ShipGroupRepository
 		record.setNamePattern(entry.namePattern);
 		record.setCargo(entry.cargo);
 		record.setUnits(entry.units);
+		record.setModules(entry.modules);
 		ShipGroupTemplate.Officer officer = entry.officer;
 		record.setOfficerNav(officer == null ? null : officer.nav);
 		record.setOfficerIng(officer == null ? null : officer.ing);
@@ -124,7 +125,7 @@ public class ShipGroupRepository
 					.fetch())
 			{
 				entries.add(new ShipGroupTemplate.Entry(r.getId(), r.getShipTypeId(), r.getCount(), r.getNamePattern(),
-						r.getCargo(), r.getUnits(), toOfficer(r), r.getAlarm()));
+						r.getCargo(), r.getUnits(), r.getModules(), toOfficer(r), r.getAlarm()));
 			}
 			return entries;
 		});

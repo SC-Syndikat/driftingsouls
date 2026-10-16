@@ -6,13 +6,23 @@ import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignText;
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.ShipGroupLimits;
+import net.driftingsouls.ds2.server.campaign.ShipGroupModules;
 import net.driftingsouls.ds2.server.campaign.ShipGroupRepository;
 import net.driftingsouls.ds2.server.campaign.ShipGroupSpawner;
 import net.driftingsouls.ds2.server.campaign.ShipGroupTemplate;
 import net.driftingsouls.ds2.server.campaign.ShipGroupUnits;
 import net.driftingsouls.ds2.server.cargo.Cargo;
+import net.driftingsouls.ds2.server.cargo.ItemCargoEntry;
+import net.driftingsouls.ds2.server.cargo.ItemData;
+import net.driftingsouls.ds2.server.cargo.ResourceID;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
+import net.driftingsouls.ds2.server.config.ModuleSlot;
+import net.driftingsouls.ds2.server.config.ModuleSlots;
+import net.driftingsouls.ds2.server.config.NoSuchSlotException;
 import net.driftingsouls.ds2.server.config.Offiziere;
+import net.driftingsouls.ds2.server.config.items.Item;
+import net.driftingsouls.ds2.server.config.items.Schiffsmodul;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.Offizier;
 import net.driftingsouls.ds2.server.entities.User;
@@ -22,6 +32,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.Request;
 import net.driftingsouls.ds2.server.ships.Alarmstufe;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipType;
+import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.units.UnitType;
 import org.apache.commons.lang3.StringUtils;
 
@@ -30,8 +41,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringJoiner;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
 
@@ -82,14 +95,22 @@ public class CampaignShipGroups implements AdminPlugin
 					message(echo, "Vorlage gelöscht.");
 					break;
 				case "addentry":
-					repository.addEntry(templateId, readEntry(em, request, 0));
+				{
+					EntryInput input = readEntry(em, request, 0);
+					repository.addEntry(templateId, input.entry);
 					message(echo, "Schiffe zur Vorlage hinzugefügt.");
+					warnings(echo, input.warnings);
 					break;
+				}
 				case "updateentry":
-					repository.updateEntry(templateId, readEntry(em, request, request.getParameterInt("entry")));
+				{
+					EntryInput input = readEntry(em, request, request.getParameterInt("entry"));
+					repository.updateEntry(templateId, input.entry);
 					editEntry = 0;
 					message(echo, "Eintrag gespeichert.");
+					warnings(echo, input.warnings);
 					break;
+				}
 				case "deleteentry":
 					repository.deleteEntry(templateId, request.getParameterInt("entry"));
 					message(echo, "Eintrag entfernt.");
@@ -129,9 +150,39 @@ public class CampaignShipGroups implements AdminPlugin
 	}
 
 	/**
-	 * Reads the entry form, checking cargo and units against the ship type.
+	 * An entry read from the form, and what had to be taken out of it to fit the ship.
 	 */
-	private static ShipGroupTemplate.Entry readEntry(EntityManager em, Request request, int entryId)
+	private static final class EntryInput
+	{
+		final ShipGroupTemplate.Entry entry;
+		final List<String> warnings;
+
+		EntryInput(ShipGroupTemplate.Entry entry, List<String> warnings)
+		{
+			this.entry = entry;
+			this.warnings = warnings;
+		}
+	}
+
+	private static void warnings(StringBuilder echo, List<String> warnings)
+	{
+		if (warnings.isEmpty())
+		{
+			return;
+		}
+		echo.append("<div class='gfxbox' style='width:700px'><span class='error'>Der Schiffstyp hat nicht genug Platz, gespeichert wurde:</span><ul>");
+		for (String warning : warnings)
+		{
+			echo.append("<li>").append(esc(warning)).append("</li>");
+		}
+		echo.append("</ul></div><br />");
+	}
+
+	/**
+	 * Reads the entry form. Modules have to fit their slots; cargo and units that do not fit the ship,
+	 * modules included, are cut from the last entry on.
+	 */
+	private static EntryInput readEntry(EntityManager em, Request request, int entryId)
 	{
 		int shipTypeId = request.getParameterInt("shiptype");
 		ShipType type = em.find(ShipType.class, shipTypeId);
@@ -141,18 +192,21 @@ public class CampaignShipGroups implements AdminPlugin
 		}
 		int count = Math.max(1, request.getParameterInt("count"));
 
-		String cargo = request.getParameterString("cargo").trim();
-		try
+		Map<Integer, Integer> modules = new LinkedHashMap<>();
+		for (int slot : ShipGroupModules.slots(type.getTypeModules()).keySet())
 		{
-			new Cargo(Cargo.Type.AUTO, cargo);
+			int item = request.getParameterInt("module_" + slot);
+			if (item != 0)
+			{
+				modules.put(slot, item);
+			}
 		}
-		catch (RuntimeException e)
-		{
-			throw new CampaignException("Ungültiger Cargo: " + cargo);
-		}
+		ShipGroupModules.check(type, modules, em);
+		ShipTypeData stats = ShipGroupModules.apply(type, modules);
 
-		Map<Integer, Long> units = ShipGroupUnits.parse(request.getParameterString("units"));
-		ShipGroupUnits.check(units, unitSizes(em), type.getUnitSpace(), type.getMaxUnitSize());
+		List<String> warnings = new ArrayList<>();
+		String cargo = fitCargo(request.getParameterString("cargo").trim(), stats.getCargo(), warnings);
+		String units = fitUnits(em, ShipGroupUnits.parse(request.getParameterString("units")), stats, warnings);
 
 		ShipGroupTemplate.Officer officer = null;
 		if ("1".equals(request.getParameterString("officer")))
@@ -166,12 +220,74 @@ public class CampaignShipGroups implements AdminPlugin
 					request.getParameterString("officer_special"));
 		}
 
-		return new ShipGroupTemplate.Entry(entryId, shipTypeId, count,
+		return new EntryInput(new ShipGroupTemplate.Entry(entryId, shipTypeId, count,
 				request.getParameterString("namepattern").trim(),
 				cargo,
-				ShipGroupUnits.format(units),
+				units,
+				ShipGroupModules.format(modules),
 				officer,
-				request.getParameterInt("alarm"));
+				request.getParameterInt("alarm")), warnings);
+	}
+
+	/**
+	 * @return The cargo, cut to the ship's cargo space from the last item on
+	 */
+	private static String fitCargo(String cargoString, long space, List<String> warnings)
+	{
+		Cargo cargo;
+		try
+		{
+			cargo = new Cargo(Cargo.Type.AUTO, cargoString);
+		}
+		catch (RuntimeException e)
+		{
+			throw new CampaignException("Ungültiger Cargo: " + cargoString);
+		}
+		List<ShipGroupLimits.Load<ResourceID>> loads = new ArrayList<>();
+		for (ItemCargoEntry<Item> item : cargo.getItems())
+		{
+			ItemData data = item.getItem();
+			loads.add(new ShipGroupLimits.Load<>(item.getResourceID(), data == null ? "Item " + item.getItemID() : CampaignText.plain(data.getName()),
+					item.getCount(), data == null ? 0 : data.getCargo()));
+		}
+		ShipGroupLimits.Result<ResourceID> result = ShipGroupLimits.trim(loads, space, "Cargo");
+		if (!result.isChanged())
+		{
+			return cargoString;
+		}
+		warnings.addAll(result.warnings);
+		Cargo fitted = new Cargo();
+		result.loads.forEach(load -> fitted.addResource(load.key, load.count));
+		return fitted.save();
+	}
+
+	/**
+	 * @return The units, without those too large for the ship and cut to its unit space from the last
+	 * entry on
+	 */
+	private static String fitUnits(EntityManager em, Map<Integer, Long> units, ShipTypeData stats, List<String> warnings)
+	{
+		List<ShipGroupLimits.Load<Integer>> loads = new ArrayList<>();
+		for (Map.Entry<Integer, Long> unit : units.entrySet())
+		{
+			UnitType unitType = em.find(UnitType.class, unit.getKey());
+			if (unitType == null)
+			{
+				throw new CampaignException("Unbekannter Einheitentyp: " + unit.getKey());
+			}
+			String name = CampaignText.plain(unitType.getName());
+			if (stats.getMaxUnitSize() != -1 && unitType.getSize() > stats.getMaxUnitSize())
+			{
+				warnings.add("Einheiten: " + name + " (" + unit.getValue() + ") entfernt, zu groß für den Schiffstyp.");
+				continue;
+			}
+			loads.add(new ShipGroupLimits.Load<>(unit.getKey(), name, unit.getValue(), unitType.getSize()));
+		}
+		ShipGroupLimits.Result<Integer> result = ShipGroupLimits.trim(loads, stats.getUnitSpace(), "Einheiten");
+		warnings.addAll(result.warnings);
+		Map<Integer, Long> fitted = new LinkedHashMap<>();
+		result.loads.forEach(load -> fitted.put(load.key, load.count));
+		return ShipGroupUnits.format(fitted);
 	}
 
 	private static void spawn(StringBuilder echo, EntityManager em, Request request, ShipGroupRepository repository, int templateId)
@@ -221,7 +337,7 @@ public class CampaignShipGroups implements AdminPlugin
 
 		echo.append("<h4>Schiffe</h4><table class='noBorderX' cellpadding='3'><tr><td class='noBorderX'>Typ</td><td class='noBorderX'>Anzahl</td>")
 				.append("<td class='noBorderX'>Name</td><td class='noBorderX'>Cargo</td><td class='noBorderX'>Einheiten</td>")
-				.append("<td class='noBorderX'>Offizier</td><td class='noBorderX'>Alarm</td><td class='noBorderX'></td></tr>");
+				.append("<td class='noBorderX'>Module</td><td class='noBorderX'>Offizier</td><td class='noBorderX'>Alarm</td><td class='noBorderX'></td></tr>");
 		ShipGroupTemplate.Entry edited = null;
 		for (ShipGroupTemplate.Entry entry : template.entries)
 		{
@@ -235,6 +351,7 @@ public class CampaignShipGroups implements AdminPlugin
 					.append("</td><td class='noBorderX'>").append(esc(entry.namePattern))
 					.append("</td><td class='noBorderX'>").append(esc(describeCargo(entry.cargo)))
 					.append("</td><td class='noBorderX'>").append(esc(describeUnits(entry.units, unitTypes)))
+					.append("</td><td class='noBorderX'>").append(esc(describeModules(em, entry.modules)))
 					.append("</td><td class='noBorderX'>").append(esc(describeOfficer(entry.officer)))
 					.append("</td><td class='noBorderX'>").append(esc(alarm(entry.alarm).name()))
 					.append("</td><td class='noBorderX'>");
@@ -245,12 +362,12 @@ public class CampaignShipGroups implements AdminPlugin
 		}
 		echo.append("</table>");
 
-		entryForm(echo, template, edited, shipTypes, unitTypes);
+		entryForm(echo, em, template, edited, shipTypes, unitTypes);
 		spawnForm(echo, em, template);
 		echo.append("</div><br />");
 	}
 
-	private void entryForm(StringBuilder echo, ShipGroupTemplate template, ShipGroupTemplate.Entry entry, Map<Integer, ShipType> shipTypes, List<UnitType> unitTypes)
+	private void entryForm(StringBuilder echo, EntityManager em, ShipGroupTemplate template, ShipGroupTemplate.Entry entry, Map<Integer, ShipType> shipTypes, List<UnitType> unitTypes)
 	{
 		echo.append("<h4>").append(entry == null ? "Schiffe hinzufügen" : "Eintrag bearbeiten").append("</h4>");
 		echo.append("<form action='./ds' method='post' id='sgEntryForm'>");
@@ -266,6 +383,8 @@ public class CampaignShipGroups implements AdminPlugin
 		echo.append("<div class='campaign-section'>Typ ");
 		select(echo, "shiptype", typeOptions, entry == null ? null : entry.shipTypeId, null);
 		echo.append(" <span class='campaign-hint sgShipTypeInfo'></span><br />");
+		echo.append("<span class='campaign-hint'>Die Anzeigen rechnen ohne Module. Beim Speichern zählt der Platz mit Modulen; was nicht passt, ")
+				.append("wird vom letzten Eintrag an gekürzt.</span><br />");
 		echo.append("Anzahl <input type='text' name='count' size='3' value='").append(entry == null ? 1 : entry.count).append("' /> ");
 		echo.append("Name <input type='text' name='namepattern' size='20' placeholder='Wache {n}' value='").append(entry == null ? "" : esc(entry.namePattern)).append("' /> ");
 		echo.append("<span class='campaign-hint'>{n} wird durch die laufende Nummer ersetzt</span><br />");
@@ -284,6 +403,9 @@ public class CampaignShipGroups implements AdminPlugin
 		echo.append("<div class='campaign-section'><b>Einheiten</b> <span class='campaign-hint'>je Schiff</span>");
 		echo.append("<input type='hidden' name='units' id='sgUnits' value='").append(entry == null ? "" : esc(entry.units)).append("' /></div>");
 
+		echo.append("<div class='campaign-section'><b>Module</b> <span class='campaign-hint'>je Schiff, passend zum Slot</span>")
+				.append("<div class='sgModules'></div></div>");
+
 		officerFields(echo, entry == null ? null : entry.officer);
 
 		echo.append("<input type='submit' value='").append(entry == null ? "Hinzufügen" : "Speichern").append("' />");
@@ -295,12 +417,13 @@ public class CampaignShipGroups implements AdminPlugin
 
 		Gson gson = new Gson();
 		Map<Integer, Map<String, Object>> typeData = new TreeMap<>();
-		shipTypes.forEach((id, type) -> typeData.put(id, Map.of("cargo", type.getCargo(), "unitSpace", type.getUnitSpace(), "maxUnitSize", type.getMaxUnitSize())));
+		shipTypes.forEach((id, type) -> typeData.put(id, new LinkedHashMap<>(Map.of("cargo", type.getCargo(), "unitSpace", type.getUnitSpace(), "maxUnitSize", type.getMaxUnitSize()))));
 		List<Map<String, Object>> unitData = new ArrayList<>();
 		for (UnitType unitType : unitTypes)
 		{
 			unitData.add(Map.of("id", unitType.getId(), "name", unitType.getName(), "size", unitType.getSize(), "picture", StringUtils.defaultString(unitType.getPicture())));
 		}
+		moduleData(echo, gson, em, shipTypes, typeData, entry);
 		echo.append("<script type='text/javascript'>var sgShipTypes=").append(gson.toJson(typeData))
 				.append(";var sgUnitTypes=").append(gson.toJson(unitData))
 				.append(";var sgMaxRank=").append(Offiziere.MAX_RANG).append(";</script>");
@@ -418,6 +541,72 @@ public class CampaignShipGroups implements AdminPlugin
 		}
 	}
 
+	/**
+	 * Adds each ship type's module slots to its data, and writes the slot types with the modules fitting
+	 * them, the module names and the entry's modules for the form script.
+	 */
+	private static void moduleData(StringBuilder echo, Gson gson, EntityManager em, Map<Integer, ShipType> shipTypes,
+			Map<Integer, Map<String, Object>> typeData, ShipGroupTemplate.Entry entry)
+	{
+		List<Schiffsmodul> moduleItems = em.createQuery("from Schiffsmodul order by id", Schiffsmodul.class).getResultList();
+		Set<String> slotTypes = new TreeSet<>();
+		shipTypes.forEach((id, type) -> {
+			List<Object[]> slots = new ArrayList<>();
+			ShipGroupModules.slots(type.getTypeModules()).forEach((slot, slotType) -> {
+				slots.add(new Object[] {slot, slotType});
+				slotTypes.add(slotType);
+			});
+			typeData.get(id).put("slots", slots);
+		});
+
+		Map<String, Map<String, Object>> slotData = new TreeMap<>();
+		for (String slotType : slotTypes)
+		{
+			String name = slotType;
+			List<Integer> fitting = new ArrayList<>();
+			try
+			{
+				ModuleSlot slot = ModuleSlots.get().slot(slotType);
+				name = CampaignText.plain(slot.getName());
+				for (Schiffsmodul item : moduleItems)
+				{
+					if (slot.isMemberIn(item.getSlots()))
+					{
+						fitting.add(item.getID());
+					}
+				}
+			}
+			catch (NoSuchSlotException e)
+			{
+				// An unknown slot type takes no module
+			}
+			slotData.put(slotType, Map.of("name", name, "modules", fitting));
+		}
+		Map<Integer, String> names = new TreeMap<>();
+		for (Schiffsmodul item : moduleItems)
+		{
+			names.put(item.getID(), CampaignText.plain(item.getName()) + " (" + item.getID() + ")");
+		}
+		echo.append("<script type='text/javascript'>var sgSlotTypes=").append(gson.toJson(slotData))
+				.append(";var sgModuleNames=").append(gson.toJson(names))
+				.append(";var sgCurrentModules=").append(gson.toJson(entry == null ? Map.of() : ShipGroupModules.parse(entry.modules)))
+				.append(";</script>");
+	}
+
+	private static String describeModules(EntityManager em, String modules)
+	{
+		if (StringUtils.isBlank(modules))
+		{
+			return "-";
+		}
+		StringJoiner joiner = new StringJoiner(", ");
+		ShipGroupModules.parse(modules).forEach((slot, item) -> {
+			Schiffsmodul module = em.find(Schiffsmodul.class, item);
+			joiner.add(slot + ": " + (module == null ? "Modul " + item : CampaignText.plain(module.getName())));
+		});
+		return joiner.toString();
+	}
+
 	private static String describeOfficer(ShipGroupTemplate.Officer officer)
 	{
 		if (officer == null)
@@ -448,15 +637,5 @@ public class CampaignShipGroups implements AdminPlugin
 			types.put(type.getId(), type);
 		}
 		return types;
-	}
-
-	private static Map<Integer, Integer> unitSizes(EntityManager em)
-	{
-		Map<Integer, Integer> sizes = new TreeMap<>();
-		for (UnitType unitType : em.createQuery("from UnitType", UnitType.class).getResultList())
-		{
-			sizes.put(unitType.getId(), unitType.getSize());
-		}
-		return sizes;
 	}
 }

@@ -66,48 +66,4 @@ public final class ShipGroupUnits
 		});
 		return joiner.toString();
 	}
-
-	/**
-	 * @param sizes Size of each unit type, by id
-	 * @return The unit space the units take on one ship
-	 */
-	public static long mass(Map<Integer, Long> units, Map<Integer, Integer> sizes)
-	{
-		long mass = 0;
-		for (Map.Entry<Integer, Long> unit : units.entrySet())
-		{
-			mass += unit.getValue() * sizes.getOrDefault(unit.getKey(), 0);
-		}
-		return mass;
-	}
-
-	/**
-	 * Checks that the units fit on one ship of a type, by the rules of unit transfers.
-	 *
-	 * @param sizes Size of each unit type, by id
-	 * @param unitSpace The unit space of the ship type
-	 * @param maxUnitSize The largest unit size the ship type takes; -1 for any
-	 * @throws CampaignException if a unit type is unknown or too large, or the units need too much space
-	 */
-	public static void check(Map<Integer, Long> units, Map<Integer, Integer> sizes, int unitSpace, int maxUnitSize)
-	{
-		for (Map.Entry<Integer, Long> unit : units.entrySet())
-		{
-			Integer size = sizes.get(unit.getKey());
-			if (size == null)
-			{
-				throw new CampaignException("Unbekannter Einheitentyp: " + unit.getKey());
-			}
-			if (unit.getValue() > 0 && maxUnitSize != -1 && size > maxUnitSize)
-			{
-				throw new CampaignException("Einheitentyp " + unit.getKey() + " ist zu groß für diesen Schiffstyp (Größe " + size
-						+ ", höchstens " + maxUnitSize + ").");
-			}
-		}
-		long mass = mass(units, sizes);
-		if (mass > unitSpace)
-		{
-			throw new CampaignException("Die Einheiten brauchen " + mass + " Platz, der Schiffstyp hat nur " + unitSpace + ".");
-		}
-	}
 }

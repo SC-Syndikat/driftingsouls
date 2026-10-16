@@ -45,11 +45,13 @@ public class ShipGroupTemplate
 		public final String cargo;
 		/** {@code unitTypeId:count}, separated by {@code |}. */
 		public final String units;
+		/** {@code slot:moduleItemId}, separated by {@code |}. */
+		public final String modules;
 		/** The commanding officer of each ship; {@code null} for none. */
 		public final Officer officer;
 		public final int alarm;
 
-		public Entry(int id, int shipTypeId, int count, String namePattern, String cargo, String units, Officer officer, int alarm)
+		public Entry(int id, int shipTypeId, int count, String namePattern, String cargo, String units, String modules, Officer officer, int alarm)
 		{
 			this.id = id;
 			this.shipTypeId = shipTypeId;
@@ -57,6 +59,7 @@ public class ShipGroupTemplate
 			this.namePattern = namePattern;
 			this.cargo = cargo;
 			this.units = units;
+			this.modules = modules;
 			this.officer = officer;
 			this.alarm = alarm;
 		}

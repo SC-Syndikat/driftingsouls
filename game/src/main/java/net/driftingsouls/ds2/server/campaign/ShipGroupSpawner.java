@@ -4,6 +4,7 @@ import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.Resources;
+import net.driftingsouls.ds2.server.cargo.modules.ModuleType;
 import net.driftingsouls.ds2.server.entities.Offizier;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
@@ -14,6 +15,7 @@ import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipFleet;
 import net.driftingsouls.ds2.server.ships.ShipType;
+import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.units.UnitType;
 import net.driftingsouls.ds2.server.werften.ShipWerft;
 import org.apache.commons.lang3.StringUtils;
@@ -63,7 +65,7 @@ public class ShipGroupSpawner
 			for (int i = 0; i < entry.count; i++)
 			{
 				number++;
-				Ship ship = createShip(owner, type, location, history);
+				Ship ship = createShip(owner, type, location, history, ShipGroupModules.parse(entry.modules));
 				ship.setName(StringUtils.isBlank(entry.namePattern)
 						? template.name + " " + number
 						: entry.namePattern.replace("{n}", Integer.toString(number)));
@@ -86,23 +88,29 @@ public class ShipGroupSpawner
 		return ships;
 	}
 
-	private Ship createShip(User owner, ShipType type, Location location, String history)
+	private Ship createShip(User owner, ShipType type, Location location, String history, Map<Integer, Integer> modules)
 	{
 		Ship ship = new Ship(owner, type, location.getSystem(), location.getX(), location.getY());
 		ship.getHistory().addHistory(history);
-		ship.setHull(type.getHull());
-		ship.setEnergy(type.getEps());
-		ship.setCrew(type.getCrew());
-		ship.setShields(type.getShields());
-		ship.setNahrungCargo(type.getNahrungCargo());
-		ship.setAblativeArmor(type.getAblativeArmor());
 		ship.setEngine(100);
 		ship.setWeapons(100);
 		ship.setComm(100);
 		ship.setSensors(100);
 		em.persist(ship);
 
-		if (type.getWerft() != 0)
+		// Modules first: they change what the ship holds and how strong it is
+		ShipGroupModules.check(type, modules, em);
+		modules.forEach((slot, item) -> ship.addModule(slot, ModuleType.ITEMMODULE, Integer.toString(item)));
+
+		ShipTypeData stats = ship.getTypeData();
+		ship.setHull(stats.getHull());
+		ship.setEnergy(stats.getEps());
+		ship.setCrew(stats.getCrew());
+		ship.setShields(stats.getShields());
+		ship.setNahrungCargo(stats.getNahrungCargo());
+		ship.setAblativeArmor(stats.getAblativeArmor());
+
+		if (stats.getWerft() != 0)
 		{
 			em.persist(new ShipWerft(ship));
 		}
