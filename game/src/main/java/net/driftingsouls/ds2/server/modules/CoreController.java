@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.Core;
 import net.driftingsouls.ds2.server.cargo.Cargo;
@@ -75,6 +77,7 @@ public class CoreController extends Controller
 	public TemplateEngine buildAction(@UrlParam(name = "col") Base base, @UrlParam(name = "build") Core core)
 	{
 		validiereBasis(base);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 
 		User user = (User) getUser();
 		TemplateEngine t = templateViewResultFactory.createFor(this);
@@ -171,6 +174,7 @@ public class CoreController extends Controller
 	public RedirectViewResult deactivateAction(@UrlParam(name = "col") Base base)
 	{
 		validiereBasis(base);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 
 		if (!base.isCoreActive())
 		{
@@ -195,6 +199,7 @@ public class CoreController extends Controller
 	public RedirectViewResult activateAction(@UrlParam(name = "col") Base base)
 	{
 		validiereBasis(base);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 
 		if (base.isCoreActive())
 		{

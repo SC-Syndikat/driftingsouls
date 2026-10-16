@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.entities.User;
@@ -65,6 +67,9 @@ public class SchiffAjaxController extends Controller
 		{
 			throw new ValidierungException("Das angegebene Schiff existiert nicht.");
 		}
+		new CampaignActionGuard().controlDenial(user, ship.getSystem()).ifPresent(denial -> {
+			throw new ValidierungException(denial);
+		});
 
 		if (ship.getBattle() != null)
 		{
@@ -82,6 +87,7 @@ public class SchiffAjaxController extends Controller
 	public ViewMessage alarmAction(Ship schiff, Alarmstufe alarm)
 	{
 		validiereSchiff(schiff);
+		new CampaignActionGuard().check((User) getUser(), schiff, CampaignAction.SHIP_ACTION);
 
 		User user = (User) getUser();
 		if (user.isNoob())
@@ -171,6 +177,8 @@ public class SchiffAjaxController extends Controller
 	public Object fliegeSchiffAction(Ship schiff, int x, int y)
 	{
 		validiereSchiff(schiff);
+		// Campaign rules and dialogs binding the ships in their sector apply to flights too
+		new CampaignActionGuard().check((User) getUser(), schiff, CampaignAction.MOVE);
 
 		RouteFactory router = new RouteFactory();
 		boolean forceLowHeat = false;

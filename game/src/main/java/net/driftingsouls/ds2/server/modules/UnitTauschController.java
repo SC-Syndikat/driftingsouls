@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.comm.PM;
@@ -770,6 +772,12 @@ public class UnitTauschController extends Controller
 		List<TransportTarget> to = parseListeDerTransportZiele(way[1], rawTo);
 
 		validiereEinheitenKoennenZwischenQuelleUndZielTransferiertWerden(from, to, way[0], way[1]);
+		if (!from.isEmpty())
+		{
+			new CampaignActionGuard().check((User) getUser(), from.get(0).getLocation().getSystem(), CampaignAction.TRANSFER);
+			// Goods must not leave or reach ships held by a dialog in this sector
+			new CampaignActionGuard().checkDialog((User) getUser(), from.get(0).getLocation());
+		}
 
 		StringBuilder message = new StringBuilder();
 

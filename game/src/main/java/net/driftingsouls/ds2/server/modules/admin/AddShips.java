@@ -20,6 +20,8 @@ package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ItemID;
 import net.driftingsouls.ds2.server.cargo.Resources;
@@ -250,6 +252,14 @@ public class AddShips implements AdminPlugin {
 			int lowid = context.getRequest().getParameterInt("lowid");
 			int jlowid = context.getRequest().getParameterInt("jlowid");
 
+			try {
+				GameMasterRestriction.forActiveUser().check(system, ownerId);
+			}
+			catch( CampaignException e ) {
+				echo.append("<div class='gfxbox' style='width:560px'><span class='error'>").append(e.getMessage()).append("</span></div>");
+				return;
+			}
+
 			String currentTime = Common.getIngameTime(context.get(ContextCommon.class).getTick());
 
 			ShipType shiptype = (ShipType)db.get(ShipType.class, shipTypeId);
@@ -303,6 +313,8 @@ public class AddShips implements AdminPlugin {
 					ship.setId(shipid);
 				}
 				db.save(ship);
+				// save() does not cascade to the history like persist() would
+				db.persist(ship.getHistory());
 
 				if( shiptype.getWerft() != 0 ) {
 					ShipWerft werft = new ShipWerft(ship);
@@ -389,6 +401,7 @@ public class AddShips implements AdminPlugin {
 							jaeger.setId(shouldId);
 						}
 						db.save(jaeger);
+						db.persist(jaeger.getHistory());
 
 						jaeger.recalculateShipStatus();
 

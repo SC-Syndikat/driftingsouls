@@ -19,11 +19,15 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.authentication.AuthenticationException;
 import net.driftingsouls.ds2.server.framework.authentication.AuthenticationManager;
+import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Required;
 
@@ -54,11 +58,30 @@ public class PlayerLoginSuper implements AdminPlugin {
 
 		int user = context.getRequest().getParameterInt("user");
 		int usesessid = context.getRequest().getParameterInt("usesessid");
-		
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+
 		if( user == 0 ) {
 			echo.append("<div class=\"gfxbox\" style=\"width:300px\">");
 			echo.append("<form action=\"./ds\" method=\"post\">");
-			echo.append("ID: <input type=\"text\" name=\"user\" size=\"10\" value=\"0\" />\n");
+			if( restriction.applies() ) {
+				// A game master may only take over the NPC accounts taking part in the campaign
+				echo.append("NPC: <select name=\"user\">");
+				for( int npcId : restriction.getMasterLoginIds() ) {
+					User npc = (User)context.getDB().get(User.class, npcId);
+					if( npc != null ) {
+						echo.append("<option value=\"").append(npcId).append("\">")
+								.append(StringEscapeUtils.escapeHtml4(npc.getPlainname())).append(" (").append(npcId).append(")")
+								.append(npc.getDisabled() ? " – gesperrt" : "").append("</option>");
+					}
+				}
+				echo.append("</select>\n");
+				if( restriction.getMasterLoginIds().isEmpty() ) {
+					echo.append("<br /><span class=\"error\">Es nimmt kein NPC-Account an der Kampagne teil.</span>");
+				}
+			}
+			else {
+				echo.append("ID: <input type=\"text\" name=\"user\" size=\"10\" value=\"0\" />\n");
+			}
 			echo.append("<br /><br />\n");
 			echo.append("<input type=\"checkbox\" name=\"usesessid\" id=\"form[usesessid]\" value=\"1\" /><label for=\"usesessid\">Rechte vererben?</label><br /><br />\n");
 			echo.append("<input type=\"hidden\" name=\"namedplugin\" value=\"").append(getClass().getName()).append("\" />");
@@ -74,6 +97,12 @@ public class PlayerLoginSuper implements AdminPlugin {
 				return;
 			}
 
+			if( userObj.getDisabled() ) {
+				// The next request would reject the session and log out
+				echo.append("<span style=\"color:red\">Der Account ").append(user).append(" ist gesperrt. Ein Masterlogin ist erst möglich, wenn ein Admin ihn entsperrt.</span>");
+				return;
+			}
+
 			int currentAccessLevel = context.getActiveUser().getAccessLevel();
 
 			if( userObj.getAccessLevel() > currentAccessLevel )
@@ -86,6 +115,18 @@ public class PlayerLoginSuper implements AdminPlugin {
 			{
 				echo.append("<span style=\"color:red\">Der angegebene Benutzer hat mehr Rechte als du. Login abgelehnt.</span>");
 				return;
+			}
+
+			if( restriction.applies() ) {
+				try {
+					restriction.checkMasterLogin(user);
+				}
+				catch( CampaignException e ) {
+					echo.append("<span style=\"color:red\">").append(StringEscapeUtils.escapeHtml4(e.getMessage())).append("</span>");
+					return;
+				}
+				Common.writeLog("login.log", Common.date("j.m.Y H:i:s") + ": GameMaster " + context.getActiveUser().getId()
+						+ " Masterlogin in NPC " + user + "\n");
 			}
 
 			this.authManager.adminLogin(userObj, usesessid != 0);

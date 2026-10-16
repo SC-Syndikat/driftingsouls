@@ -23,6 +23,8 @@ import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.BaseStatus;
 import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignRepository;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.cargo.ResourceList;
@@ -49,6 +51,7 @@ import net.driftingsouls.ds2.server.repositories.ShipsRepository;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipFleet;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
+import org.apache.commons.text.StringEscapeUtils;
 import org.hibernate.Query;
 import org.hibernate.Session;
 import org.slf4j.Logger;
@@ -149,6 +152,29 @@ public class UeberController extends Controller
 	{
 		User user = (User)getUser();
 		user.setTickReady(true);
+		user.setUserValue(WellKnownUserValue.CAMPAIGN_ATTACK_NOTICE, "");
+		return new RedirectViewResult("default");
+	}
+
+	/**
+	 * Nimmt die Bereitschaft fuer den Kampagnentick zurueck, damit der Spieler weiter handeln kann.
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult resumeTurnAction()
+	{
+		User user = (User)getUser();
+		user.setTickReady(false);
+		return new RedirectViewResult("default");
+	}
+
+	/**
+	 * Quittiert den Hinweis, dass der Spieler waehrend seiner beendeten Runde angegriffen wurde.
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult dismissAttackNoticeAction()
+	{
+		User user = (User)getUser();
+		user.setUserValue(WellKnownUserValue.CAMPAIGN_ATTACK_NOTICE, "");
 		return new RedirectViewResult("default");
 	}
 
@@ -187,7 +213,16 @@ public class UeberController extends Controller
 				//"user.specpoints", user.getFreeSpecializationPoints(),
 				//"user.maxspecpoints", user.getSpecializationPoints(),
 				"global.ticks", ticks,
-				"global.ticktime", ticktime);
+				"global.ticktime", ticktime,
+				"campaign.attacknotice", StringEscapeUtils.escapeHtml4(user.getUserValue(WellKnownUserValue.CAMPAIGN_ATTACK_NOTICE)));
+
+		// The tick's progress is not shown here: players are locked out while it runs
+		if (Boolean.TRUE.equals(user.isCampaignParticipant()))
+		{
+			new CampaignRepository().findOpen().filter(Campaign::isRunning)
+					.ifPresent(campaign -> t.setVar("campaign.running", true,
+							"campaign.tick", campaign.getTickCount()));
+		}
 
 		//
 		// Ingame-Zeit setzen

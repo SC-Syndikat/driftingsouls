@@ -5,6 +5,8 @@ import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.config.Rassen;
 import net.driftingsouls.ds2.server.config.items.Item;
 import net.driftingsouls.ds2.server.config.items.effects.ItemEffect;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
@@ -13,6 +15,7 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.units.UnitCargoEntry;
 import org.hibernate.Session;
 import org.springframework.http.HttpHeaders;
+import org.springframework.web.util.HtmlUtils;
 import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.WebContext;
 
@@ -78,6 +81,12 @@ public class BaseController implements DSController {
             Error error = new Error("Die angegebene Kolonie gehört nicht Ihnen");
             ctx.setVariable("error",error);
             return false;
+		}
+		Optional<String> control = new CampaignActionGuard().controlDenial(user, base.getSystem());
+		if (control.isPresent())
+		{
+			ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(control.get())));
+			return false;
 		}
 
 		base.getCargo().setOption( Cargo.Option.LINKCLASS, "schiffwaren" );
@@ -177,6 +186,17 @@ public class BaseController implements DSController {
         if(action != Action.SCAN && !validateBase(base, ctx)){
             templateEngine.process("base", ctx, response.getWriter());
             return;
+        }
+
+        // Kampagnenregeln: in einem Kampagnensystem nur fuer Teilnehmer, die ihre Runde nicht beendet haben
+        if(action != Action.DEFAULT){
+            Optional<String> campaignDenial = new CampaignActionGuard().denial((User) context.getActiveUser(), base.getSystem(),
+                action == Action.SCAN ? CampaignAction.SHIP_ACTION : CampaignAction.BASE_ACTION);
+            if(campaignDenial.isPresent()){
+                ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(campaignDenial.get())));
+                templateEngine.process("base", ctx, response.getWriter());
+                return;
+            }
         }
 
         switch(action){

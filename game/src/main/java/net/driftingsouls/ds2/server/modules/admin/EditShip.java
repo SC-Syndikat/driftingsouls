@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.entities.User;
@@ -47,6 +49,19 @@ public class EditShip implements EntityEditor<Ship>
 	@Override
 	public void configureFor(@Nonnull EditorForm8<Ship> form)
 	{
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		if (restriction.applies())
+		{
+			// A game master only sees ships in campaign star systems
+			form.restrictVisible(ship -> restriction.isSystemAllowed(ship.getSystem()),
+					(builder, root) -> restriction.getSystems().isEmpty()
+							? builder.disjunction()
+							: root.get(Ship_.system).in(restriction.getSystems()));
+			form.allowUpdate(ship -> restriction.isAllowed(ship.getSystem(), ship.getOwner().getId()));
+			form.validateUpdate((before, after) -> restriction.check(after.getSystem(), after.getOwner().getId()));
+		}
+
+		form.label("Kampagne", ship -> "<a class='forschinfo' href='" + CampaignInteractions.objectUrl(ObjectType.SHIP, ship.getId()) + "'>Interaktionen</a>");
 		form.field("Name", String.class, Ship::getName, Ship::setName);
 		form.field("Besitzer", User.class, Ship::getOwner, Ship::setOwner).dbColumn(Ship_.owner);
 		form.field("System", Integer.class, Ship::getSystem, Ship::setSystem).dbColumn(Ship_.system);

@@ -22,6 +22,8 @@ import net.driftingsouls.ds2.server.MutableLocation;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.Resources;
 import net.driftingsouls.ds2.server.entities.Nebel;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.pipeline.Module;
@@ -150,6 +152,10 @@ public class DeutSammelnController extends Controller
 	public RedirectViewResult sammelnAction(Ship ship, ShipFleet fleet, long e)
 	{
 		List<Ship> shipList = erzeugeSchiffsliste(ship, fleet);
+		for (Ship aship : shipList)
+		{
+			new CampaignActionGuard().check((User) getUser(), aship, CampaignAction.SHIP_ACTION);
+		}
 		Nebel nebel = ermittleNebelFuerSchiffsliste(shipList);
 		filtereSchiffsliste(shipList, nebel);
 

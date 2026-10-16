@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.entities.Offizier;
@@ -116,6 +118,7 @@ public class TCController extends Controller
 		User user = (User) getUser();
 
 		validiereSchiff(ship);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 		t.setVar("global.shipid", ship.getId());
 
 		String errorurl = Common.buildUrl("default", "module", "schiff", "ship", ship.getId());
@@ -254,6 +257,7 @@ public class TCController extends Controller
 		User user = (User) getUser();
 
 		validiereSchiff(ship);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 		t.setVar("global.shipid", ship.getId());
 
 
@@ -345,6 +349,7 @@ public class TCController extends Controller
 		User user = (User) getUser();
 
 		validiereSchiff(ship);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 		t.setVar("global.shipid", ship.getId());
 
 
@@ -422,6 +427,7 @@ public class TCController extends Controller
 		User user = (User) getUser();
 
 		validiereSchiff(ship);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 		t.setVar("global.shipid", ship.getId());
 
 

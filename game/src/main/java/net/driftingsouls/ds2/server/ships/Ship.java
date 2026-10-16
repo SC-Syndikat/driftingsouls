@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.ships;
 
+import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
+import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.Locatable;
 import net.driftingsouls.ds2.server.Location;
@@ -2296,6 +2298,11 @@ public class Ship implements Locatable,Transfering,Feeding {
 			for( Offizier offi : this.getOffiziere() )
 			{
 				offi.setOwner(newowner);
+			}
+
+			// Kampagnen-Interaktionen gibt es nur an NPC-Schiffen
+			if( !newowner.isNPC() ) {
+				new InteractionRepository().deleteForObject(ObjectType.SHIP, this.id);
 			}
 
 			if( getTypeData().getWerft() != 0 ) {

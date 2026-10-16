@@ -128,6 +128,21 @@ Ahead of the templating work because it fixes a correctness bug affecting player
 on a different pool connection than the request's `EntityManager`, so they sit outside the request
 transaction.
 
+**Partly done ahead of schedule** on `feature/campaign`, where the campaign system needed atomic
+Hibernate + jOOQ writes. It was done minimally rather than as 3.2/3.3:
+- `DBUtil.getConnection(em)` now returns the session's own connection while the EntityManager has an
+  active transaction. It is Hibernate's distinct connection proxy, whose `close()` only invalidates the
+  proxy, so the 34 try-with-resources callers are unchanged. Outside a transaction it still hands out a
+  separate pool connection.
+- `DBUtilTest` covers three cases: a jOOQ read sees flushed Hibernate rows, Hibernate sees jOOQ writes
+  in the same transaction, and a rollback undoes both. That is 3.1's intent.
+- 3.2–3.4 are still open: Hikari as a standalone bean, `DataSourceTransactionManager`,
+  `@Transactional` and the retry interceptor.
+
+The three `MapSectorPopupTest` cases turned out **not** to be caused by this defect. They still fail,
+because `MapController.sectorAction()` has its whole body commented out and always returns an empty
+view model. They stay `@Ignore`d with that reason, and are no longer acceptance criteria for this step.
+
 **3.1 Transaction-boundary tests.** Assert that a jOOQ read sees an uncommitted Hibernate write from
 the same request, and that a failure rolls both back. These **fail on `master` today** — that is the
 point; they encode the bug.

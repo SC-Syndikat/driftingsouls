@@ -20,6 +20,8 @@ package net.driftingsouls.ds2.server.modules.ks;
 
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.campaign.interaction.GmRequestService;
+import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 
 import java.io.IOException;
@@ -133,6 +135,12 @@ public class KSMenuDefaultAction extends BasicKSMenuAction {
 		menuEntry(t, "Sonstiges",	"ship",		ownShip.getId(),
 								"attack",	enemyShip.getId(),
 								"ksaction",	"other" );
+
+		// Kampagne: Bedingungen mit dem GameMaster aushandeln; als letzter Eintrag in eigener Farbe
+		if( GmRequestService.battleRequestsPossible((User)this.getController().getUser(), battle) ) {
+			menuEntryColored(t, "Anfrage an den GameMaster",
+					"&amp;ship=" + ownShip.getId() + "&amp;attack=" + enemyShip.getId() + "&amp;ksaction=gmrequest", "#2A5DB0");
+		}
 
 		return Result.OK;
 	}

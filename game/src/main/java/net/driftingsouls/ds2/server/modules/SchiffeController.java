@@ -18,6 +18,10 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
+import java.util.Set;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.cargo.ResourceID;
@@ -175,6 +179,13 @@ public class SchiffeController extends Controller
 
 		String query = "select s from Ship as s left join s.modules m " +
 				"where s.id>0 and s.owner=:owner and ";
+		// The game master steering an NPC sees its ships in campaign star systems only
+		Set<Integer> controlSystems = GameMasterControl.isControlling() ? new CampaignMapService(getEM()).getOpenCampaignSystemIds() : null;
+		if (controlSystems != null)
+		{
+			query += "s.system in (:controlSystems) and ";
+		}
+		t.setVar("gamemaster.control", GameMasterMenu.controlToggle("ships"));
 
 		if (low != 0)
 		{
@@ -284,8 +295,12 @@ public class SchiffeController extends Controller
 			t.setVar("schiffe.prevoffset", listoffset - MAX_SHIPS_PER_PAGE);
 		}
 
-		List<?> ships = db.createQuery(query)
-				.setEntity("owner", user)
+		org.hibernate.Query shipQuery = db.createQuery(query).setEntity("owner", user);
+		if (controlSystems != null)
+		{
+			shipQuery.setParameterList("controlSystems", controlSystems.isEmpty() ? Set.of(0) : controlSystems);
+		}
+		List<?> ships = shipQuery
 				.setMaxResults(MAX_SHIPS_PER_PAGE + 1)
 				.setFirstResult(listoffset)
 				.list();

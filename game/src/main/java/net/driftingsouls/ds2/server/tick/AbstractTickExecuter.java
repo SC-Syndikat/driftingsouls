@@ -76,9 +76,9 @@ public abstract class AbstractTickExecuter extends TickController
 		{
 			loxpath += '/';
 		}
-		if( !new File(loxpath).isDirectory() )
+		if( !new File(loxpath).isDirectory() && !new File(loxpath).mkdirs() )
 		{
-			log.error("Der Log-Pfad '" + loxpath + "' existiert nicht");
+			log.error("Der Log-Pfad '" + loxpath + "' existiert nicht und kann nicht angelegt werden");
 		}
 	}
 
@@ -94,11 +94,20 @@ public abstract class AbstractTickExecuter extends TickController
 		try
 		{
 			TickController tick = this.getContext().getBean(tickname, null);
-			tick.affectedSystems = affectedSystems;
+			tick.setAffectedSystems(affectedSystems);
 
 			if( !useSTDOUT )
 			{
-				tick.addLogTarget(loxpath + tickname.getSimpleName().toLowerCase() + ".log", false);
+				try
+				{
+					tick.addLogTarget(loxpath + tickname.getSimpleName().toLowerCase() + ".log", false);
+				}
+				catch( IOException e )
+				{
+					// A missing log file must not cost the tick itself
+					log.warn("Logge " + tickname.getSimpleName() + " nach STDOUT", e);
+					tick.addLogTarget(STDOUT, false);
+				}
 			}
 			else
 			{
@@ -158,6 +167,9 @@ public abstract class AbstractTickExecuter extends TickController
 			removeLogTarget(Configuration.getLogPath() + "ticktime.log");
 
 			this.status = status;
+			if (isCampaignTick()) {
+				CampaignTickStatus.running(status);
+			}
 		} catch (IOException e) {
 			System.err.println("Tickstatus konnte nicht publiziert werden: " + e);
 		}
@@ -210,9 +222,18 @@ public abstract class AbstractTickExecuter extends TickController
 			}
 		}
 
-		executeTicks();
+		if (isCampaignTick()) {
+			CampaignTickStatus.running(null);
+		}
+		try {
+			executeTicks();
 
-		copyLogs(ticknr);
+			copyLogs(ticknr);
+		} finally {
+			if (isCampaignTick()) {
+				CampaignTickStatus.finished();
+			}
+		}
 
 		try {
 			addLogTarget(Configuration.getLogPath() + "tix.log", true);
