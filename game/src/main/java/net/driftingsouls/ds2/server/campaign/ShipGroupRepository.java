@@ -68,15 +68,42 @@ public class ShipGroupRepository
 		withDb(db -> {
 			ShipGroupTemplateEntryRecord record = db.newRecord(SHIP_GROUP_TEMPLATE_ENTRY);
 			record.setTemplateId(templateId);
-			record.setShipTypeId(entry.shipTypeId);
-			record.setCount(entry.count);
-			record.setNamePattern(entry.namePattern);
-			record.setCargo(entry.cargo);
-			record.setUnits(entry.units);
-			record.setOfficerSkill(entry.officerSkill);
-			record.setAlarm(entry.alarm);
+			apply(record, entry);
 			return record.store();
 		});
+	}
+
+	/**
+	 * Replaces an entry's ships, cargo, units, officer and alarm.
+	 */
+	public void updateEntry(int templateId, ShipGroupTemplate.Entry entry)
+	{
+		withDb(db -> {
+			ShipGroupTemplateEntryRecord record = db.selectFrom(SHIP_GROUP_TEMPLATE_ENTRY)
+					.where(SHIP_GROUP_TEMPLATE_ENTRY.ID.eq(entry.id))
+					.and(SHIP_GROUP_TEMPLATE_ENTRY.TEMPLATE_ID.eq(templateId))
+					.fetchOptional()
+					.orElseThrow(() -> new CampaignException("Unbekannter Eintrag: " + entry.id));
+			apply(record, entry);
+			return record.store();
+		});
+	}
+
+	private static void apply(ShipGroupTemplateEntryRecord record, ShipGroupTemplate.Entry entry)
+	{
+		record.setShipTypeId(entry.shipTypeId);
+		record.setCount(entry.count);
+		record.setNamePattern(entry.namePattern);
+		record.setCargo(entry.cargo);
+		record.setUnits(entry.units);
+		ShipGroupTemplate.Officer officer = entry.officer;
+		record.setOfficerNav(officer == null ? null : officer.nav);
+		record.setOfficerIng(officer == null ? null : officer.ing);
+		record.setOfficerWaf(officer == null ? null : officer.waf);
+		record.setOfficerSec(officer == null ? null : officer.sec);
+		record.setOfficerCom(officer == null ? null : officer.com);
+		record.setOfficerSpecial(officer == null ? "" : officer.special);
+		record.setAlarm(entry.alarm);
 	}
 
 	public void deleteEntry(int templateId, int entryId)
@@ -97,10 +124,25 @@ public class ShipGroupRepository
 					.fetch())
 			{
 				entries.add(new ShipGroupTemplate.Entry(r.getId(), r.getShipTypeId(), r.getCount(), r.getNamePattern(),
-						r.getCargo(), r.getUnits(), r.getOfficerSkill(), r.getAlarm()));
+						r.getCargo(), r.getUnits(), toOfficer(r), r.getAlarm()));
 			}
 			return entries;
 		});
+	}
+
+	private static ShipGroupTemplate.Officer toOfficer(ShipGroupTemplateEntryRecord r)
+	{
+		if (r.getOfficerNav() == null)
+		{
+			return null;
+		}
+		return new ShipGroupTemplate.Officer(r.getOfficerNav(), nullToZero(r.getOfficerIng()), nullToZero(r.getOfficerWaf()),
+				nullToZero(r.getOfficerSec()), nullToZero(r.getOfficerCom()), r.getOfficerSpecial());
+	}
+
+	private static int nullToZero(Integer value)
+	{
+		return value == null ? 0 : value;
 	}
 
 	private static ShipGroupTemplate toTemplate(ShipGroupTemplateRecord record, List<ShipGroupTemplate.Entry> entries)

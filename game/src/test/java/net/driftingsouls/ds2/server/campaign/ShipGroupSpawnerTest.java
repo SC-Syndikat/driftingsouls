@@ -4,6 +4,7 @@ import net.driftingsouls.ds2.server.DBSingleTransactionTest;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.config.StarSystem;
+import net.driftingsouls.ds2.server.entities.Offizier;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
@@ -43,6 +44,29 @@ public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 			assertNotNull(ship.getFleet());
 		}
 		assertSame(ships.get(0).getFleet(), ships.get(1).getFleet());
+	}
+
+	@Test
+	public void gegebenEinOffizier_spawn_sollteFaehigkeitenRangUndSpezialfaehigkeitSetzen()
+	{
+		User owner = new User("npc", "***", 0, "", new Cargo(), "npc@localhost");
+		StarSystem system = persist(new StarSystem());
+		ShipType type = persist(new ShipType(ShipClasses.KREUZER));
+		type.setCrew(5);
+		getEM().flush();
+
+		ShipGroupTemplate template = new ShipGroupTemplate(1, "Kommando", "", false, List.of(
+				new ShipGroupTemplate.Entry(1, type.getId(), 1, "", "", "",
+						new ShipGroupTemplate.Officer(100, 200, 300, 400, 500, "WAFFENNARR"), 0)));
+
+		Ship ship = new ShipGroupSpawner(getEM()).spawn(template, owner, new Location(system.getID(), 1, 1)).get(0);
+
+		Offizier officer = ship.getOffizier();
+		assertNotNull(officer);
+		assertEquals(100, officer.getAbility(Offizier.Ability.NAV));
+		assertEquals(500, officer.getAbility(Offizier.Ability.COM));
+		assertEquals(2, officer.getRang());
+		assertEquals(Offizier.Special.WAFFENNARR, officer.getSpecial());
 	}
 
 	@Test(expected = CampaignException.class)

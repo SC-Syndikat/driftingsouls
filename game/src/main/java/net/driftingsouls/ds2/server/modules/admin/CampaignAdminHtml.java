@@ -112,6 +112,24 @@ public final class CampaignAdminHtml
 		echo.append("<input type='submit' value='").append(esc(label)).append("' /></form> ");
 	}
 
+	/**
+	 * A select over the given choices. The choice whose key reads like {@code selected} is preselected.
+	 *
+	 * @param emptyLabel Label of a leading choice with an empty value; {@code null} for none
+	 */
+	static void select(StringBuilder echo, String name, Map<?, String> options, Object selected, String emptyLabel)
+	{
+		String current = selected == null ? "" : selected.toString();
+		echo.append("<select name='").append(esc(name)).append("'>");
+		if (emptyLabel != null)
+		{
+			echo.append("<option value=''>").append(esc(emptyLabel)).append("</option>");
+		}
+		options.forEach((key, label) -> echo.append("<option value='").append(esc(key)).append("'")
+				.append(key.toString().equals(current) ? " selected='selected'" : "").append(">").append(esc(label)).append("</option>"));
+		echo.append("</select>");
+	}
+
 	/** Choice of a variable select meaning "a new variable, named in the text field". */
 	private static final String NEW_VARIABLE = "__new";
 

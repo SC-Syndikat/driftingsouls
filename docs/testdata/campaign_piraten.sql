@@ -17,9 +17,10 @@ INSERT INTO campaign_participant (campaign_id, user_id, added_by, added_at) VALU
 INSERT INTO ship_group_template (id, name, description, create_fleet) VALUES
 (2, 'Piratenschiff Rotes Auge', 'Kapitän Skarn, erscheint beim Wrack', 0),
 (3, 'Leih-Raider', 'Raider, den Vex dem Spieler stellt', 0);
-INSERT INTO ship_group_template_entry (template_id, ship_type_id, count, name_pattern, cargo, units, officer_skill, alarm) VALUES
-(2, 20, 1, 'Rotes Auge', '', '', 40, 0),
-(3, 20, 1, 'Leih-Raider der Maelstrom-Flotte', '', '', NULL, 0);
+INSERT INTO ship_group_template_entry (template_id, ship_type_id, count, name_pattern, cargo, units,
+    officer_nav, officer_ing, officer_waf, officer_sec, officer_com, officer_special, alarm) VALUES
+(2, 20, 1, 'Rotes Auge', '', '', 40, 40, 40, 40, 40, '', 0),
+(3, 20, 1, 'Leih-Raider der Maelstrom-Flotte', '', '', NULL, NULL, NULL, NULL, NULL, '', 0);
 
 -- ---------------------------------------------------------------- nodes
 INSERT INTO dialog_node (id, title, speaker_name, image, text) VALUES

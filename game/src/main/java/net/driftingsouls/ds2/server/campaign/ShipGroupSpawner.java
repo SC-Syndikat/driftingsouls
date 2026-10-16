@@ -20,6 +20,8 @@ import org.apache.commons.lang3.StringUtils;
 import javax.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Creates the ships of a {@link ShipGroupTemplate} for an owner at a location.
@@ -67,9 +69,9 @@ public class ShipGroupSpawner
 				ship.setCargo(cargoFor(type, entry.cargo));
 				ship.setAlarm(Alarmstufe.values()[Math.max(0, Math.min(entry.alarm, Alarmstufe.values().length - 1))]);
 				addUnits(ship, entry.units);
-				if (entry.officerSkill != null)
+				if (entry.officer != null)
 				{
-					addOfficer(owner, ship, entry.officerSkill);
+					addOfficer(owner, ship, entry.officer);
 				}
 				if (fleet != null)
 				{
@@ -120,35 +122,33 @@ public class ShipGroupSpawner
 
 	private void addUnits(Ship ship, String units)
 	{
-		if (StringUtils.isBlank(units))
+		Map<Integer, Long> parsed = ShipGroupUnits.parse(units);
+		if (parsed.isEmpty())
 		{
 			return;
 		}
 		var cargo = ship.getUnits();
-		for (String part : StringUtils.split(units, '|'))
+		for (Map.Entry<Integer, Long> unit : parsed.entrySet())
 		{
-			String[] idAndCount = StringUtils.split(part.trim(), ':');
-			if (idAndCount.length != 2)
-			{
-				throw new CampaignException("Ungültige Einheitenangabe: " + part);
-			}
-			UnitType unitType = em.find(UnitType.class, Integer.parseInt(idAndCount[0].trim()));
+			UnitType unitType = em.find(UnitType.class, unit.getKey());
 			if (unitType == null)
 			{
-				throw new CampaignException("Unbekannter Einheitentyp: " + idAndCount[0]);
+				throw new CampaignException("Unbekannter Einheitentyp: " + unit.getKey());
 			}
-			cargo.addUnit(unitType, Long.parseLong(idAndCount[1].trim()));
+			cargo.addUnit(unitType, unit.getValue());
 		}
 		cargo.save();
 	}
 
-	private void addOfficer(User owner, Ship ship, int skill)
+	private void addOfficer(User owner, Ship ship, ShipGroupTemplate.Officer template)
 	{
 		Offizier officer = new Offizier(owner, "Kommandant " + ship.getName());
 		for (Offizier.Ability ability : Offizier.Ability.values())
 		{
-			officer.setAbility(ability, skill);
+			officer.setAbility(ability, template.getAbility(ability));
 		}
+		officer.setRang(template.getRank());
+		officer.setSpecial(template.resolveSpecial(ThreadLocalRandom.current()));
 		officer.stationierenAuf(ship);
 		em.persist(officer);
 	}
