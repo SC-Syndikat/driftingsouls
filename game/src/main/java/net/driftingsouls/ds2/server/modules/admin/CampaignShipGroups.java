@@ -310,7 +310,9 @@ public class CampaignShipGroups implements AdminPlugin
 	private static void officerFields(StringBuilder echo, ShipGroupTemplate.Officer officer)
 	{
 		echo.append("<div class='campaign-section'><label><input type='checkbox' name='officer' value='1'")
-				.append(officer != null ? " checked='checked'" : "").append(" /> <b>mit Offizier</b></label>");
+				.append(officer != null ? " checked='checked'" : "").append(" /> <b>mit Offizier</b></label>")
+				.append(" <span class='campaign-hint'>nur Schiffe ab Größe ").append(ShipType.SMALL_SHIP_MAXSIZE + 1)
+				.append(" und Rettungskapseln haben einen Offizier</span>");
 		echo.append("<div class='sgOfficerFields'>");
 		for (Offizier.Ability ability : Offizier.Ability.values())
 		{

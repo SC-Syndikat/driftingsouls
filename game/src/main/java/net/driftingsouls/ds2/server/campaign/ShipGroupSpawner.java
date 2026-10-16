@@ -11,6 +11,7 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.map.TileCache;
 import net.driftingsouls.ds2.server.ships.Alarmstufe;
 import net.driftingsouls.ds2.server.ships.Ship;
+import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipFleet;
 import net.driftingsouls.ds2.server.ships.ShipType;
 import net.driftingsouls.ds2.server.units.UnitType;
@@ -69,7 +70,7 @@ public class ShipGroupSpawner
 				ship.setCargo(cargoFor(type, entry.cargo));
 				ship.setAlarm(Alarmstufe.values()[Math.max(0, Math.min(entry.alarm, Alarmstufe.values().length - 1))]);
 				addUnits(ship, entry.units);
-				if (entry.officer != null)
+				if (entry.officer != null && mayCarryOfficer(type))
 				{
 					addOfficer(owner, ship, entry.officer);
 				}
@@ -138,6 +139,14 @@ public class ShipGroupSpawner
 			cargo.addUnit(unitType, unit.getValue());
 		}
 		cargo.save();
+	}
+
+	/**
+	 * @return Whether ships of the type have a commanding officer: small ships have none, except escape pods
+	 */
+	static boolean mayCarryOfficer(ShipType type)
+	{
+		return type.getSize() > ShipType.SMALL_SHIP_MAXSIZE || type.getShipClass() == ShipClasses.RETTUNGSKAPSEL;
 	}
 
 	private void addOfficer(User owner, Ship ship, ShipGroupTemplate.Officer template)

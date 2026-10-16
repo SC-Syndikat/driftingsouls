@@ -53,6 +53,7 @@ public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 		StarSystem system = persist(new StarSystem());
 		ShipType type = persist(new ShipType(ShipClasses.KREUZER));
 		type.setCrew(5);
+		type.setSize(ShipType.SMALL_SHIP_MAXSIZE + 1);
 		getEM().flush();
 
 		ShipGroupTemplate template = new ShipGroupTemplate(1, "Kommando", "", false, List.of(
@@ -67,6 +68,25 @@ public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 		assertEquals(500, officer.getAbility(Offizier.Ability.COM));
 		assertEquals(2, officer.getRang());
 		assertEquals(Offizier.Special.WAFFENNARR, officer.getSpecial());
+	}
+
+	@Test
+	public void gegebenEinKleinesSchiff_spawn_sollteKeinenOffizierAnlegen()
+	{
+		User owner = new User("npc", "***", 0, "", new Cargo(), "npc@localhost");
+		StarSystem system = persist(new StarSystem());
+		ShipType type = persist(new ShipType(ShipClasses.JAEGER));
+		type.setCrew(1);
+		type.setSize(ShipType.SMALL_SHIP_MAXSIZE);
+		getEM().flush();
+
+		ShipGroupTemplate template = new ShipGroupTemplate(1, "Staffel", "", false, List.of(
+				new ShipGroupTemplate.Entry(1, type.getId(), 1, "", "", "",
+						new ShipGroupTemplate.Officer(100, 100, 100, 100, 100, ""), 0)));
+
+		Ship ship = new ShipGroupSpawner(getEM()).spawn(template, owner, new Location(system.getID(), 1, 1)).get(0);
+
+		assertTrue(ship.getOffiziere().isEmpty());
 	}
 
 	@Test(expected = CampaignException.class)
