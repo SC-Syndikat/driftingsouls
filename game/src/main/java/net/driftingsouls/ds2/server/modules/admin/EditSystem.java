@@ -24,7 +24,12 @@ import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.CampaignRepository;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.config.StarSystem;
+import net.driftingsouls.ds2.server.config.StarSystem_;
 import net.driftingsouls.ds2.server.entities.Jump;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.entities.Nebel;
@@ -55,8 +60,35 @@ public class EditSystem implements EntityEditor<StarSystem>
 	@Override
 	public void configureFor(@Nonnull EditorForm8<StarSystem> form)
 	{
-		form.allowAdd();
-		form.allowDelete();
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		if (restriction.applies())
+		{
+			// A game master only designs star systems of the open campaign. New ones join it right away.
+			form.restrictVisible(system -> restriction.isSystemAllowed(system.getID()),
+					(builder, root) -> restriction.getSystems().isEmpty()
+							? builder.disjunction()
+							: root.get(StarSystem_.id).in(restriction.getSystems()));
+			if (restriction.mayCreateSystems())
+			{
+				form.allowAdd();
+			}
+			form.allowUpdate(system -> restriction.isSystemAllowed(system.getID()));
+			form.allowDelete(system -> restriction.isSystemAllowed(system.getID()));
+			form.validateUpdate((before, after) -> {
+				if (before == after || before.getAccess() != after.getAccess())
+				{
+					restriction.checkSystemAccess(after.getAccess());
+				}
+			});
+			form.postAddTask("Der Kampagne hinzufügen", system -> new CampaignMapService(ContextMap.getContext().getEM())
+					.addSystem(new CampaignRepository().findOpen()
+							.orElseThrow(() -> new CampaignException("Es gibt keine offene Kampagne.")), system.getID()));
+		}
+		else
+		{
+			form.allowAdd();
+			form.allowDelete();
+		}
 		form.field("Name", String.class, StarSystem::getName, StarSystem::setName);
 		form.field("Breite", Integer.class, StarSystem::getWidth, StarSystem::setWidth);
 		form.field("Höhe", Integer.class, StarSystem::getHeight, StarSystem::setHeight);

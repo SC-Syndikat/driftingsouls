@@ -155,10 +155,14 @@ public class EditPlugin8<T> implements AdminPlugin
 
 		Request request = context.getRequest();
 
-		db.getTransaction().commit();
-
 		EditorForm8<T> form = new EditorForm8<>(EditorMode.CREATE, EditPlugin8.this.getPluginClass());
 		configureFor(form);
+		if( !form.isAddAllowed() )
+		{
+			return;
+		}
+
+		db.getTransaction().commit();
 
 		T entity = EntityUtils.createEntity(this.clazz);
 		form.applyRequestValues(request, entity);
@@ -169,6 +173,17 @@ public class EditPlugin8<T> implements AdminPlugin
 			// Klasse wurde geaendert - erneut anwenden
 			entity = EntityUtils.createEntity(this.clazz);
 			form.applyRequestValues(request, entity);
+		}
+
+		try
+		{
+			form.validateUpdate(entity, entity);
+		}
+		catch (RuntimeException e)
+		{
+			echo.append("<p>Fehler beim Hinzufügen: ").append(e.getMessage()).append("</p>");
+			db.getTransaction().begin();
+			return;
 		}
 
 		final T entityToPersist = entity;

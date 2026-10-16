@@ -1,6 +1,5 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
-import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
@@ -19,6 +18,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * Bsisklasse fuer einfache Editor-Plugins (fuer einzelne Entities). Stellt
@@ -42,13 +42,14 @@ public abstract class AbstractEditPlugin<T> implements AdminPlugin
 
 		Request request = context.getRequest();
 		int entityId = request.getParameterInt("entityId");
+		Predicate<T> visible = getVisibility();
 
 		if (this.isUpdateExecuted())
 		{
 			try
 			{
 				@SuppressWarnings("unchecked") T entity = (T) db.get(this.clazz, entityId);
-				if (isUpdatePossible(entity))
+				if (entity != null && visible.test(entity) && isUpdatePossible(entity))
 				{
 					update(new DefaultStatusWriter(echo), entity);
 					echo.append("<p>Update abgeschlossen.</p>");
@@ -64,8 +65,11 @@ public abstract class AbstractEditPlugin<T> implements AdminPlugin
 			try
 			{
 				@SuppressWarnings("unchecked") T entity = (T) db.get(this.clazz, entityId);
-				reset(new DefaultStatusWriter(echo), entity);
-				echo.append("<p>Update abgeschlossen.</p>");
+				if (entity != null && visible.test(entity))
+				{
+					reset(new DefaultStatusWriter(echo), entity);
+					echo.append("<p>Update abgeschlossen.</p>");
+				}
 			}
 			catch (RuntimeException e)
 			{
@@ -73,19 +77,22 @@ public abstract class AbstractEditPlugin<T> implements AdminPlugin
 			}
 		}
 
-		List<Building> entities = Common.cast(db.createCriteria(clazz).list());
+		List<T> entities = Common.cast(db.createCriteria(clazz).list());
 
 		beginSelectionBox(echo);
-		for (Object entity : entities)
+		for (T entity : entities)
 		{
-			addSelectionOption(echo, db.getIdentifier(entity), generateLabelFor(null, entity));
+			if (visible.test(entity))
+			{
+				addSelectionOption(echo, db.getIdentifier(entity), generateLabelFor(null, entity));
+			}
 		}
 		endSelectionBox(echo);
 
 		if (entityId != 0)
 		{
 			@SuppressWarnings("unchecked") T entity = (T) db.get(clazz, entityId);
-			if (entity == null)
+			if (entity == null || !visible.test(entity))
 			{
 				return;
 			}
@@ -134,6 +141,14 @@ public abstract class AbstractEditPlugin<T> implements AdminPlugin
 	protected boolean isUpdatePossible(T entity)
 	{
 		return true;
+	}
+
+	/**
+	 * @return Which entities the current user may select, see and update
+	 */
+	protected Predicate<T> getVisibility()
+	{
+		return entity -> true;
 	}
 
 	private static String generateLabelFor(Serializable identifier, Object entity)

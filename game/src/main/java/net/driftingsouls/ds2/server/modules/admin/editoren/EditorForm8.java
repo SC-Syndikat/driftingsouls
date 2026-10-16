@@ -105,7 +105,8 @@ public class EditorForm8<E> implements FormElementCreator<E>
 
 	/**
 	 * Adds a check on the updated entity, run before anything is saved. The validator throws a
-	 * {@link RuntimeException} to reject the update; the changes are then discarded.
+	 * {@link RuntimeException} to reject the update; the changes are then discarded. It also checks
+	 * entities being added, getting the new entity as both arguments.
 	 * @param validator Receives the entity before and after the update
 	 */
 	public void validateUpdate(BiConsumer<E, E> validator)

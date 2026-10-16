@@ -1,8 +1,10 @@
 package net.driftingsouls.ds2.server.campaign;
 
+import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.framework.BasicUser;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -15,12 +17,14 @@ import java.util.Set;
 public class GameMasterRestriction
 {
 	private final boolean applies;
+	private final Integer campaignId;
 	private final Set<Integer> systems;
 	private final Set<Integer> npcParticipants;
 
-	GameMasterRestriction(boolean applies, Set<Integer> systems, Set<Integer> npcParticipants)
+	GameMasterRestriction(boolean applies, Integer campaignId, Set<Integer> systems, Set<Integer> npcParticipants)
 	{
 		this.applies = applies;
+		this.campaignId = campaignId;
 		this.systems = systems;
 		this.npcParticipants = npcParticipants;
 	}
@@ -37,15 +41,15 @@ public class GameMasterRestriction
 				&& (GameMasterPermissionResolver.isGameMaster(active) || GameMasterPermissionResolver.isGameMaster(active.getAttachedUser()));
 		if (!gameMaster || active.isAdmin())
 		{
-			return new GameMasterRestriction(false, Set.of(), Set.of());
+			return new GameMasterRestriction(false, null, Set.of(), Set.of());
 		}
 
 		CampaignRepository campaigns = new CampaignRepository();
 		return campaigns.findOpen()
-				.map(c -> new GameMasterRestriction(true,
+				.map(c -> new GameMasterRestriction(true, c.getId(),
 						new CampaignMapRepository().findSystemIds(c.getId()),
 						campaigns.findParticipantIds(c.getId())))
-				.orElse(new GameMasterRestriction(true, Set.of(), Set.of()));
+				.orElse(new GameMasterRestriction(true, null, Set.of(), Set.of()));
 	}
 
 	/**
@@ -64,9 +68,68 @@ public class GameMasterRestriction
 		return systems;
 	}
 
+	/**
+	 * @return The open campaign a restricted game master works on, if there is one. Empty for an
+	 * unrestricted user.
+	 */
+	public Optional<Integer> getCampaignId()
+	{
+		return Optional.ofNullable(campaignId);
+	}
+
 	public boolean isSystemAllowed(int starSystemId)
 	{
 		return !applies || systems.contains(starSystemId);
+	}
+
+	/**
+	 * @return Whether new star systems may be created. A restricted game master needs an open campaign
+	 * to put them into.
+	 */
+	public boolean mayCreateSystems()
+	{
+		return !applies || campaignId != null;
+	}
+
+	/**
+	 * @return Whether a jump node between these star systems may be worked on: both ends must lie in the
+	 * campaign
+	 */
+	public boolean isJumpNodeAllowed(int starSystemId, int exitStarSystemId)
+	{
+		return isSystemAllowed(starSystemId) && isSystemAllowed(exitStarSystemId);
+	}
+
+	/**
+	 * @throws CampaignException if the star system is outside the campaign
+	 */
+	public void checkSystem(int starSystemId)
+	{
+		if (!isSystemAllowed(starSystemId))
+		{
+			throw new CampaignException("Als GameMaster kannst du nur in Kampagnensystemen arbeiten (System " + starSystemId + ").");
+		}
+	}
+
+	/**
+	 * @throws CampaignException if one end of the jump node is outside the campaign
+	 */
+	public void checkJumpNode(int starSystemId, int exitStarSystemId)
+	{
+		checkSystem(starSystemId);
+		checkSystem(exitStarSystemId);
+	}
+
+	/**
+	 * @throws CampaignException if a restricted game master may not give a star system this access level:
+	 * home systems spare ships their food and RE, admin systems are hidden from the campaign's players
+	 */
+	public void checkSystemAccess(StarSystem.Access access)
+	{
+		if (applies && (access == StarSystem.Access.HOMESYSTEM || access == StarSystem.Access.ADMIN))
+		{
+			throw new CampaignException("Als GameMaster kannst du einem System nicht die Zugriffsrechte " + access + " geben.");
+		}
 	}
 
 	/**
@@ -88,10 +151,7 @@ public class GameMasterRestriction
 	 */
 	public void check(int starSystemId, int ownerId)
 	{
-		if (!isSystemAllowed(starSystemId))
-		{
-			throw new CampaignException("Als GameMaster kannst du nur in Kampagnensystemen arbeiten (System " + starSystemId + ").");
-		}
+		checkSystem(starSystemId);
 		if (!isOwnerAllowed(ownerId))
 		{
 			throw new CampaignException("Als GameMaster kannst du Objekte nur NPC-Accounts geben, die an der Kampagne teilnehmen (Besitzer " + ownerId + ").");

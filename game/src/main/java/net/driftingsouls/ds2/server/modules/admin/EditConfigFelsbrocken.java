@@ -1,9 +1,13 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.config.ConfigFelsbrocken;
 import net.driftingsouls.ds2.server.config.ConfigFelsbrockenSystem;
+import net.driftingsouls.ds2.server.config.ConfigFelsbrockenSystem_;
+import net.driftingsouls.ds2.server.config.ConfigFelsbrocken_;
+import net.driftingsouls.ds2.server.config.StarSystem_;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EditorForm8;
 import net.driftingsouls.ds2.server.modules.admin.editoren.EntityEditor;
 import net.driftingsouls.ds2.server.ships.ShipType;
@@ -24,6 +28,19 @@ public class EditConfigFelsbrocken implements EntityEditor<ConfigFelsbrocken>
 	{
 		form.allowAdd();
 		form.allowDelete();
+
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		if (restriction.applies())
+		{
+			// A game master only configures asteroids of campaign star systems
+			form.restrictVisible(layout -> restriction.isSystemAllowed(layout.getSystem().getSystem().getID()),
+					(builder, root) -> restriction.getSystems().isEmpty()
+							? builder.disjunction()
+							: root.get(ConfigFelsbrocken_.system).get(ConfigFelsbrockenSystem_.system).get(StarSystem_.id).in(restriction.getSystems()));
+			form.allowUpdate(layout -> restriction.isSystemAllowed(layout.getSystem().getSystem().getID()));
+			form.allowDelete(layout -> restriction.isSystemAllowed(layout.getSystem().getSystem().getID()));
+			form.validateUpdate((before, after) -> restriction.checkSystem(after.getSystem().getSystem().getID()));
+		}
 		form.field("System mit Felsbrocken", ConfigFelsbrockenSystem.class, ConfigFelsbrocken::getSystem, ConfigFelsbrocken::setSystem);
 		form.field("Schiffstyp", ShipType.class, ConfigFelsbrocken::getShiptype, ConfigFelsbrocken::setShiptype);
 		form.field("Wahrscheinlichkeitsfaktor", Integer.class, ConfigFelsbrocken::getChance, ConfigFelsbrocken::setChance);

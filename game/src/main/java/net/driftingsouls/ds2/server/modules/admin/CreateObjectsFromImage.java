@@ -24,6 +24,7 @@ import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.BaseType;
 import net.driftingsouls.ds2.server.bases.Building;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.Nebel;
 import net.driftingsouls.ds2.server.entities.Offizier;
@@ -43,8 +44,10 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Predicate;
 
 /**
  * Ermoeglicht das Erstellen von Objekten in einem System aus einer Grafikdatei
@@ -116,6 +119,14 @@ public class CreateObjectsFromImage extends AbstractEditPlugin<StarSystem> imple
 	}
 
 	@Override
+	protected Predicate<StarSystem> getVisibility()
+	{
+		// A game master only fills star systems of the campaign
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		return system -> restriction.isSystemAllowed(system.getID());
+	}
+
+	@Override
 	protected boolean isUpdatePossible(StarSystem entity)
 	{
 		Context context = ContextMap.getContext();
@@ -157,6 +168,18 @@ public class CreateObjectsFromImage extends AbstractEditPlugin<StarSystem> imple
 		String imgName = request.getParameterString("imgName");
 		if(imgName != null && !imgName.trim().isEmpty())
 		{
+			// Only the files uploaded before, never a path elsewhere on the server
+			try
+			{
+				if (!imgName.equals(Path.of(imgName).getFileName().toString()))
+				{
+					throw new IOException("Ungültiger Bildname: " + imgName);
+				}
+			}
+			catch (InvalidPathException e)
+			{
+				throw new IOException("Ungültiger Bildname: " + imgName, e);
+			}
 			return new SystemImg(Path.of(System.getProperty("java.io.tmpdir"), imgName).toAbsolutePath().toString());
 		}
 		for (FileItem fileItem : request.getUploadedFiles())

@@ -37,7 +37,12 @@ public class GameMasterPermissionResolver implements PermissionResolver
 			WellKnownAdminPermission.CREATE_OBJECTS,
 			WellKnownAdminPermission.EDIT_SHIP,
 			WellKnownAdminPermission.EDIT_BASES,
-			WellKnownAdminPermission.PLAYER_LOGIN_SUPER
+			WellKnownAdminPermission.PLAYER_LOGIN_SUPER,
+			WellKnownAdminPermission.EDIT_SYSTEM,
+			WellKnownAdminPermission.CREATE_OBJECTS_FROM_IMAGE,
+			WellKnownAdminPermission.EDIT_JUMPNODE,
+			WellKnownAdminPermission.EDIT_CONFIG_FELSBROCKEN_SYSTEM,
+			WellKnownAdminPermission.EDIT_CONFIG_FELSBROCKEN
 	);
 
 	private final PermissionResolver inner;

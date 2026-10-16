@@ -23,6 +23,18 @@ public class GameMasterPermissionResolverTest
 	}
 
 	@Test
+	public void gegebenEinGameMaster_hasPermission_sollteDasGestaltenVonSystemenErlauben()
+	{
+		var resolver = new GameMasterPermissionResolver(NOTHING, true);
+
+		assertTrue(resolver.hasPermission(WellKnownAdminPermission.EDIT_SYSTEM));
+		assertTrue(resolver.hasPermission(WellKnownAdminPermission.CREATE_OBJECTS_FROM_IMAGE));
+		assertTrue(resolver.hasPermission(WellKnownAdminPermission.EDIT_JUMPNODE));
+		assertTrue(resolver.hasPermission(WellKnownAdminPermission.EDIT_CONFIG_FELSBROCKEN_SYSTEM));
+		assertTrue(resolver.hasPermission(WellKnownAdminPermission.EDIT_CONFIG_FELSBROCKEN));
+	}
+
+	@Test
 	public void gegebenEinGameMaster_hasPermission_sollteKeineAnderenAdminrechteGewaehren()
 	{
 		var resolver = new GameMasterPermissionResolver(NOTHING, true);
