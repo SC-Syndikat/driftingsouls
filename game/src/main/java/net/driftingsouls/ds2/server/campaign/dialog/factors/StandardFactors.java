@@ -4,6 +4,7 @@ import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogFactor;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogShips;
+import net.driftingsouls.ds2.server.campaign.dialog.ParamChoices;
 import net.driftingsouls.ds2.server.campaign.dialog.ParamDef;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
 import net.driftingsouls.ds2.server.cargo.ItemID;
@@ -182,7 +183,7 @@ public final class StandardFactors
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.text("types", "Schiffstyp-IDs, durch Komma getrennt"));
+			return List.of(ParamDef.list(ParamDef.Type.SHIP_TYPES, "types", "Schiffstypen", false));
 		}
 
 		@Override
@@ -198,7 +199,7 @@ public final class StandardFactors
 		@Override
 		public String describe(Params params)
 		{
-			return "Schiffstyp in [" + params.get("types") + "]";
+			return "Schiffstyp in [" + ParamChoices.describe(ParamDef.Type.SHIP_TYPES, params.get("types")) + "]";
 		}
 	}
 
@@ -464,7 +465,7 @@ public final class StandardFactors
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("unit", "Einheitentyp-ID", 1));
+			return List.of(ParamDef.reference(ParamDef.Type.UNIT_TYPE, "unit", "Einheitentyp"));
 		}
 
 		@Override
@@ -477,7 +478,7 @@ public final class StandardFactors
 		@Override
 		public String describe(Params params)
 		{
-			return "Einheiten " + params.get("unit");
+			return "Einheiten " + ParamChoices.describe(ParamDef.Type.UNIT_TYPE, params.get("unit"));
 		}
 	}
 
@@ -623,7 +624,7 @@ public final class StandardFactors
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("research", "Forschungs-ID", 1));
+			return List.of(ParamDef.reference(ParamDef.Type.RESEARCH, "research", "Forschung"));
 		}
 
 		@Override
@@ -636,7 +637,7 @@ public final class StandardFactors
 		@Override
 		public String describe(Params params)
 		{
-			return "Forschung " + params.get("research");
+			return "Forschung " + ParamChoices.describe(ParamDef.Type.RESEARCH, params.get("research"));
 		}
 	}
 
@@ -655,7 +656,7 @@ public final class StandardFactors
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.optionalInteger("alliance", "Allianz-ID (leer = beliebige)"));
+			return List.of(ParamDef.optionalReference(ParamDef.Type.ALLIANCE, "alliance", "Allianz", "beliebige"));
 		}
 
 		@Override
@@ -671,7 +672,7 @@ public final class StandardFactors
 		@Override
 		public String describe(Params params)
 		{
-			return params.has("alliance") ? "Allianz " + params.get("alliance") : "in einer Allianz";
+			return params.has("alliance") ? "Allianz " + ParamChoices.describe(ParamDef.Type.ALLIANCE, params.get("alliance")) : "in einer Allianz";
 		}
 	}
 

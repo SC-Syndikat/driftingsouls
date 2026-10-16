@@ -3,6 +3,7 @@ package net.driftingsouls.ds2.server.modules.admin;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignText;
 import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
+import net.driftingsouls.ds2.server.campaign.dialog.ParamChoices;
 import net.driftingsouls.ds2.server.campaign.dialog.ParamDef;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
 import net.driftingsouls.ds2.server.cargo.ItemData;
@@ -10,10 +11,13 @@ import net.driftingsouls.ds2.server.framework.pipeline.Request;
 import net.driftingsouls.ds2.server.repositories.ItemRepository;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 
 import static org.apache.commons.text.StringEscapeUtils.escapeHtml4;
@@ -133,6 +137,15 @@ public final class CampaignAdminHtml
 	/** Choice of a variable select meaning "a new variable, named in the text field". */
 	private static final String NEW_VARIABLE = "__new";
 
+	/** Suffix of the select choosing whether a keep-or-all list stays unchanged, allows all or only the chosen. */
+	private static final String LIST_MODE = "__mode";
+	private static final String LIST_MODE_CHOSEN = "list";
+
+	/** Suffixes of the fields making up a location. */
+	private static final String LOCATION_SYSTEM = "__system";
+	private static final String LOCATION_X = "__x";
+	private static final String LOCATION_Y = "__y";
+
 	/**
 	 * Renders one input per parameter, named {@code p_<name>}.
 	 */
@@ -152,8 +165,21 @@ public final class CampaignAdminHtml
 			String value = values != null && values.has(param.name) ? values.get(param.name) : param.defaultValue;
 			echo.append(esc(param.label)).append(": ");
 			String name = prefix + param.name;
+			if (ParamDef.REFERENCES.contains(param.type))
+			{
+				referenceField(echo, param, name, value);
+				echo.append("<br />");
+				continue;
+			}
 			switch (param.type)
 			{
+				case SHIP_TYPES:
+				case SHIP_CLASSES:
+					listField(echo, param, name, value);
+					break;
+				case LOCATION:
+					locationField(echo, param, name, value);
+					break;
 				case ITEM:
 				{
 					// Stored as the id; older values may carry the cargo form "i16|0|0"
@@ -201,6 +227,76 @@ public final class CampaignAdminHtml
 		}
 	}
 
+	private static void referenceField(StringBuilder echo, ParamDef param, String name, String value)
+	{
+		ParamChoices choices = ParamChoices.forCurrentRequest();
+		Map<String, String> options = new LinkedHashMap<>(choices.get(param.type));
+		String current = value == null ? "" : value.trim();
+		if (!current.isEmpty() && !options.containsKey(current))
+		{
+			options.put(current, "unbekannt (" + current + ")");
+		}
+		String emptyLabel = param.required
+				? (options.isEmpty() ? "– nichts zur Auswahl –" : null)
+				: (param.emptyLabel != null ? param.emptyLabel : "– keine Angabe –");
+		select(echo, name, options, current, emptyLabel);
+	}
+
+	private static void listField(StringBuilder echo, ParamDef param, String name, String value)
+	{
+		String current = value == null ? "" : value.trim();
+		if (param.keepOrAll)
+		{
+			Map<String, String> modes = new LinkedHashMap<>();
+			modes.put("", "unverändert");
+			modes.put(ParamDef.ALL, "alle erlauben");
+			modes.put(LIST_MODE_CHOSEN, "nur die gewählten");
+			select(echo, name + LIST_MODE, modes, current.isEmpty() || ParamDef.ALL.equals(current) ? current : LIST_MODE_CHOSEN, null);
+			echo.append("<br />");
+		}
+		Set<String> chosen = new LinkedHashSet<>();
+		if (!current.isEmpty() && !ParamDef.ALL.equals(current))
+		{
+			for (String entry : current.split(","))
+			{
+				String trimmed = entry.trim();
+				chosen.add(param.type == ParamDef.Type.SHIP_CLASSES ? trimmed.toUpperCase() : trimmed);
+			}
+		}
+		Map<String, String> options = new LinkedHashMap<>(ParamChoices.forCurrentRequest().get(param.type));
+		for (String entry : chosen)
+		{
+			options.putIfAbsent(entry, "unbekannt (" + entry + ")");
+		}
+		echo.append("<select name='").append(esc(name)).append("' multiple='multiple' size='6'>");
+		options.forEach((key, label) -> echo.append("<option value='").append(esc(key)).append("'")
+				.append(chosen.contains(key) ? " selected='selected'" : "").append(">").append(esc(label)).append("</option>"));
+		echo.append("</select> <span class='campaign-hint'>Mehrfachauswahl mit Strg</span>");
+	}
+
+	private static void locationField(StringBuilder echo, ParamDef param, String name, String value)
+	{
+		String current = value == null ? "" : value.trim();
+		String system = "";
+		String x = "";
+		String y = "";
+		if (current.matches("[0-9]+:[0-9]+/[0-9]+"))
+		{
+			system = current.substring(0, current.indexOf(':'));
+			x = current.substring(current.indexOf(':') + 1, current.indexOf('/'));
+			y = current.substring(current.indexOf('/') + 1);
+		}
+		Map<String, String> systems = new LinkedHashMap<>(ParamChoices.forCurrentRequest().getCampaignSystems());
+		if (!system.isEmpty())
+		{
+			systems.putIfAbsent(system, "System " + system);
+		}
+		echo.append("System ");
+		select(echo, name + LOCATION_SYSTEM, systems, system, param.required ? null : "– keine Angabe –");
+		echo.append(" Position <input type='text' name='").append(esc(name + LOCATION_X)).append("' size='4' value='").append(esc(x)).append("' />/")
+				.append("<input type='text' name='").append(esc(name + LOCATION_Y)).append("' size='4' value='").append(esc(y)).append("' />");
+	}
+
 	/**
 	 * Reads the parameters rendered by {@link #paramFields} and validates them.
 	 *
@@ -220,11 +316,7 @@ public final class CampaignAdminHtml
 		List<String> errors = new ArrayList<>();
 		for (ParamDef param : params)
 		{
-			String value = request.getParameterString(prefix + param.name).trim();
-			if (param.type == ParamDef.Type.VARIABLE && NEW_VARIABLE.equals(value))
-			{
-				value = request.getParameterString(prefix + param.name + NEW_VARIABLE).trim();
-			}
+			String value = readValue(request, param, prefix + param.name);
 			String error = param.validate(value);
 			if (error != null)
 			{
@@ -237,6 +329,46 @@ public final class CampaignAdminHtml
 			throw new CampaignException(String.join(" ", errors));
 		}
 		return new Params(values);
+	}
+
+	private static String readValue(Request request, ParamDef param, String name)
+	{
+		String value = request.getParameterString(name).trim();
+		switch (param.type)
+		{
+			case VARIABLE:
+				return NEW_VARIABLE.equals(value) ? request.getParameterString(name + NEW_VARIABLE).trim() : value;
+			case SHIP_TYPES:
+			case SHIP_CLASSES:
+			{
+				String chosen = String.join(",", Arrays.asList(request.getParameterValues(name)));
+				if (!param.keepOrAll)
+				{
+					return chosen;
+				}
+				String mode = request.getParameterString(name + LIST_MODE);
+				if (!LIST_MODE_CHOSEN.equals(mode))
+				{
+					return ParamDef.ALL.equals(mode) ? ParamDef.ALL : "";
+				}
+				if (chosen.isEmpty())
+				{
+					throw new CampaignException(param.label + ": bitte mindestens einen Eintrag wählen oder „alle erlauben“.");
+				}
+				return chosen;
+			}
+			case LOCATION:
+			{
+				String system = request.getParameterString(name + LOCATION_SYSTEM).trim();
+				if (system.isEmpty())
+				{
+					return "";
+				}
+				return system + ":" + request.getParameterString(name + LOCATION_X).trim() + "/" + request.getParameterString(name + LOCATION_Y).trim();
+			}
+			default:
+				return value;
+		}
 	}
 
 	/**

@@ -13,6 +13,7 @@ import net.driftingsouls.ds2.server.campaign.ShipGroupTemplate;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogAction;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogShips;
+import net.driftingsouls.ds2.server.campaign.dialog.ParamChoices;
 import net.driftingsouls.ds2.server.campaign.dialog.ParamDef;
 import net.driftingsouls.ds2.server.campaign.dialog.Params;
 import net.driftingsouls.ds2.server.campaign.dialog.TrustService;
@@ -139,7 +140,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("rank", "Rang", 1));
+			return List.of(ParamDef.reference(ParamDef.Type.RANK, "rank", "Rang"));
 		}
 
 		@Override
@@ -151,7 +152,7 @@ public final class StandardActions
 		@Override
 		public String describe(Params params)
 		{
-			return "Rang beim NPC → " + params.get("rank");
+			return "Rang beim NPC → " + ParamChoices.describe(ParamDef.Type.RANK, params.get("rank"));
 		}
 
 		@Override
@@ -426,7 +427,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("research", "Forschungs-ID", 1));
+			return List.of(ParamDef.reference(ParamDef.Type.RESEARCH, "research", "Forschung"));
 		}
 
 		@Override
@@ -446,7 +447,7 @@ public final class StandardActions
 		@Override
 		public String describe(Params params)
 		{
-			return "Forschung " + params.get("research") + " freigeschaltet";
+			return "Forschung " + ParamChoices.describe(ParamDef.Type.RESEARCH, params.get("research")) + " freigeschaltet";
 		}
 
 		@Override
@@ -512,7 +513,7 @@ public final class StandardActions
 		{
 			return List.of(ParamDef.choice("source", "Schiff", OBJECT, "das Gesprächsschiff", SECTOR, "alle Schiffe des NPCs im Sektor",
 							TEMPLATE, "neu aus einer Schiffsgruppen-Vorlage"),
-					ParamDef.optionalInteger("template", "Vorlagen-ID (bei Vorlage)"));
+					ParamDef.optionalReference(ParamDef.Type.SHIP_GROUP, "template", "Vorlage", "– nur bei „neu aus Vorlage“ –"));
 		}
 
 		@Override
@@ -559,7 +560,7 @@ public final class StandardActions
 			{
 				return "alle Schiffe des NPCs im Sektor übergeben";
 			}
-			return TEMPLATE.equals(params.get("source")) ? "Schiffe aus Vorlage " + params.get("template") + " übergeben" : "Gesprächsschiff übergeben";
+			return TEMPLATE.equals(params.get("source")) ? "Schiffe aus Vorlage " + ParamChoices.describe(ParamDef.Type.SHIP_GROUP, params.get("template")) + " übergeben" : "Gesprächsschiff übergeben";
 		}
 
 		@Override
@@ -595,7 +596,7 @@ public final class StandardActions
 		{
 			return List.of(ParamDef.choice("source", "Angreifer", OBJECT, "das Gesprächsschiff", TEMPLATE, "neu aus einer Schiffsgruppen-Vorlage",
 							SECTOR, "ein Schiff des NPC im Sektor"),
-					ParamDef.optionalInteger("template", "Vorlagen-ID (bei Vorlage)"));
+					ParamDef.optionalReference(ParamDef.Type.SHIP_GROUP, "template", "Vorlage", "– nur bei „neu aus Vorlage“ –"));
 		}
 
 		@Override
@@ -638,7 +639,7 @@ public final class StandardActions
 			{
 				return "Schlacht gegen ein NPC-Schiff im Sektor";
 			}
-			return TEMPLATE.equals(params.get("source")) ? "Schlacht gegen Vorlage " + params.get("template") : "Schlacht gegen das Gesprächsschiff";
+			return TEMPLATE.equals(params.get("source")) ? "Schlacht gegen Vorlage " + ParamChoices.describe(ParamDef.Type.SHIP_GROUP, params.get("template")) : "Schlacht gegen das Gesprächsschiff";
 		}
 
 		@Override
@@ -668,10 +669,10 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("template", "Vorlagen-ID", 1),
-					ParamDef.optionalInteger("owner", "Besitzer (leer = der sprechende NPC)"),
-					ParamDef.optionalText("location", "Ort system:x/y (leer = Sektor des Spielers)"),
-					ParamDef.optionalInteger("interaction", "Interaktion auf das erste Schiff übertragen (ID einer Vorlage-Interaktion, leer = keine)"));
+			return List.of(ParamDef.reference(ParamDef.Type.SHIP_GROUP, "template", "Vorlage"),
+					ParamDef.optionalReference(ParamDef.Type.CAMPAIGN_NPC, "owner", "Besitzer", "der sprechende NPC"),
+					ParamDef.location("location", "Ort (keine Angabe = Sektor des Spielers)", false),
+					ParamDef.optionalReference(ParamDef.Type.INTERACTION, "interaction", "Interaktion auf das erste Schiff übertragen", "keine"));
 		}
 
 		@Override
@@ -711,8 +712,10 @@ public final class StandardActions
 		@Override
 		public String describe(Params params)
 		{
-			return "Vorlage " + params.get("template") + " erscheint" + (params.has("location") ? " bei " + params.get("location") : " im Sektor")
-					+ (params.has("interaction") ? ", mit Interaktion " + params.get("interaction") : "");
+			return "Vorlage " + ParamChoices.describe(ParamDef.Type.SHIP_GROUP, params.get("template")) + " erscheint"
+					+ (params.has("owner") ? " für " + ParamChoices.describe(ParamDef.Type.CAMPAIGN_NPC, params.get("owner")) : "")
+					+ (params.has("location") ? " bei " + params.get("location") : " im Sektor")
+					+ (params.has("interaction") ? ", mit Interaktion " + ParamChoices.describe(ParamDef.Type.INTERACTION, params.get("interaction")) : "");
 		}
 	}
 
@@ -898,7 +901,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("interaction", "Interaktions-ID", 1),
+			return List.of(ParamDef.reference(ParamDef.Type.INTERACTION, "interaction", "Interaktion"),
 					ParamDef.choice("active", "Zustand", "1", "aktiv", "0", "inaktiv"));
 		}
 
@@ -916,7 +919,7 @@ public final class StandardActions
 		@Override
 		public String describe(Params params)
 		{
-			return "Interaktion " + params.get("interaction") + ("1".equals(params.get("active")) ? " aktiviert" : " deaktiviert");
+			return "Interaktion " + ParamChoices.describe(ParamDef.Type.INTERACTION, params.get("interaction")) + ("1".equals(params.get("active")) ? " aktiviert" : " deaktiviert");
 		}
 	}
 
@@ -938,7 +941,7 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("node", "Sprungpunkt-ID", 1),
+			return List.of(ParamDef.reference(ParamDef.Type.CAMPAIGN_JUMP_NODE, "node", "Sprungpunkt"),
 					ParamDef.choice("state", "Zustand", "ACTIVE", "aktiv", "VISIBLE", "sichtbar, gesperrt", "PREPARED", "unsichtbar, gesperrt"));
 		}
 
@@ -951,7 +954,7 @@ public final class StandardActions
 		@Override
 		public String describe(Params params)
 		{
-			return "Sprungpunkt " + params.get("node") + " → " + CampaignJumpNodeState.valueOf(params.get("state")).getLabel();
+			return "Sprungpunkt " + ParamChoices.describe(ParamDef.Type.CAMPAIGN_JUMP_NODE, params.get("node")) + " → " + CampaignJumpNodeState.valueOf(params.get("state")).getLabel();
 		}
 	}
 
@@ -978,9 +981,9 @@ public final class StandardActions
 		@Override
 		public List<ParamDef> getParams()
 		{
-			return List.of(ParamDef.integer("node", "Sprungpunkt-ID", 1),
-					ParamDef.optionalText("classes", "Erlaubte Schiffsklassen (z.B. JAEGER,KORVETTE; leer = unverändert, - = alle)"),
-					ParamDef.optionalText("types", "Erlaubte Schiffstyp-IDs (leer = unverändert, - = alle)"),
+			return List.of(ParamDef.reference(ParamDef.Type.CAMPAIGN_JUMP_NODE, "node", "Sprungpunkt"),
+					ParamDef.list(ParamDef.Type.SHIP_CLASSES, "classes", "Erlaubte Schiffsklassen", true),
+					ParamDef.list(ParamDef.Type.SHIP_TYPES, "types", "Erlaubte Schiffstypen", true),
 					ParamDef.optionalText("perShip", "Max. GP je Schiff (leer = unverändert, - = unbegrenzt)"),
 					ParamDef.optionalText("perPlayer", "Max. GP je Spieler (leer = unverändert, - = unbegrenzt)"),
 					ParamDef.choice("period", "Spieler-Limit gilt", KEEP, "unverändert", "TOTAL", "für die ganze Kampagne", "PER_TICK", "pro Kampagnentick"),
@@ -1054,8 +1057,16 @@ public final class StandardActions
 		@Override
 		public String describe(Params params)
 		{
-			StringBuilder text = new StringBuilder("Sprungpunkt " + params.get("node") + ":");
-			for (String name : List.of("classes", "types", "perShip", "perPlayer"))
+			StringBuilder text = new StringBuilder("Sprungpunkt " + ParamChoices.describe(ParamDef.Type.CAMPAIGN_JUMP_NODE, params.get("node")) + ":");
+			if (params.has("classes"))
+			{
+				text.append(" Klassen=").append(ParamChoices.describe(ParamDef.Type.SHIP_CLASSES, params.get("classes")));
+			}
+			if (params.has("types"))
+			{
+				text.append(" Typen=").append(ParamChoices.describe(ParamDef.Type.SHIP_TYPES, params.get("types")));
+			}
+			for (String name : List.of("perShip", "perPlayer"))
 			{
 				if (params.has(name))
 				{
