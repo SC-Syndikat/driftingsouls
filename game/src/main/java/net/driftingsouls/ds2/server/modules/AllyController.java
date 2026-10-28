@@ -34,8 +34,8 @@ import net.driftingsouls.ds2.server.framework.pipeline.Module;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.*;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.framework.templates.TemplateViewResultFactory;
-import net.driftingsouls.ds2.server.services.AllianzService;
-import net.driftingsouls.ds2.server.services.AllyPostenService;
+import net.driftingsouls.ds2.server.services.AllianceService;
+import net.driftingsouls.ds2.server.services.AlliancePostService;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.tasks.Task;
@@ -61,19 +61,19 @@ public class AllyController extends Controller
 {
 	private static final Log log = LogFactory.getLog(AllyController.class);
 
-	private final AllianzService allianzService;
+	private final AllianceService allianceService;
 	private final TemplateViewResultFactory templateViewResultFactory;
-	private final AllyPostenService allyPostenService;
+	private final AlliancePostService alliancePostService;
 	private Ally ally = null;
 
 	@Autowired
-	public AllyController(AllianzService allianzService,
+	public AllyController(AllianceService allianceService,
 			TemplateViewResultFactory templateViewResultFactory,
-			AllyPostenService allyPostenService)
+			AlliancePostService alliancePostService)
 	{
-		this.allianzService = allianzService;
+		this.allianceService = allianceService;
 		this.templateViewResultFactory = templateViewResultFactory;
-		this.allyPostenService = allyPostenService;
+		this.alliancePostService = alliancePostService;
 
 		setPageTitle("Allianz");
 	}
@@ -160,7 +160,7 @@ public class AllyController extends Controller
 			return new RedirectViewResult("showCreateAlly").withMessage("<span style=\"color:red\">Der angegebene Unterstützer ist ungültig.</span>\n");
 		}
 
-		if (allianzService.isUserAnAllianzgruendungBeteiligt(confuser1))
+		if (allianceService.isUserInvolvedInAllianceFounding(confuser1))
 		{
 			confuser1 = null;
 		}
@@ -214,7 +214,7 @@ public class AllyController extends Controller
 			return new RedirectViewResult("defaultNoAlly").withMessage("Die angegebene Allianz existiert nicht.");
 		}
 
-		if (allianzService.isUserAnAllianzgruendungBeteiligt(user))
+		if (allianceService.isUserInvolvedInAllianceFounding(user))
 		{
 			return new RedirectViewResult("defaultNoAlly").withMessage("Es gibt eine oder mehrere Anfragen an Sie zwecks Unterstützung einer Allianzgründung. Sie müssen diese Anfragen erst bearbeiten, bevor Sie einer Allianz beitreten können.");
 		}
@@ -251,7 +251,7 @@ public class AllyController extends Controller
 
 		String taskid = taskmanager.addTask(Taskmanager.Types.ALLY_NEW_MEMBER, 35, Integer.toString(zielAllianz.getId()), Integer.toString(user.getId()), "");
 
-		List<User> supermembers = allianzService.getAllianzfuehrung(zielAllianz);
+		List<User> supermembers = allianceService.getAllianceLeadership(zielAllianz);
 		for (User supermember : supermembers)
 		{
 			PM.send(user, supermember.getId(),
@@ -276,7 +276,7 @@ public class AllyController extends Controller
 			return new RedirectViewResult("showPosten").withMessage("Fehler: Nur der Anführer einer NPC-Allianz kann diese Aktion durchführen.");
 		}
 
-		AllyRangDescriptor rang = findeAllianzRangMitNummer(rangnr);
+		AllyRangDescriptor rang = findAllianceRankByNumber(rangnr);
 
 		String message = null;
 		if (rang != null)
@@ -294,12 +294,12 @@ public class AllyController extends Controller
 		return new RedirectViewResult("showRaenge").withMessage(message);
 	}
 
-	private AllyRangDescriptor findeAllianzRangMitNummer(int rangnr)
+	private AllyRangDescriptor findAllianceRankByNumber(int rankNumber)
 	{
 		AllyRangDescriptor rang = null;
 		for (AllyRangDescriptor desc : this.ally.getRangDescriptors())
 		{
-			if (desc.getRang() == rangnr)
+			if (desc.getRang() == rankNumber)
 			{
 				rang = desc;
 				break;
@@ -329,7 +329,7 @@ public class AllyController extends Controller
 			return new RedirectViewResult("showPosten").withMessage("Fehler: Sie müssen gültige Angaben machen.");
 		}
 
-		AllyRangDescriptor rang = findeAllianzRangMitNummer(rangnr);
+		AllyRangDescriptor rang = findAllianceRankByNumber(rangnr);
 
 		if (rang == null)
 		{
@@ -385,7 +385,7 @@ public class AllyController extends Controller
 			return new RedirectViewResult("showPosten").withMessage("Fehler: Der angegebene Posten ist ungültig.");
 		}
 
-		allyPostenService.loesche(posten);
+		alliancePostService.delete(posten);
 
 		return new RedirectViewResult("showPosten").withMessage("Posten gelöscht.");
 	}
@@ -456,15 +456,15 @@ public class AllyController extends Controller
 			return new RedirectViewResult("showPosten").withMessage("Fehler: Jedem Mitglied darf maximal ein Posten zugewiesen werden.");
 		}
 
-		int postencount = allyPostenService.getAnzahlPostenDerAllianz(ally);
-		int maxposten = allyPostenService.getMaxPostenDerAllianz(ally);
+		int postCount = alliancePostService.getPostCountOfAlliance(ally);
+		int maxPosts = alliancePostService.getMaxPostCountOfAlliance(ally);
 
-		if (maxposten <= postencount)
+		if (maxPosts <= postCount)
 		{
 			return new RedirectViewResult("showPosten").withMessage("Fehler: Sie haben bereits die maximale Anzahl an Posten erreicht.");
 		}
 
-		AllyPosten posten = allyPostenService.erstelle(this.ally, name);
+		AllyPosten posten = alliancePostService.create(this.ally, name);
 		formuser.setAllyPosten(posten);
 
 		return new RedirectViewResult("showPosten").withMessage("Der Posten " + Common._plaintitle(name) + " wurde erstellt und zugewiesen.");
@@ -783,7 +783,7 @@ public class AllyController extends Controller
 		PM.send(user, this.ally.getPresident().getId(), "Allianzaustritt",
 				"Hiermit erklären wir den sofortigen Austritt aus der Allianz.", getEM());
 
-		allianzService.entferneMitglied(ally, user, getEM());
+		allianceService.removeMember(ally, user, getEM());
 		this.ally = null;
 
 		return new RedirectViewResult("defaultNoAlly").withMessage("Du hast die Allianz verlassen.");
@@ -819,7 +819,7 @@ public class AllyController extends Controller
 		{
 			PM.sendToAlly(user, this.ally, "Allianz aufgelöst", "Die Allianz wurde mit sofortiger Wirkung aufgelöst.", getEM());
 
-			allianzService.loeschen(this.ally);
+			allianceService.delete(this.ally);
 			this.ally = null;
 
 			return new RedirectViewResult("defaultNoAlly").withMessage("Die Allianz wurde aufgelöst.");
@@ -879,7 +879,7 @@ public class AllyController extends Controller
 			return new RedirectViewResult("showMembers").withMessage("Dieser Spieler ist nicht Mitglied Ihrer Allianz.");
 		}
 
-		this.allianzService.entferneMitglied(ally, kickuser, getEM());
+		this.allianceService.removeMember(ally, kickuser, getEM());
 
 		PM.send(this.ally.getPresident(), kickuser.getId(), "Aus der Allianz geworfen", "Ich habe Dich aus der Allianz geworfen.", getEM());
 
@@ -1002,13 +1002,13 @@ public class AllyController extends Controller
 
 		List<User> allymember = this.ally.getMembers();
 
-		int postencount = allyPostenService.getAnzahlPostenDerAllianz(ally);
-		int maxposten = allyPostenService.getMaxPostenDerAllianz(ally);
+		int postCount = alliancePostService.getPostCountOfAlliance(ally);
+		int maxPosts = alliancePostService.getMaxPostCountOfAlliance(ally);
 
 		t.setVar("show.posten", 1,
-				"show.posten.count", postencount,
-				"show.posten.maxcount", maxposten,
-				"show.posten.addposten", (maxposten > postencount),
+				"show.posten.count", postCount,
+				"show.posten.maxcount", maxPosts,
+				"show.posten.addposten", (maxPosts > postCount),
 				"show.posten.modify.list", "");
 
 		t.setBlock("_ALLY", "show.posten.modify.listitem", "show.posten.modify.list");
@@ -1041,7 +1041,7 @@ public class AllyController extends Controller
 			t.parse("show.posten.modify.list", "show.posten.modify.listitem", true);
 		}
 
-		if (maxposten > postencount)
+		if (maxPosts > postCount)
 		{
 			t.setBlock("_ALLY", "show.posten.addposten.userlist.listitem", "show.posten.addposten.userlist.list");
 
@@ -1386,34 +1386,34 @@ public class AllyController extends Controller
 
 			if (user.getId() == this.ally.getPresident().getId())
 			{
-				String inakt_status;
+				String inactivityStatus;
 				int inakt = member.getInactivity();
 				if (inakt <= 14)
 				{
-					inakt_status = "<span style=\\'color:#00FF00\\'>sehr aktiv</span>";
+					inactivityStatus = "<span style=\\'color:#00FF00\\'>sehr aktiv</span>";
 				}
 				else if (inakt <= 49)
 				{
-					inakt_status = "<span style=\\'color:#22AA22\\'>aktiv</span>";
+					inactivityStatus = "<span style=\\'color:#22AA22\\'>aktiv</span>";
 				}
 				else if (inakt <= 98)
 				{
-					inakt_status = "<span style=\\'color:#668822\\'>weniger aktiv</span>";
+					inactivityStatus = "<span style=\\'color:#668822\\'>weniger aktiv</span>";
 				}
 				else if (inakt <= 196)
 				{
-					inakt_status = "<span style=\\'color:#884422\\'>nahezu inaktiv</span>";
+					inactivityStatus = "<span style=\\'color:#884422\\'>nahezu inaktiv</span>";
 				}
 				else if (inakt <= 300)
 				{
-					inakt_status = "<span style=\\'color:#AA4422\\'>inaktiv</span>";
+					inactivityStatus = "<span style=\\'color:#AA4422\\'>inaktiv</span>";
 				}
 				else
 				{
-					inakt_status = "<span style=\\'color:#FF2222\\'>scheintot</span>";
+					inactivityStatus = "<span style=\\'color:#FF2222\\'>scheintot</span>";
 				}
 
-				t.setVar("show.members.inaktstatus", inakt_status);
+				t.setVar("show.members.inaktstatus", inactivityStatus);
 			}
 
 			t.parse("show.members.list", "show.members.listitem", true);

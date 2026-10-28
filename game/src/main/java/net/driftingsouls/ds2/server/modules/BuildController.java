@@ -25,7 +25,7 @@ import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.cargo.ResourceList;
-import net.driftingsouls.ds2.server.config.Rassen;
+import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.pipeline.Module;
@@ -34,7 +34,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.Controller;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.RedirectViewResult;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.UrlParam;
-import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidationException;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.framework.templates.TemplateViewResultFactory;
 import org.hibernate.Session;
@@ -62,20 +62,20 @@ public class BuildController extends Controller
 		setPageTitle("Bauen");
 	}
 
-	private void validiereBasis(Base basis)
+	private void validateBase(Base selectedBase)
 	{
 		User user = (User) getUser();
-		if ((basis == null) || (basis.getOwner() != user))
+		if ((selectedBase == null) || (selectedBase.getOwner() != user))
 		{
-			throw new ValidierungException("Die angegebene Kolonie existiert nicht", Common.buildUrl("default", "module", "basen"));
+			throw new ValidationException("Die angegebene Kolonie existiert nicht", Common.buildUrl("default", "module", "basen"));
 		}
 	}
 
-	private void validiereGebaeude(Building building)
+	private void validateBuilding(Building building)
 	{
 		if (building == null)
 		{
-			throw new ValidierungException("Das angegebene Gebäude existiert nicht");
+			throw new ValidationException("Das angegebene Gebäude existiert nicht");
 		}
 	}
 
@@ -88,8 +88,8 @@ public class BuildController extends Controller
 	@Action(ActionType.DEFAULT)
 	public Object buildAction(@UrlParam(name = "col") Base base, Building build, int field)
 	{
-		validiereBasis(base);
-		validiereGebaeude(build);
+		validateBase(base);
+		validateBuilding(build);
 		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 
 		User user = (User) getUser();
@@ -103,14 +103,14 @@ public class BuildController extends Controller
 
 		if (field >= base.getWidth() * base.getHeight())
 		{
-			throw new ValidierungException("Und das elfte Gebot lautet: Du sollst nicht exploiten deines Spieles URL's");
+			throw new ValidationException("Und das elfte Gebot lautet: Du sollst nicht exploiten deines Spieles URL's");
 		}
 
 		//Anzahl der Gebaeude berechnen
-		Map<Integer, Integer> buildingcount = berechneGebaeudeanzahlDieserBasis(base);
+		Map<Integer, Integer> buildingcount = calculateBuildingCountOnThisBase(base);
 
 		//Anzahl der Gebaeude pro Spieler berechnen
-		Map<Integer, Integer> ownerbuildingcount = berechneGebaeudeanzahlAllerBasen(user);
+		Map<Integer, Integer> ownerbuildingcount = calculateBuildingCountOnAllBases(user);
 
 		//Anzahl der Gebaeude berechnen
 		if (build.getPerPlanetCount() != 0)
@@ -151,17 +151,17 @@ public class BuildController extends Controller
 
 		if (build.isUComplex())
 		{
-			int c = berechneAnzahlUnterirdischerKomplexe(getDB(), buildingcount);
-			int grenze = berechneMaximaleAnzahlUnterirdischerKomplexe(base);
+			int c = calculateUndergroundComplexCount(getDB(), buildingcount);
+			int limit = calculateMaxUndergroundComplexCount(base);
 
-			if (c > grenze - 1)
+			if (c > limit - 1)
 			{
-				addError("Es ist nicht möglich, hier mehr als " + grenze + " Unterirdische Komplexe zu installieren");
+				addError("Es ist nicht möglich, hier mehr als " + limit + " Unterirdische Komplexe zu installieren");
 
 				return new RedirectViewResult("default");
 			}
 		}
-		if (!Rassen.get().rasse(user.getRace()).isMemberIn(build.getRace()))
+		if (!Races.get().race(user.getRace()).isMemberIn(build.getRace()))
 		{
 			addError("Sie gehören der falschen Spezies an und können dieses Gebäude nicht selbst errichten.");
 			return new RedirectViewResult("default");
@@ -201,9 +201,9 @@ public class BuildController extends Controller
 		// Alles OK -> bauen
 		if (ok)
 		{
-			Integer[] bebauung = base.getBebauung();
-			bebauung[field] = build.getId();
-			base.setBebauung(bebauung);
+			Integer[] buildingIds = base.getBebauung();
+			buildingIds[field] = build.getId();
+			base.setBebauung(buildingIds);
 
 			Integer[] active = base.getActive();
 			// Muss das Gebaeude aufgrund von Arbeitermangel deaktiviert werden?
@@ -232,7 +232,7 @@ public class BuildController extends Controller
 		return t;
 	}
 
-	private int berechneMaximaleAnzahlUnterirdischerKomplexe(Base base)
+	private int calculateMaxUndergroundComplexCount(Base base)
 	{
 		return (base.getWidth() * base.getHeight()) / 8;
 	}
@@ -246,7 +246,7 @@ public class BuildController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine defaultAction(@UrlParam(name = "col") Base base, int field, int cat)
 	{
-		validiereBasis(base);
+		validateBase(base);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 		User user = (User) getUser();
@@ -264,18 +264,18 @@ public class BuildController extends Controller
 		t.setVar("show.buildinglist", 1);
 
 		//Anzahl der Gebaeude berechnen
-		Map<Integer, Integer> buildingcount = berechneGebaeudeanzahlDieserBasis(base);
+		Map<Integer, Integer> buildingcount = calculateBuildingCountOnThisBase(base);
 
 		//Anzahl der Gebaeude pro Spieler berechnen
-		Map<Integer, Integer> ownerbuildingcount = berechneGebaeudeanzahlAllerBasen(user);
+		Map<Integer, Integer> ownerbuildingcount = calculateBuildingCountOnAllBases(user);
 
 		Cargo basecargo = base.getCargo();
 
 		//Max UComplex-Gebaeude-Check
-		int grenze = berechneMaximaleAnzahlUnterirdischerKomplexe(base);
-		int c = berechneAnzahlUnterirdischerKomplexe(db, buildingcount);
+		int limit = calculateMaxUndergroundComplexCount(base);
+		int c = calculateUndergroundComplexCount(db, buildingcount);
 
-		boolean ucomplex = c <= grenze - 1;
+		boolean ucomplex = c <= limit - 1;
 
 		t.setBlock("_BUILD", "buildings.listitem", "buildings.list");
 		t.setBlock("buildings.listitem", "buildings.res.listitem", "buildings.res.list");
@@ -309,7 +309,7 @@ public class BuildController extends Controller
 			{
 				continue;
 			}
-			if (!Rassen.get().rasse(user.getRace()).isMemberIn(building.getRace()))
+			if (!Races.get().race(user.getRace()).isMemberIn(building.getRace()))
 			{
 				continue;
 			}
@@ -353,7 +353,7 @@ public class BuildController extends Controller
 		return t;
 	}
 
-	private Map<Integer, Integer> berechneGebaeudeanzahlDieserBasis(Base base)
+	private Map<Integer, Integer> calculateBuildingCountOnThisBase(Base base)
 	{
 		Map<Integer, Integer> buildingcount = new HashMap<>();
 		for (int building : base.getBebauung())
@@ -363,7 +363,7 @@ public class BuildController extends Controller
 		return buildingcount;
 	}
 
-	private Map<Integer, Integer> berechneGebaeudeanzahlAllerBasen(User user)
+	private Map<Integer, Integer> calculateBuildingCountOnAllBases(User user)
 	{
 		Map<Integer, Integer> ownerbuildingcount = new HashMap<>();
 
@@ -377,7 +377,7 @@ public class BuildController extends Controller
 		return ownerbuildingcount;
 	}
 
-	private int berechneAnzahlUnterirdischerKomplexe(Session db, Map<Integer, Integer> buildingcount)
+	private int calculateUndergroundComplexCount(Session db, Map<Integer, Integer> buildingcount)
 	{
 		int c = 0;
 

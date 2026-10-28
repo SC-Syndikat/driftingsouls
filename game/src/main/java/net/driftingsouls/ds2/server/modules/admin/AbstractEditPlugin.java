@@ -7,7 +7,7 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.DynamicContent;
 import net.driftingsouls.ds2.server.framework.DynamicContentManager;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
-import net.driftingsouls.ds2.server.modules.admin.editoren.Confirmation;
+import net.driftingsouls.ds2.server.modules.admin.editors.Confirmation;
 import org.apache.commons.fileupload.FileItem;
 import org.hibernate.Session;
 

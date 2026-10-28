@@ -42,12 +42,12 @@ public final class DialogTypes
 	private static DialogTypes scan()
 	{
 		Map<String, DialogFactor> factors = new LinkedHashMap<>();
-		for (Class<?> cls : AnnotationUtils.INSTANCE.findeKlassenMitAnnotation(DialogFactor.Type.class))
+		for (Class<?> cls : AnnotationUtils.INSTANCE.findClassesWithAnnotation(DialogFactor.Type.class))
 		{
 			factors.put(cls.getAnnotation(DialogFactor.Type.class).value(), (DialogFactor) instantiate(cls));
 		}
 		Map<String, DialogAction> actions = new LinkedHashMap<>();
-		for (Class<?> cls : AnnotationUtils.INSTANCE.findeKlassenMitAnnotation(DialogAction.Type.class))
+		for (Class<?> cls : AnnotationUtils.INSTANCE.findClassesWithAnnotation(DialogAction.Type.class))
 		{
 			actions.put(cls.getAnnotation(DialogAction.Type.class).value(), (DialogAction) instantiate(cls));
 		}

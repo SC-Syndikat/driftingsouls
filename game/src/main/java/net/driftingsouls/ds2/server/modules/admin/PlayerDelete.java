@@ -29,7 +29,7 @@ import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Configuration;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
-import net.driftingsouls.ds2.server.services.AllianzService;
+import net.driftingsouls.ds2.server.services.AllianceService;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.tasks.Taskmanager;
 import org.apache.commons.logging.Log;
@@ -176,8 +176,8 @@ public class PlayerDelete implements AdminPlugin
 
 						final User sourceUser = db.find(User.class, 0);
 
-						AllianzService allianzService = context.getBean(AllianzService.class, null);
-						List<User> supermembers = allianzService.getAllianzfuehrung(ally);
+						AllianceService allianceService = context.getBean(AllianceService.class, null);
+						List<User> supermembers = allianceService.getAllianceLeadership(ally);
 						for (User supermember : supermembers) {
 							if (supermember.getId() == userId) {
 								continue;
@@ -242,17 +242,17 @@ public class PlayerDelete implements AdminPlugin
 			User nullUser = db.find(User.class, 0);
 
 			for (Base base : baseList) {
-				Integer[] bebauung = base.getBebauung();
-				for (int i = 0; i < bebauung.length; i++) {
-					if (bebauung[i] == 0) {
+				Integer[] buildingIds = base.getBebauung();
+				for (int i = 0; i < buildingIds.length; i++) {
+					if (buildingIds[i] == 0) {
 						continue;
 					}
 
-					Building building = Building.getBuilding(bebauung[i]);
-					building.cleanup(context, base, bebauung[i]);
-					bebauung[i] = 0;
+					Building building = Building.getBuilding(buildingIds[i]);
+					building.cleanup(context, base, buildingIds[i]);
+					buildingIds[i] = 0;
 				}
-				base.setBebauung(bebauung);
+				base.setBebauung(buildingIds);
 
 				base.setOwner(nullUser);
 				base.setName("Verlassener Asteroid");

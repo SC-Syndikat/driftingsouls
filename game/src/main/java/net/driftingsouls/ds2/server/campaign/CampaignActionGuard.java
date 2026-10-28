@@ -7,7 +7,7 @@ import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ContextMap;
-import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidationException;
 import net.driftingsouls.ds2.server.ships.Ship;
 
 import org.apache.commons.text.StringEscapeUtils;
@@ -115,7 +115,7 @@ public class CampaignActionGuard
 		Optional<String> denial = denial(user, starSystemId, action);
 		if (denial.isPresent())
 		{
-			throw new ValidierungException(denial.get());
+			throw new ValidationException(denial.get());
 		}
 	}
 
@@ -170,7 +170,7 @@ public class CampaignActionGuard
 		Optional<Ship> talking = dialogShip(user, location);
 		if (talking.isPresent())
 		{
-			throw new ValidierungException(dialogMessage(talking.get()) + " (hier klicken, um zum Gespräch zu gelangen)",
+			throw new ValidationException(dialogMessage(talking.get()) + " (hier klicken, um zum Gespräch zu gelangen)",
 					Common.buildUrl("default", "module", "schiff", "ship", talking.get().getId()));
 		}
 	}

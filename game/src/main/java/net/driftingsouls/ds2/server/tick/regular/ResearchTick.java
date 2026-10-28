@@ -1,0 +1,118 @@
+/*
+ *	Drifting Souls 2
+ *	Copyright (c) 2006 Christopher Jung
+ *
+ *	This library is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU Lesser General Public
+ *	License as published by the Free Software Foundation; either
+ *	version 2.1 of the License, or (at your option) any later version.
+ *
+ *	This library is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *	Lesser General Public License for more details.
+ *
+ *	You should have received a copy of the GNU Lesser General Public
+ *	License along with this library; if not, write to the Free Software
+ *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+package net.driftingsouls.ds2.server.tick.regular;
+
+import net.driftingsouls.ds2.server.bases.Base;
+import net.driftingsouls.ds2.server.comm.PM;
+import net.driftingsouls.ds2.server.entities.*;
+import net.driftingsouls.ds2.server.framework.db.batch.UnitOfWork;
+import net.driftingsouls.ds2.server.tick.TickController;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * <h1>Der Forschungstick.</h1>
+ * Bearbeitet die Forschungszentren und markiert erforschte Techs bei den
+ * Spielern als erforscht.
+ * @author Christopher Jung
+ *
+ */
+@Service
+@Scope(value = "thread", proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class ResearchTick extends TickController {
+	@Override
+	protected void prepare() {
+		// EMPTY
+	}
+
+	@Override
+	protected void tick()
+	{
+		var db = getEM();
+
+		// Only the ids are collected up front: the unit of work below clears the persistence context
+		// on every flush, which would detach anything loaded here. The research centre is re-loaded
+		// inside doWork, where it is guaranteed to be attached to the current context.
+		List<Integer> researchCenterIds;
+		if(isCampaignTick()) {
+			researchCenterIds = db.createQuery("select id from Forschungszentrum " +
+							"where (base.owner.vaccount=0 or base.owner.wait4vac!=0) and forschung!=null and base.system in (:systeme)", Integer.class)
+					.setParameter("systeme", affectedSystems)
+					.getResultList();
+		}
+		else{
+			researchCenterIds = db.createQuery("select id from Forschungszentrum " +
+							"where (base.owner.vaccount=0 or base.owner.wait4vac!=0) and forschung!=null", Integer.class)
+					.getResultList();
+		}
+		new UnitOfWork<Integer>("Forschungstick", db)
+		{
+			@Override
+			public void doWork(Integer researchCenterId)
+			{
+				var db = getEM();
+				Forschungszentrum fz = db.find(Forschungszentrum.class, researchCenterId);
+				if( fz == null )
+				{
+					return;
+				}
+				if( fz.getDauer() > 1 )
+				{
+					fz.setDauer(fz.getDauer()-1);
+					return;
+				}
+
+				Base base = fz.getBase();
+				User user = base.getOwner();
+
+				log("fz "+fz.getId());
+				log("\tforschung: "+fz.getForschung());
+				Forschung forschung = fz.getForschung();
+
+				log("\t"+forschung.getName()+" ("+forschung.getID()+") erforscht");
+
+				user.addResearch( forschung );
+
+				String msg = "Das Forschungszentrum auf [base="+base.getId()+"]"+base.getName()+"[/base] hat die Forschungen an "+forschung.getName()+" abgeschlossen";
+
+				if( forschung.hasFlag( Forschung.FLAG_DROP_NOOB_PROTECTION) && user.isNoob() )
+				{
+					msg += "\n\n[color=red]Durch die Erforschung dieser Technologie stehen sie nicht l&auml;nger unter GCP-Schutz.\nSie k&ouml;nnen nun sowohl angreifen als auch angegriffen werden![/color]";
+					user.setFlag( UserFlag.NOOB, false );
+
+					log("\t"+user.getId()+" steht nicht laenger unter gcp-schutz");
+				}
+
+				final User sourceUser = db.find(User.class, -1);
+                if(base.getOwner().getUserValue(WellKnownUserValue.GAMEPLAY_USER_RESEARCH_PM)) {
+                    PM.send(sourceUser, base.getOwner().getId(), "Forschung abgeschlossen", msg, db);
+                }
+
+				fz.setForschung(null);
+				fz.setDauer(0);
+			}
+		}
+		.setFlushSize(10)
+		.setClearOnFlush(true)
+		.executeFor(researchCenterIds);
+	}
+}

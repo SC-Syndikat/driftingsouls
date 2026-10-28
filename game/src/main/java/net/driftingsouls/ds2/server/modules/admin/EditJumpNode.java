@@ -5,8 +5,8 @@ import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.entities.JumpNode_;
 import net.driftingsouls.ds2.server.map.TileCache;
-import net.driftingsouls.ds2.server.modules.admin.editoren.EditorForm8;
-import net.driftingsouls.ds2.server.modules.admin.editoren.EntityEditor;
+import net.driftingsouls.ds2.server.modules.admin.editors.EditorForm8;
+import net.driftingsouls.ds2.server.modules.admin.editors.EntityEditor;
 
 import javax.annotation.Nonnull;
 

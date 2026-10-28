@@ -25,7 +25,7 @@ import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.repositories.StarsystemRepository;
-import net.driftingsouls.ds2.server.framework.pipeline.controllers.KeineTicksperre;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.TickLockNotRequired;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 
 import org.springframework.web.util.HtmlUtils;
@@ -42,7 +42,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@KeineTicksperre
+@TickLockNotRequired
 public class GameMasterController implements DSController {
     private Context context;
 

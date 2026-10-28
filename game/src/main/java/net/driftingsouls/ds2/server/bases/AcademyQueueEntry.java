@@ -18,7 +18,7 @@
  */
 package net.driftingsouls.ds2.server.bases;
 
-import net.driftingsouls.ds2.server.config.Offiziere;
+import net.driftingsouls.ds2.server.config.Officers;
 import net.driftingsouls.ds2.server.entities.Academy;
 import net.driftingsouls.ds2.server.entities.Offizier;
 import net.driftingsouls.ds2.server.entities.User;
@@ -234,23 +234,23 @@ public class AcademyQueueEntry {
 			/*
 			 * Neuer Offizier wurde ausgebildet
 			 */
-			String offiname = owner.getPersonenNamenGenerator().generiere();
+			String offiname = owner.getPersonenNamenGenerator().generate();
 
 			Offizier offz = new Offizier(owner, offiname);
 
-			if( !Offiziere.LIST.containsKey(-offizier) ) {
-				offizier = -Offiziere.LIST.keySet().iterator().next();
+			if( !Officers.LIST.containsKey(-offizier) ) {
+				offizier = -Officers.LIST.keySet().iterator().next();
 			}
 
-			Offiziere.Offiziersausbildung offi = Offiziere.LIST.get(-offizier);
+			Officers.OfficerTraining officerTraining = Officers.LIST.get(-offizier);
 
 			for (Offizier.Ability ability : Offizier.Ability.values())
 			{
-				offz.setAbility(ability, offi.getAbility(ability));
+				offz.setAbility(ability, officerTraining.getAbility(ability));
 			}
 
-			int spec = ThreadLocalRandom.current().nextInt(offi.getSpecials().length);
-			spec = offi.getSpecials()[spec];
+			int spec = ThreadLocalRandom.current().nextInt(officerTraining.getSpecials().length);
+			spec = officerTraining.getSpecials()[spec];
 
 			offz.setSpecial(Offizier.Special.values()[spec-1]);
 

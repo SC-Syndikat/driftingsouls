@@ -107,7 +107,7 @@ public class MainController extends Controller {
 				.setEntity("user", user)
 				.iterate().next()).intValue();
 		status.pm = pmcount > 0;
-		status.comNet = new ComNetService().hatAktiverUserUngeleseneComNetNachrichten();
+		status.comNet = new ComNetService().hasActiveUserUnreadComNetMessages();
 		status.gmRequests = hatUngeleseneGmAnfragen();
 		status.version = version.getVersion();
 

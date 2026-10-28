@@ -85,7 +85,7 @@ public class IEDraftShip extends ItemEffect {
 	 * Gibt zurueck, ob ein Flagschiff gebaut wird.
 	 * @return <code>true</code>, wenn es ein Flagschiff ist
 	 */
-	public boolean isFlagschiff() {
+	public boolean isFlagship() {
 		return schiffsbauplan.isFlagschiff();
 	}
 	
@@ -93,7 +93,7 @@ public class IEDraftShip extends ItemEffect {
 	 * Gibt die Baudauer zurueck.
 	 * @return Die Baudauer
 	 */
-	public int getDauer() {
+	public int getDuration() {
 		return schiffsbauplan.getDauer();
 	}
 
@@ -101,7 +101,7 @@ public class IEDraftShip extends ItemEffect {
 	 * Gibt alle benoetigten Forschungen zurueck.
 	 * @return Die Forschungen
 	 */
-	public Set<Forschung> getBenoetigteForschungen()
+	public Set<Forschung> getRequiredResearch()
 	{
 		return schiffsbauplan.getBenoetigteForschungen();
 	}
@@ -110,7 +110,7 @@ public class IEDraftShip extends ItemEffect {
 	 * Gibt die Werftslots zurueck, die zum Bau des Schiffes erforderlich sind.
 	 * @return Die Werftslots
 	 */
-	public int getWerftSlots() {
+	public int getShipyardSlots() {
 		return schiffsbauplan.getWerftSlots();
 	}
 
@@ -122,29 +122,29 @@ public class IEDraftShip extends ItemEffect {
 	{
 		ShipType type = schiffsbauplan.getSchiffstyp();
 
-		ShipBaubar baudaten = new ShipBaubar(type);
-		baudaten.setCosts(this.schiffsbauplan.getBaukosten());
-		baudaten.setCrew(this.schiffsbauplan.getCrew());
-		baudaten.setDauer(this.schiffsbauplan.getDauer());
-		baudaten.setEKosten(this.schiffsbauplan.getEnergiekosten());
-		baudaten.setRace(this.schiffsbauplan.getRasse().getId());
+		ShipBaubar buildData = new ShipBaubar(type);
+		buildData.setCosts(this.schiffsbauplan.getBaukosten());
+		buildData.setCrew(this.schiffsbauplan.getCrew());
+		buildData.setDauer(this.schiffsbauplan.getDauer());
+		buildData.setEKosten(this.schiffsbauplan.getEnergiekosten());
+		buildData.setRace(this.schiffsbauplan.getRasse().getId());
 		Iterator<Forschung> iter = this.schiffsbauplan.getBenoetigteForschungen().iterator();
 		if( iter.hasNext() )
 		{
-			baudaten.setRes1(iter.next());
+			buildData.setRes1(iter.next());
 		}
 		if( iter.hasNext() )
 		{
-			baudaten.setRes2(iter.next());
+			buildData.setRes2(iter.next());
 		}
 		if( iter.hasNext() )
 		{
-			baudaten.setRes3(iter.next());
+			buildData.setRes3(iter.next());
 		}
-		baudaten.setWerftSlots(this.schiffsbauplan.getWerftSlots());
-		baudaten.setFlagschiff(this.schiffsbauplan.isFlagschiff());
+		buildData.setWerftSlots(this.schiffsbauplan.getWerftSlots());
+		buildData.setFlagschiff(this.schiffsbauplan.isFlagschiff());
 
-		return baudaten;
+		return buildData;
 	}
 	
 	/**
@@ -153,7 +153,7 @@ public class IEDraftShip extends ItemEffect {
 	 */
 	@Override
 	public String toString() {
-		String itemstring = "draft-ship:" + getShipType() + "&" + getRace() + "&" + isFlagschiff() + "&" + getCrew() + "&" + getE() + "&" + getDauer() + "&" + getWerftSlots() + "&" + getBuildCosts().save();
+		String itemstring = "draft-ship:" + getShipType() + "&" + getRace() + "&" + isFlagship() + "&" + getCrew() + "&" + getE() + "&" + getDuration() + "&" + getShipyardSlots() + "&" + getBuildCosts().save();
 		String techs = this.schiffsbauplan.getBenoetigteForschungen().stream().map(f -> Integer.toString(f.getID())).collect(Collectors.joining(","));
 		if( techs.equals("")) {
 			techs = ",";

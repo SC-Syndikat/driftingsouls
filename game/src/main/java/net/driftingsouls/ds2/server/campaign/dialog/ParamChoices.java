@@ -190,7 +190,7 @@ public class ParamChoices
 				break;
 			case RANK:
 				choices.put("0", "kein Rang (0)");
-				for (Rang rank : Medals.get().raenge().values())
+				for (Rang rank : Medals.get().ranks().values())
 				{
 					choices.put(Integer.toString(rank.getId()), CampaignText.plain(rank.getName()) + " (" + rank.getId() + ")");
 				}

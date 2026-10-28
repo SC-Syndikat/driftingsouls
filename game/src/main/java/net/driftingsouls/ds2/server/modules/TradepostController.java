@@ -16,7 +16,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.Action;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.Controller;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.UrlParam;
-import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidationException;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.framework.templates.TemplateViewResultFactory;
 import net.driftingsouls.ds2.server.ships.SchiffEinstellungen;
@@ -45,18 +45,18 @@ public class TradepostController extends Controller
 		setPageTitle("Tradepost");
 	}
 
-	private void validiereSchiff(Ship ship)
+	private void validateShip(Ship ship)
 	{
 		// get variables
 		if (ship == null)
 		{
-			throw new ValidierungException("Das angegebene Schiff existiert nicht");
+			throw new ValidationException("Das angegebene Schiff existiert nicht");
 		}
 
 		// security check
 		if (!getUser().equals(ship.getOwner()))
 		{
-			throw new ValidierungException("Allgemeine Richtlinienverletzung.");
+			throw new ValidationException("Allgemeine Richtlinienverletzung.");
 		}
 	}
 
@@ -72,7 +72,7 @@ public class TradepostController extends Controller
 		User user = (User) getUser();
 		org.hibernate.Session db = getDB();
 
-		validiereSchiff(ship);
+		validateShip(ship);
 
 		List<Item> itemlist = Common.cast(db.createQuery("from Item").list());
 
@@ -97,7 +97,7 @@ public class TradepostController extends Controller
 		// generate Maps which contain the SellLimits and den ResourceLimits of the Tradepost
 		Map<ResourceID, SellLimit> selllistmap = new LinkedHashMap<>();
 		Map<ResourceID, ResourceLimit> buylistmap = new LinkedHashMap<>();
-		GtuWarenKurse kurse = ladeAnUndVerkaufsdaten(ship, selllistmap, buylistmap);
+		GtuWarenKurse kurse = loadBuyAndSellData(ship, selllistmap, buylistmap);
 		Cargo buylistgtu = kurse.getKurse();
 
 
@@ -109,7 +109,7 @@ public class TradepostController extends Controller
 		// build form
 		for (Item aitem : itemlist)
 		{
-			itemAnzeigen(t, user, selllistmap, buylistmap, buylistgtu, aitem);
+			showItem(t, user, selllistmap, buylistmap, buylistgtu, aitem);
 		}
 
 		t.setBlock("_TRADEPOST", "tradepostvisibility.list", "tradepostvisibility.post");
@@ -124,7 +124,7 @@ public class TradepostController extends Controller
 		return t;
 	}
 
-	private void itemAnzeigen(TemplateEngine t, User user, Map<ResourceID, SellLimit> selllistmap, Map<ResourceID, ResourceLimit> buylistmap, Cargo buylistgtu, Item aitem)
+	private void showItem(TemplateEngine t, User user, Map<ResourceID, SellLimit> selllistmap, Map<ResourceID, ResourceLimit> buylistmap, Cargo buylistgtu, Item aitem)
 	{
 		ItemID itemId = new ItemID(aitem.getID());
 
@@ -190,7 +190,7 @@ public class TradepostController extends Controller
 		}
 	}
 
-	private GtuWarenKurse ladeAnUndVerkaufsdaten(Ship ship, Map<ResourceID, SellLimit> selllistmap, Map<ResourceID, ResourceLimit> buylistmap)
+	private GtuWarenKurse loadBuyAndSellData(Ship ship, Map<ResourceID, SellLimit> selllistmap, Map<ResourceID, ResourceLimit> buylistmap)
 	{
 		Session db = getDB();
 
@@ -200,7 +200,7 @@ public class TradepostController extends Controller
 		// get all ResourceLimits of this ship
 		List<ResourceLimit> buylimitlist = Common.cast(db.createQuery("from ResourceLimit where ship=:ship").setParameter("ship", ship).list());
 		// get GtuWarenKurse cause of fucking database structure
-		GtuWarenKurse kurse = ermittleKurseFuerSchiff(ship);
+		GtuWarenKurse kurse = determineRatesForShip(ship);
 
 		for (SellLimit limit : selllimitlist)
 		{
@@ -215,7 +215,7 @@ public class TradepostController extends Controller
 		return kurse;
 	}
 
-	private GtuWarenKurse ermittleKurseFuerSchiff(Ship ship)
+	private GtuWarenKurse determineRatesForShip(Ship ship)
 	{
 		User user = (User) getUser();
 		Session db = getDB();
@@ -224,7 +224,7 @@ public class TradepostController extends Controller
 		GtuWarenKurse kurse = (GtuWarenKurse) db.get(GtuWarenKurse.class, "p" + ship.getId());
 		if (kurse == null)
 		{
-			if (user.getRace() == Faction.GTU_RASSE)
+			if (user.getRace() == Faction.GTU_RACE)
 			{
 				GtuWarenKurse tmpKurse = (GtuWarenKurse) db.get(GtuWarenKurse.class, "tradepost");
 				buylistgtu = new Cargo(tmpKurse.getKurse());
@@ -267,7 +267,7 @@ public class TradepostController extends Controller
 		User user = (User) getUser();
 		org.hibernate.Session db = getDB();
 
-		validiereSchiff(ship);
+		validateShip(ship);
 
 		List<Item> itemlist = Common.cast(db.createQuery("from Item").list());
 
@@ -290,7 +290,7 @@ public class TradepostController extends Controller
 		Map<ResourceID, SellLimit> selllistmap = new LinkedHashMap<>();
 		Map<ResourceID, ResourceLimit> buylistmap = new LinkedHashMap<>();
 
-		GtuWarenKurse kurse = ladeAnUndVerkaufsdaten(ship, selllistmap, buylistmap);
+		GtuWarenKurse kurse = loadBuyAndSellData(ship, selllistmap, buylistmap);
 
 		t.setVar("tradepost.id", ship.getId(),
 				"tradepost.image", ship.getTypeData().getPicture(),

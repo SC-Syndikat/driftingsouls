@@ -20,7 +20,7 @@ import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.config.ModuleSlot;
 import net.driftingsouls.ds2.server.config.ModuleSlots;
 import net.driftingsouls.ds2.server.config.NoSuchSlotException;
-import net.driftingsouls.ds2.server.config.Offiziere;
+import net.driftingsouls.ds2.server.config.Officers;
 import net.driftingsouls.ds2.server.config.items.Item;
 import net.driftingsouls.ds2.server.config.items.Schiffsmodul;
 import net.driftingsouls.ds2.server.config.StarSystem;
@@ -29,7 +29,7 @@ import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
-import net.driftingsouls.ds2.server.ships.Alarmstufe;
+import net.driftingsouls.ds2.server.ships.AlertLevel;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipType;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
@@ -390,7 +390,7 @@ public class CampaignShipGroups implements AdminPlugin
 		echo.append("<span class='campaign-hint'>{n} wird durch die laufende Nummer ersetzt</span><br />");
 		echo.append("Alarm ");
 		Map<Integer, String> alarms = new LinkedHashMap<>();
-		for (Alarmstufe alarm : Alarmstufe.values())
+		for (AlertLevel alarm : AlertLevel.values())
 		{
 			alarms.put(alarm.ordinal(), alarm.name());
 		}
@@ -426,7 +426,7 @@ public class CampaignShipGroups implements AdminPlugin
 		moduleData(echo, gson, em, shipTypes, typeData, entry);
 		echo.append("<script type='text/javascript'>var sgShipTypes=").append(gson.toJson(typeData))
 				.append(";var sgUnitTypes=").append(gson.toJson(unitData))
-				.append(";var sgMaxRank=").append(Offiziere.MAX_RANG).append(";</script>");
+				.append(";var sgMaxRank=").append(Officers.MAX_RANK).append(";</script>");
 		echo.append("<script src='./data/javascript/modules/admin.shipgroups.js' type='text/javascript'></script>");
 	}
 
@@ -624,9 +624,9 @@ public class CampaignShipGroups implements AdminPlugin
 		return abilities + " (Rang " + officer.getRank() + special + ")";
 	}
 
-	private static Alarmstufe alarm(int ordinal)
+	private static AlertLevel alarm(int ordinal)
 	{
-		return Alarmstufe.values()[Math.max(0, Math.min(ordinal, Alarmstufe.values().length - 1))];
+		return AlertLevel.values()[Math.max(0, Math.min(ordinal, AlertLevel.values().length - 1))];
 	}
 
 	private static Map<Integer, ShipType> shipTypes(EntityManager em)

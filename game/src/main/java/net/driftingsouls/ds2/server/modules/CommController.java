@@ -23,7 +23,7 @@ import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.bbcodes.TagIntrnlConfTask;
 import net.driftingsouls.ds2.server.comm.Ordner;
 import net.driftingsouls.ds2.server.comm.PM;
-import net.driftingsouls.ds2.server.config.Rassen;
+import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
 import net.driftingsouls.ds2.server.framework.Common;
@@ -567,12 +567,12 @@ public class CommController extends Controller
 				pm.setGelesen(1);
 			}
 
-			User empfaenger = pm.getEmpfaenger();
+			User recipient = pm.getEmpfaenger();
 			sender = user;
-			if (empfaenger != null)
+			if (recipient != null)
 			{
-				t.setVar("pm.empfaenger", empfaenger.getId(),
-						"pm.empfaenger.name", Common._title(empfaenger.getName()));
+				t.setVar("pm.empfaenger", recipient.getId(),
+						"pm.empfaenger.name", Common._title(recipient.getName()));
 			}
 			else
 			{
@@ -621,7 +621,7 @@ public class CommController extends Controller
 		}
 		else if (sender != null && pm.hasFlag(PM.FLAGS_OFFICIAL))
 		{
-			bgimg = "pm_" + Rassen.get().rasse(sender.getRace()).getName() + "bg.png";
+			bgimg = "pm_" + Races.get().race(sender.getRace()).getName() + "bg.png";
 		}
 
 		String text = pm.getInhalt();
@@ -858,7 +858,7 @@ public class CommController extends Controller
 		}
 		else if ("official".equals(special))
 		{
-			bgimg = "pm_" + Rassen.get().rasse(user.getRace()).getName() + "bg.png";
+			bgimg = "pm_" + Races.get().race(user.getRace()).getName() + "bg.png";
 		}
 
 		t.setVar("pm.text", Smilie.parseSmilies(getEM(), Common._text(msg)),

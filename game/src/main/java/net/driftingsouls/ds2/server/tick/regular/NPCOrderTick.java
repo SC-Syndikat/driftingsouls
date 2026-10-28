@@ -33,8 +33,8 @@ import net.driftingsouls.ds2.server.entities.npcorders.OrderShip;
 import net.driftingsouls.ds2.server.entities.npcorders.OrderableOffizier;
 import net.driftingsouls.ds2.server.framework.db.batch.SingleUnitOfWork;
 import net.driftingsouls.ds2.server.framework.db.batch.UnitOfWork;
-import net.driftingsouls.ds2.server.namegenerator.PersonenNamenGenerator;
-import net.driftingsouls.ds2.server.ships.SchiffHinzufuegenService;
+import net.driftingsouls.ds2.server.namegenerator.PersonNameGenerator;
+import net.driftingsouls.ds2.server.ships.ShipCreationService;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipType;
 import net.driftingsouls.ds2.server.tick.TickController;
@@ -67,10 +67,10 @@ public class NPCOrderTick extends TickController {
 		this.pmcache = new HashMap<>();
 	}
 
-	private String getOffiName(User user) {
-		PersonenNamenGenerator generator = user.getPersonenNamenGenerator();
+	private String getOfficerName(User user) {
+		PersonNameGenerator generator = user.getPersonenNamenGenerator();
 		if( generator != null ) {
-			return generator.generiere();
+			return generator.generate();
 		}
 
 		return "NPC-Lieferservice";
@@ -85,14 +85,22 @@ public class NPCOrderTick extends TickController {
 		}
 		var db = getEM();
 
-		List<Order> orders = db.createQuery("from Order order by user.id", Order.class)
+		// Only the ids are collected up front: the unit of work below clears the persistence context
+		// on every flush, which would detach anything loaded here. The order is re-loaded inside
+		// doWork, where it is guaranteed to be attached to the current context.
+		List<Integer> orderIds = db.createQuery("select o.id from Order o order by o.user.id", Integer.class)
 				.getResultList();
-		new UnitOfWork<Order>("NPCOrderTick", db)
+		new UnitOfWork<Integer>("NPCOrderTick", db)
 		{
 			@Override
-			public void doWork(Order order)
+			public void doWork(Integer orderId)
 			{
 				var db = getEM();
+				Order order = db.find(Order.class, orderId);
+				if( order == null )
+				{
+					return;
+				}
 				if( order.getTick() != 1 )
 				{
 					order.setTick(order.getTick()-1);
@@ -101,7 +109,7 @@ public class NPCOrderTick extends TickController {
 
 				User user = order.getUser();
 
-				Location loc = ermittleLieferposition(user);
+				Location loc = determineDeliveryLocation(user);
 
 				log("  Lieferung erfolgt bei "+loc.getSystem()+":"+loc.getX()+"/"+loc.getY());
 
@@ -113,7 +121,7 @@ public class NPCOrderTick extends TickController {
 				}
 				else if( order instanceof OrderOffizier )
 				{
-					newShip = processOrderOffizier(db, order, user, loc);
+					newShip = processOfficerOrder(db, order, user, loc);
 				}
 
 				if( newShip != null )
@@ -126,7 +134,7 @@ public class NPCOrderTick extends TickController {
 		}
 		.setFlushSize(5)
 		.setClearOnFlush(true)
-		.executeFor(orders);
+		.executeFor(orderIds);
 
 		this.log("Versende PMs...");
 		new SingleUnitOfWork("NPCOrderTick - PMs", db)
@@ -144,17 +152,22 @@ public class NPCOrderTick extends TickController {
 		.execute();
 
 		this.log("Verteile NPC-Punkte...");
-		List<User> users = db.createQuery("from User where locate('ordermenu',flags)!=0", User.class)
+		List<Integer> userIds = db.createQuery("select u.id from User u where locate('ordermenu',u.flags)!=0", Integer.class)
 				.getResultList();
-		new UnitOfWork<User>("NPCOrderTick - NPC-Punkte", db)
+		new UnitOfWork<Integer>("NPCOrderTick - NPC-Punkte", db)
 		{
 			@Override
-			public void doWork(User user) {
+			public void doWork(Integer userId) {
+				User user = getEM().find(User.class, userId);
+				if( user == null )
+				{
+					return;
+				}
 				user.setNpcPunkte(user.getNpcPunkte()+1);
 			}
 		}
 		.setClearOnFlush(true)
-		.executeFor(users);
+		.executeFor(userIds);
 	}
 
 	private Ship processOrderShip(Order order, User user, Location loc, EntityManager db)
@@ -198,7 +211,7 @@ public class NPCOrderTick extends TickController {
 		return newShip;
 	}
 
-	private Ship processOrderOffizier(EntityManager db, Order order, User user, Location loc)
+	private Ship processOfficerOrder(EntityManager db, Order order, User user, Location loc)
 	{
 		List<Base> bases = Base.byLocationAndBesitzer(loc, user);
 
@@ -220,7 +233,7 @@ public class NPCOrderTick extends TickController {
 		OrderableOffizier offizier = db.find(OrderableOffizier.class, ((OrderOffizier)order).getType());
 		int special = ThreadLocalRandom.current().nextInt(1, 7);
 
-		Offizier offi = new Offizier(user, this.getOffiName(user));
+		Offizier offi = new Offizier(user, this.getOfficerName(user));
 		offi.setRang(offizier.getRang());
 		offi.setAbility(Offizier.Ability.ING, offizier.getIng());
 		offi.setAbility(Offizier.Ability.WAF, offizier.getWaf());
@@ -274,8 +287,8 @@ public class NPCOrderTick extends TickController {
 		cargo.addResource( Resources.URAN, shipd.getRu()* 10L);
 		cargo.addResource( Resources.ANTIMATERIE, shipd.getRa()* 10L);
 
-		SchiffHinzufuegenService schiffHinzufuegenService = new SchiffHinzufuegenService();
-		Ship ship = schiffHinzufuegenService.erstelle(user, shipd, loc, "[hide]NPC-Order[/hide]", db);
+		ShipCreationService shipCreationService = new ShipCreationService();
+		Ship ship = shipCreationService.create(user, shipd, loc, "[hide]NPC-Order[/hide]", db);
 		ship.setCargo(cargo);
 		ship.setNahrungCargo(shipd.getNahrungCargo());
 
@@ -283,7 +296,7 @@ public class NPCOrderTick extends TickController {
 		return ship;
 	}
 
-	private Location ermittleLieferposition(User user)
+	private Location determineDeliveryLocation(User user)
 	{
 		if( user.getNpcOrderLocation() != null )
 		{
@@ -299,8 +312,8 @@ public class NPCOrderTick extends TickController {
 		{
 			return DEFAULT_LOCATION;
 		}
-		Base ersteBasis = user.getBases().iterator().next();
-		return ersteBasis.getLocation();
+		Base firstBase = user.getBases().iterator().next();
+		return firstBase.getLocation();
 	}
 
 }

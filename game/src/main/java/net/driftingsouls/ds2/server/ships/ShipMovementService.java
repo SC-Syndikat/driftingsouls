@@ -1,0 +1,894 @@
+package net.driftingsouls.ds2.server.ships;
+
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.Location;
+import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.battles.BattleShip;
+import net.driftingsouls.ds2.server.config.StarSystem;
+import net.driftingsouls.ds2.server.entities.Nebel;
+import net.driftingsouls.ds2.server.entities.Offizier;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.framework.ConfigService;
+import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.framework.ContextMap;
+import net.driftingsouls.ds2.server.services.BattleCreationService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
+
+import javax.annotation.Nonnull;
+import javax.persistence.EntityManager;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * Service zum Fliegen von Schiffen.
+ */
+@Service
+@RequestScope
+public class ShipMovementService
+{
+	private final BattleCreationService battleCreationService;
+	private final ConfigService configService;
+	private final EntityManager db;
+
+	@Autowired
+	public ShipMovementService(BattleCreationService battleCreationService, ConfigService configService, EntityManager db)
+	{
+		this.battleCreationService = battleCreationService;
+		this.configService = configService;
+		this.db = db;
+	}
+
+	/**
+	 * Die verschiedenen Zustaende, die zum Ende eines Fluges gefuehrt haben koennen.
+	 */
+	public enum MovementStatus
+	{
+		/**
+		 * Der Flug war Erfolgreich.
+		 */
+		SUCCESS,
+		/**
+		 * Der Flug wurde an einem EMP-Nebel abgebrochen.
+		 */
+		BLOCKED_BY_EMP,
+		/**
+		 * Der Flug wurde vor einem Feld mit rotem Alarm abgebrochen.
+		 */
+		BLOCKED_BY_ALERT,
+		/**
+		 * Das Schiff konnte nicht mehr weiterfliegen.
+		 */
+		SHIP_FAILURE,
+		/**
+		 * Der Flug wurde an einem Schadensnebel abgebrochen.
+		 */
+		BLOCKED_BY_DAMAGE_NEBULA,
+	}
+
+	private static class SingleMoveResult
+	{
+		final int distance;
+		final boolean moved;
+		final MovementStatus status;
+
+		SingleMoveResult(int distance, boolean moved, MovementStatus status)
+		{
+			this.distance = distance;
+			this.moved = moved;
+			this.status = status;
+		}
+	}
+
+
+
+	private SingleMoveResult moveSingle(Ship ship, ShipTypeData shiptype, Offizier offizier, int direction, int distance, long adocked, boolean forceLowHeat, boolean verbose, StringBuilder out) {
+		boolean moved = false;
+		MovementStatus status = MovementStatus.SUCCESS;
+
+		if( ship.getEngine() <= 0 ) {
+			if(verbose) {
+				out.append("<span style=\"color:#ff0000\">Antrieb defekt</span><br />\n");
+			}
+			distance = 0;
+
+			return new SingleMoveResult(distance, false, MovementStatus.SHIP_FAILURE);
+		}
+
+		int newe = ship.getEnergy() - shiptype.getCost();
+		int news = ship.getHeat() + shiptype.getHeat();
+
+		newe -= adocked;
+		if( shiptype.getMinCrew() > ship.getCrew() ) {
+			newe--;
+			if(verbose) {
+				out.append("<span style=\"color:red\">Geringe Besatzung erh&ouml;ht Flugkosten</span><br />\n");
+			}
+		}
+
+		// Antrieb teilweise beschaedigt?
+		if( ship.getEngine() < 20 ) {
+			newe -= 4;
+		}
+		else if( ship.getEngine() < 40 ) {
+			newe -= 2;
+		}
+		else if( ship.getEngine() < 60 ) {
+			newe -= 1;
+		}
+
+		if( newe < 0 ) {
+			if(!verbose)
+			{
+				out.append(ship.getName()).append(" (").append(ship.getId()).append("): ");
+			}
+			out.append("<span style=\"color:#ff0000\">Keine Energie. Stoppe bei ").append(ship.getLocation().displayCoordinates(true)).append("</span><br />\n");
+			distance = 0;
+
+			return new SingleMoveResult(distance, false, MovementStatus.SHIP_FAILURE);
+		}
+
+		if( offizier != null ) {
+			// Flugkosten
+			int success = offizier.useAbility( Offizier.Ability.NAV, 200 );
+			if( success > 0 ) {
+				newe += 2;
+				if( newe > ship.getEnergy()-1 ) {
+					newe = ship.getEnergy() - 1;
+				}
+				if(verbose) {
+					out.append(offizier.getName()).append(" verringert Flugkosten<br />\n");
+				}
+			}
+			// Ueberhitzung
+			success = offizier.useAbility( Offizier.Ability.ING, 200 );
+			if( success > 0 ) {
+				news -= 1;
+				if( news < ship.getHeat()+2 ) {
+					news = ship.getHeat()+2;
+				}
+				if( verbose ) {
+					out.append(offizier.getName()).append(" verringert &Uuml;berhitzung<br />\n");
+				}
+			}
+			if( verbose ) {
+				out.append(offizier.MESSAGE.getMessage().replace("\n", "<br />"));
+			}
+		}
+
+		// Grillen wir uns bei dem Flug eventuell den Antrieb?
+		if( news > 100 )  {
+			if(forceLowHeat && distance > 0) {
+				if( !verbose ) {
+					out.append(ship.getName()).append(" (").append(ship.getId()).append("): ");
+				}
+				out.append("<span style=\"color:#ff0000\">Triebwerk w&uuml;rde &uuml;berhitzen</span><br />\n");
+
+				out.append("<span style=\"color:#ff0000\">Autopilot bricht ab bei ").append(ship.getLocation().displayCoordinates(true)).append("</span><br />\n");
+				out.append("</span></td></tr>\n");
+				distance = 0;
+				return new SingleMoveResult(distance, false, MovementStatus.SHIP_FAILURE);
+			}
+		}
+
+		int x = ship.getX();
+		int y = ship.getY();
+
+		if( direction == 1 ) { x--; y--; }
+		else if( direction == 2 ) { y--; }
+		else if( direction == 3 ) { x++; y--; }
+		else if( direction == 4 ) { x--; }
+		else if( direction == 6 ) { x++; }
+		else if( direction == 7 ) { x--; y++; }
+		else if( direction == 8 ) { y++; }
+		else if( direction == 9 ) { x++; y++; }
+
+		StarSystem sys = db.find(StarSystem.class, ship.getSystem());
+
+		if( x > sys.getWidth()) {
+			x = sys.getWidth();
+			distance = 0;
+		}
+		if( y > sys.getHeight()) {
+			y = sys.getHeight();
+			distance = 0;
+		}
+		if( x < 1 ) {
+			x = 1;
+			distance = 0;
+		}
+		if( y < 1 ) {
+			y = 1;
+			distance = 0;
+		}
+
+		if( (ship.getX() != x) || (ship.getY() != y) ) {
+			moved = true;
+
+			if( ship.getHeat() >= 100 ) {
+				if( !verbose ) {
+					out.append(ship.getName()).append(" (").append(ship.getId()).append("): ");
+				}
+				out.append("<span style=\"color:#ff0000\">Triebwerke &uuml;berhitzt</span><br />\n");
+
+				if( (ThreadLocalRandom.current().nextInt(101)) < 3*(news-100) ) {
+					int dmg = (int)( (2*(ThreadLocalRandom.current().nextInt(101)/100d)) + 1 ) * (news-100);
+					out.append("<span style=\"color:#ff0000\">Triebwerke nehmen ").append(dmg).append(" Schaden</span><br />\n");
+					ship.setEngine(ship.getEngine()-dmg);
+					if( ship.getEngine() < 0 ) {
+						ship.setEngine(0);
+					}
+					if( distance > 0 ) {
+						out.append("<span style=\"color:#ff0000\">Autopilot bricht ab bei ").append(ship.getLocation().displayCoordinates(true)).append("</span><br />\n");
+						status = MovementStatus.SHIP_FAILURE;
+						distance = 0;
+					}
+				}
+			}
+
+			Nebel.Typ nebula = Nebel.getNebula(new Location(ship.getSystem(), x, y));
+			if(nebula != null) {
+				nebula.damageShip(ship, configService);
+			}
+
+			ship.setX(x);
+			ship.setY(y);
+			ship.setEnergy(newe);
+			ship.setHeat(news);
+			if( verbose ) {
+				out.append(ship.getName()).append(" fliegt in ").append(ship.getLocation().displayCoordinates(true)).append(" ein<br />\n");
+			}
+
+			if(ship.isDestroyed()) {
+				out.append("<span style=\"color:#ff0000\">Das Schiff wurde beim Einflug in den Sektor ").append(ship.getLocation().displayCoordinates(true)).append(" durch ein Raumphänomen zerstört</span><br />\n");
+				status = MovementStatus.SHIP_FAILURE;
+				distance = 0;
+			} else if(ship.getEngine() == 0) {
+				out.append("<span style=\"color:#ff0000\">Die Triebwerke sind zerstört</span><br />\n");
+				out.append("<span style=\"color:#ff0000\">Autopilot bricht ab bei ").append(ship.getLocation().displayCoordinates(true)).append("</span><br />\n");
+				status = MovementStatus.SHIP_FAILURE;
+				distance = 0;
+			}
+		}
+
+		return new SingleMoveResult(distance, moved, status);
+	}
+
+	/**
+	 * Enthaelt die Daten der Schiffe in einer Flotte, welche sich gerade bewegt.
+	 *
+	 */
+	private static class FleetMovementData {
+		FleetMovementData() {
+			// EMPTY
+		}
+
+		/**
+		 * Die Schiffe in der Flotte.
+		 */
+        final Map<Integer,Ship> ships = new HashMap<>();
+		/**
+		 * Die Offiziere auf den Schiffen der Flotte.
+		 */
+        final Map<Integer,Offizier> offiziere = new HashMap<>();
+		/**
+		 * Die Anzahl der gedockten/gelandeten Schiffe.
+		 */
+        final Map<Integer,Long> dockedCount = new HashMap<>();
+		/**
+		 * Die Anzahl der extern gedocketen Schiffe.
+		 */
+        final Map<Integer,Long> aDockedCount = new HashMap<>();
+	}
+
+
+	private boolean initFleetData(Ship selectedShip, boolean verbose, StringBuilder out) {
+		Context context = ContextMap.getContext();
+		boolean error = false;
+		boolean firstEntry = true;
+
+		FleetMovementData fleetdata = (FleetMovementData)context.getVariable(Ships.class, "fleetdata");
+		if( fleetdata != null ) {
+			return false;
+		}
+
+		fleetdata = new FleetMovementData();
+
+		context.putVariable(Ships.class, "fleetdata", fleetdata);
+
+		org.hibernate.Session db = context.getDB();
+
+		List<?> fleetships = db.createQuery("from Ship s left join fetch s.modules " +
+				"where s.id>0 and s.fleet=:fleet and s.x=:x and s.y=:y and s.system=:sys and s.owner=:owner and " +
+				"s.docked='' and s.id!=:id and s.e>0 and s.battle is null")
+				.setEntity("fleet", selectedShip.getFleet())
+				.setInteger("x", selectedShip.getX())
+				.setInteger("y", selectedShip.getY())
+				.setInteger("sys", selectedShip.getSystem())
+				.setEntity("owner", selectedShip.getOwner())
+				.setInteger("id", selectedShip.getId())
+				.list();
+
+		for (Object fleetship1 : fleetships)
+		{
+			if (verbose && firstEntry)
+			{
+				firstEntry = false;
+				out.append("<table class=\"noBorder\">\n");
+			}
+			Ship fleetship = (Ship) fleetship1;
+			ShipTypeData shiptype = fleetship.getTypeData();
+
+			StringBuilder outpb = new StringBuilder();
+
+			if (shiptype.getCost() == 0)
+			{
+				outpb.append("<span style=\"color:red\">Das Objekt kann nicht fliegen, da es keinen Antieb hat</span><br />");
+				error = true;
+			}
+
+			if ((fleetship.getCrew() == 0) && (shiptype.getCrew() > 0))
+			{
+				outpb.append("<span style=\"color:red\">Fehler: Sie haben keine Crew auf dem Schiff</span><br />");
+				error = true;
+			}
+
+			if (outpb.length() != 0)
+			{
+				out.append("<tr>\n");
+				out.append("<td valign=\"top\" class=\"noBorderS\"><span style=\"color:orange; font-size:12px\"> ").append(fleetship.getName()).append(" (").append(fleetship.getId()).append("):</span></td><td class=\"noBorderS\"><span style=\"font-size:12px\">\n");
+				out.append(outpb);
+				out.append("</span></td></tr>\n");
+			}
+			else
+			{
+				long dockedcount = 0;
+				long adockedcount = 0;
+				if ((shiptype.getJDocks() > 0) || (shiptype.getADocks() > 0))
+				{
+
+					dockedcount = fleetship.getAnzahlGedockterUndGelandeterSchiffe();
+					if (shiptype.getADocks() > 0)
+					{
+						adockedcount = fleetship.getDockedCount();
+					}
+				}
+
+				if (fleetship.getStatus().contains("offizier"))
+				{
+					fleetdata.offiziere.put(fleetship.getId(), fleetship.getOffizier());
+				}
+
+				fleetdata.dockedCount.put(fleetship.getId(), dockedcount);
+				fleetdata.aDockedCount.put(fleetship.getId(), adockedcount);
+
+				fleetdata.ships.put(fleetship.getId(), fleetship);
+			}
+		}
+
+		return error;
+	}
+
+	private MovementStatus moveFleet(int direction, boolean forceLowHeat, boolean verbose, StringBuilder out)  {
+		MovementStatus status = MovementStatus.SUCCESS;
+
+		boolean firstEntry = true;
+		Context context = ContextMap.getContext();
+		FleetMovementData fleetdata = (FleetMovementData)context.getVariable(Ships.class, "fleetdata");
+
+		for( Ship fleetship : fleetdata.ships.values() ) {
+			if( verbose && firstEntry ) {
+				firstEntry = false;
+				out.append("<table class=\"noBorder\">\n");
+			}
+
+			if(verbose) {
+				out.append("<tr>\n");
+				out.append("<td valign=\"top\" class=\"noBorderS\"><span style=\"color:orange; font-size:12px\"> ").append(fleetship.getName()).append(" (").append(fleetship.getId()).append("):</span></td><td class=\"noBorderS\"><span style=\"font-size:12px\">\n");
+			}
+			Offizier offizierf = fleetdata.offiziere.get(fleetship.getId());
+
+			ShipTypeData shiptype = fleetship.getTypeData();
+
+			SingleMoveResult result = moveSingle(fleetship, shiptype, offizierf, direction, 1, fleetdata.aDockedCount.get(fleetship.getId()), forceLowHeat, verbose, out);
+
+			//Einen einmal gesetzten Fehlerstatus nicht wieder aufheben
+			if( status == MovementStatus.SUCCESS ) {
+				status = result.status;
+			}
+
+			if(verbose) {
+				out.append("</span></td></tr>\n");
+			}
+		}
+
+		if( !firstEntry )
+		{
+			out.append("</table>\n");
+		}
+
+		return status;
+	}
+
+	private static void saveFleetShips() {
+		Context context = ContextMap.getContext();
+		FleetMovementData fleetdata = (FleetMovementData)context.getVariable(Ships.class, "fleetdata");
+
+		if( fleetdata != null ) {
+			org.hibernate.Session db = context.getDB();
+
+			Map<Location,List<String>> shipDockIds = new HashMap<>();
+			for( Ship fleetship : fleetdata.ships.values() ) {
+				if( fleetdata.dockedCount.get(fleetship.getId()) > 0 ) {
+					List<String> posIds = shipDockIds.computeIfAbsent(fleetship.getLocation(), k -> new ArrayList<>());
+					posIds.add("l "+fleetship.getId());
+					posIds.add(Integer.toString(fleetship.getId()));
+				}
+
+			}
+
+			for( Map.Entry<Location, List<String>> entry : shipDockIds.entrySet() ) {
+				final Location loc = entry.getKey();
+				List<?> dockedList = db.createQuery("from Ship s left join fetch s.modules where s.id>0 and s.docked in (:dockedIds)")
+						.setParameterList("dockedIds", entry.getValue())
+						.list();
+				for (Object aDockedList : dockedList)
+				{
+					Ship dockedShip = (Ship) aDockedList;
+					dockedShip.setLocation(loc);
+				}
+			}
+		}
+		context.putVariable(Ships.class, "fleetships", null);
+		context.putVariable(Ships.class, "fleetoffiziere", null);
+	}
+
+	/**
+	 * Das Ergebnis einer Flugbewegung eines oder mehrerer Schiffe.
+	 */
+	public static class MovementResult {
+		private final MovementStatus status;
+		private final String messages;
+		private final Location location;
+
+
+		public MovementResult(MovementStatus status, @Nonnull String messages, Location location)
+		{
+			this.status = status;
+			this.messages = messages;
+			this.location = location;
+		}
+
+		public MovementResult(MovementStatus status, @Nonnull String messages)
+		{
+			this.status = status;
+			this.messages = messages;
+			this.location = new Location(0,0,0);
+		}
+
+		/**
+		 * Das Ergebnis der Flugbewegung.
+		 * @return Das Ergebnis
+		 */
+		public MovementStatus getStatus()
+		{
+			return status;
+		}
+
+		public String getAutomatedMessage()
+		{
+			switch (status)
+			{
+				case SUCCESS:
+					return "Ankunft bei " + location.getSystem() + ":" + location.getX() + "/" + location.getY();
+				case BLOCKED_BY_EMP:
+					return "Stoppe bei "+ location.getSystem() + ":" + location.getX() + "/" + location.getY() +" aufgrund eines EMP Nebels.";
+				case BLOCKED_BY_ALERT:
+					return "Stoppe bei "+ location.getSystem() + ":" + location.getX() + "/" + location.getY() +" aufgrund eines Alarm rot";
+				case SHIP_FAILURE:
+					return "Schiff wurde bei folgenden Koordinaten vernichtet: "+ location.getSystem() + ":" + location.getX() + "/" + location.getY();
+				case BLOCKED_BY_DAMAGE_NEBULA:
+					return "Stoppe bei "+ location.getSystem() + ":" + location.getX() + "/" + location.getY() +" aufgrund eines Schadensnebels";
+				default: return "";
+			}
+
+/*
+			SUCCESS,
+			BLOCKED_BY_EMP,
+			BLOCKED_BY_ALERT,
+			SHIP_FAILURE,
+			BLOCKED_BY_DAMAGE_NEBULA,*/
+		}
+
+		/**
+		 * Die Statusmeldungen der Flugbewegung.
+		 * @return Die Statusmeldungen
+		 */
+		public @Nonnull String getMessages()
+		{
+			return messages;
+		}
+	}
+
+	/**
+	 * <p>Fliegt eine Flugroute entlang. Falls das Schiff einer Flotte angehoert, fliegt
+	 * diese ebenfalls n Felder in diese Richtung.</p>
+	 * <p>Der Flug wird abgebrochen sobald eines der Schiffe nicht mehr weiterfliegen kann</p>
+	 * Die Flugrouteninformationen werden waehrend des Fluges modifiziert.
+	 *
+	 * @param route Die Flugroute
+	 * @param forceLowHeat Soll bei Ueberhitzung sofort abgebrochen werden?
+	 * @return Der Status, der zum Ende des Fluges gefuehrt hat
+	 */
+	public MovementResult move(Ship selectedShip, List<Waypoint> route, boolean forceLowHeat) {
+		StringBuilder out = new StringBuilder();
+
+		//We want to fly the slowest ship first, so the fleet cannot be seperated
+		if(selectedShip.getFleet() != null && route.size() > 1)
+		{
+			Ship moving = selectedShip;
+
+			List<Ship> ships = selectedShip.getFleet().getShips();
+			for(Ship ship: ships)
+			{
+				if(getSafeTravelDistance(ship) < getSafeTravelDistance(moving))
+				{
+					moving = ship;
+				}
+			}
+
+			//We have used references instead of copies, so we can compare by != here
+			if(moving != selectedShip)
+			{
+				//Maximum distance is safe travel distance
+				if(route.size() > getSafeTravelDistance(moving))
+				{
+					route = route.subList(0, getSafeTravelDistance(moving));
+				}
+
+				return move(moving, route, forceLowHeat);
+			}
+		}
+
+		User user = selectedShip.getOwner();
+
+		ShipTypeData shiptype = selectedShip.getTypeData();
+		Offizier offizier = selectedShip.getOffizier();
+
+		//Das Schiff soll sich offenbar bewegen
+		if( selectedShip.isDocked() ) {
+			out.append("Fehler: Sie k&ouml;nnen nicht mit dem Schiff fliegen, da es geladet/angedockt ist\n");
+			return new MovementResult(MovementStatus.SHIP_FAILURE, out.toString());
+		}
+
+		if( shiptype.getCost() == 0 ) {
+			out.append("Fehler: Das Objekt kann nicht fliegen, da es keinen Antrieb hat\n");
+			return new MovementResult(MovementStatus.SHIP_FAILURE, out.toString());
+		}
+
+		if( selectedShip.getBattle() != null ) {
+			out.append("Fehler: Das Schiff ist in einen Kampf verwickelt\n");
+			return new MovementResult(MovementStatus.SHIP_FAILURE, out.toString());
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().denial(user, selectedShip.getSystem(), CampaignAction.MOVE)
+				.or(() -> new CampaignActionGuard().dialogDenial(user, selectedShip.getLocation()));
+		if( campaignDenial.isPresent() ) {
+			out.append("<span style=\"color:#ff0000\">").append(campaignDenial.get()).append("</span><br />\n");
+			return new MovementResult(MovementStatus.SHIP_FAILURE, out.toString());
+		}
+
+		if( (selectedShip.getCrew() <= 0) && (shiptype.getCrew() > 0) ) {
+			out.append("<span style=\"color:#ff0000\">Das Schiff verf&uuml;gt &uuml;ber keine Crew</span><br />\n");
+			return new MovementResult(MovementStatus.SHIP_FAILURE, out.toString());
+		}
+
+		long docked = 0;
+		long adocked = 0;
+		MovementStatus status = MovementStatus.SUCCESS;
+
+		if( (shiptype.getJDocks() > 0) || (shiptype.getADocks() > 0) ) {
+			docked = selectedShip.getAnzahlGedockterUndGelandeterSchiffe();
+
+			if( shiptype.getADocks() > 0 ) {
+				adocked = (int)selectedShip.getDockedCount();
+			}
+		}
+
+		boolean mayEnterRedAlert = route.size() == 1 && route.get(0).distance == 1;
+		boolean moved = false;
+
+		while( (status == MovementStatus.SUCCESS) && !route.isEmpty()) {
+			Waypoint waypoint = route.remove(0);
+
+			if( waypoint.type != Waypoint.Type.MOVEMENT ) {
+				throw new RuntimeException("Es wird nur "+Waypoint.Type.MOVEMENT+" als Wegpunkt unterstuetzt");
+			}
+
+			if( waypoint.direction == 5 ) {
+				continue;
+			}
+
+			// Zielkoordinaten/Bewegungsrichtung berechnen
+			int xoffset = 0;
+			int yoffset = 0;
+			if( waypoint.direction <= 3 ) {
+				yoffset--;
+			}
+			else if( waypoint.direction >= 7 ) {
+				yoffset++;
+			}
+
+			if( (waypoint.direction-1) % 3 == 0 ) {
+				xoffset--;
+			}
+			else if( waypoint.direction % 3 == 0 ) {
+				xoffset++;
+			}
+
+			List<Ship> sectorList = db.createQuery("from Ship " +
+					"where owner!=:owner and system=:system and x between :lowerx and :upperx and y between :lowery and :uppery", Ship.class)
+					.setParameter("owner", selectedShip.getOwner())
+					.setParameter("system", selectedShip.getSystem())
+					.setParameter("lowerx", (waypoint.direction - 1) % 3 == 0 ? selectedShip.getX() - waypoint.distance : selectedShip.getX())
+					.setParameter("upperx", (waypoint.direction) % 3 == 0 ? selectedShip.getX() + waypoint.distance : selectedShip.getX())
+					.setParameter("lowery", waypoint.direction <= 3 ? selectedShip.getY() - waypoint.distance : selectedShip.getY())
+					.setParameter("uppery", waypoint.direction >= 7 ? selectedShip.getY() + waypoint.distance : selectedShip.getY())
+					.getResultList();
+
+			Map<Location, List<Ship>> alertList = Ship.alertCheck(selectedShip.getOwner(), sectorList.stream().map(Ship::getLocation).toArray(Location[]::new));
+
+			// Alle potentiell relevanten Sektoren mit EMP- oder Schadensnebeln (ok..und ein wenig ueberfluessiges Zeug bei schraegen Bewegungen) auslesen
+			Set<Nebel.Typ> nebulaTypes = new HashSet<>(Nebel.Typ.getEmpNebula());
+			nebulaTypes.addAll(Nebel.Typ.getDamageNebula());
+			List<Nebel> sectorNebelList = db.createQuery("from Nebel " +
+					"where type in (:nebulaTypes) and loc.system=:system and loc.x between :lowerx and :upperx and loc.y between :lowery and :uppery", Nebel.class)
+					.setParameter("system", selectedShip.getSystem())
+					.setParameter("lowerx", (waypoint.direction - 1) % 3 == 0 ? selectedShip.getX() - waypoint.distance : selectedShip.getX())
+					.setParameter("upperx", (waypoint.direction) % 3 == 0 ? selectedShip.getX() + waypoint.distance : selectedShip.getX())
+					.setParameter("lowery", waypoint.direction <= 3 ? selectedShip.getY() - waypoint.distance : selectedShip.getY())
+					.setParameter("uppery", waypoint.direction >= 7 ? selectedShip.getY() + waypoint.distance : selectedShip.getY())
+					.setParameter("nebulaTypes", nebulaTypes)
+					.getResultList();
+
+			Set<Location> empLocations = new HashSet<>();
+			Set<Location> damageLocations = new HashSet<>();
+			for (Nebel nebel : sectorNebelList)
+			{
+				if(nebel.getType().isEmp()) {
+					empLocations.add(nebel.getLocation());
+				} else {
+					damageLocations.add(nebel.getLocation());
+				}
+			}
+
+			if( (waypoint.distance > 1) && empLocations.contains(selectedShip.getLocation()) ) {
+				out.append("<span style=\"color:#ff0000\">Der Autopilot funktioniert in EMP-Nebeln nicht</span><br />\n");
+				return new MovementResult(MovementStatus.BLOCKED_BY_EMP, out.toString());
+			}
+
+			if( selectedShip.getFleet() != null ) {
+				initFleetData(selectedShip, false, out);
+			}
+
+			long starttime = System.currentTimeMillis();
+
+			int startdistance = waypoint.distance;
+
+			// Und nun fliegen wir mal ne Runde....
+			while( waypoint.distance > 0 ) {
+				final Location nextLocation = new Location(selectedShip.getSystem(),selectedShip.getX()+xoffset, selectedShip.getY()+yoffset);
+
+				if(alertList.containsKey(nextLocation) && user.isNoob()){
+					List<Ship> attackers = Ship.alertCheck(user, nextLocation)
+							.values().iterator().next();
+					if( !attackers.isEmpty() ) {
+						out.append("<span style=\"color:#ff0000\">Sie stehen unter dem Schutz des Commonwealth.</span><br />Ihnen ist der Einflug in gesicherte Gebiete untersagt<br />\n");
+						status = MovementStatus.BLOCKED_BY_ALERT;
+						waypoint.distance = 0;
+						break;
+					}
+				}
+
+				// Schauen wir mal ob wir vor Alarm warnen muessen
+				if( !mayEnterRedAlert && alertList.containsKey(nextLocation) ) {
+					List<Ship> attackers = Ship.alertCheck(user, nextLocation)
+							.values().iterator().next();
+					if( !attackers.isEmpty() ) {
+						out.append("<span style=\"color:#ff0000\">Feindliche Schiffe in Alarmbereitschaft im n&auml;chsten Sektor geortet</span><br />\n");
+						out.append("<span style=\"color:#ff0000\">Autopilot bricht ab</span><br />\n");
+						status = MovementStatus.BLOCKED_BY_ALERT;
+						waypoint.distance = 0;
+						break;
+					}
+				}
+
+				if( (startdistance > 1) && empLocations.contains(nextLocation) ) {
+					out.append("<span style=\"color:#ff0000\">EMP-Nebel im n&auml;chsten Sektor geortet</span><br />\n");
+					out.append("<span style=\"color:#ff0000\">Autopilot bricht ab</span><br />\n");
+					status = MovementStatus.BLOCKED_BY_EMP;
+					waypoint.distance = 0;
+					break;
+				}
+
+				if( (startdistance > 1) && damageLocations.contains(nextLocation) ) {
+					out.append("<span style=\"color:#ff0000\">Schadensnebel im n&auml;chsten Sektor geortet</span><br />\n");
+					out.append("<span style=\"color:#ff0000\">Autopilot bricht ab</span><br />\n");
+					status = MovementStatus.BLOCKED_BY_DAMAGE_NEBULA;
+					waypoint.distance = 0;
+					break;
+				}
+
+				int olddirection = waypoint.direction;
+
+				// ACHTUNG: Ob das ganze hier noch sinnvoll funktioniert, wenn distance > 1 ist, ist mehr als fraglich...
+				if( empLocations.contains(nextLocation) &&
+						(ThreadLocalRandom.current().nextDouble() < selectedShip.getTypeData().getLostInEmpChance()) ) {
+					Nebel.Typ nebel = Nebel.getNebula(selectedShip.getLocation());
+					if( nebel == Nebel.Typ.STRONG_EMP ) {
+						waypoint.direction = ThreadLocalRandom.current().nextInt(1,10);
+					}
+				}
+
+				// Nun muessen wir noch die Caches fuellen
+				if( waypoint.direction != olddirection ) {
+					int tmpxoff = 0;
+					int tmpyoff = 0;
+
+					if( waypoint.direction <= 3 ) {
+						tmpyoff--;
+					}
+					else if( waypoint.direction >= 7 ) {
+						tmpyoff++;
+					}
+
+					if( (waypoint.direction-1) % 3 == 0 ) {
+						tmpxoff--;
+					}
+					else if( waypoint.direction % 3 == 0 ) {
+						tmpxoff++;
+					}
+
+					alertList.putAll(Ship.alertCheck(selectedShip.getOwner(), new Location(selectedShip.getSystem(), selectedShip.getX() + tmpxoff, selectedShip.getY() + tmpyoff)));
+				}
+
+				waypoint.distance--;
+				SingleMoveResult result = moveSingle(selectedShip, shiptype, offizier, waypoint.direction, waypoint.distance, adocked, forceLowHeat, false, out);
+				status = result.status;
+				waypoint.distance = result.distance;
+
+				if( result.moved ) {
+					// Jetzt, da sich unser Schiff korrekt bewegt hat, fliegen wir auch die Flotte ein stueck weiter
+					if( selectedShip.getFleet() != null ) {
+						MovementStatus fleetResult = moveFleet(waypoint.direction, forceLowHeat, false, out);
+						if( fleetResult != MovementStatus.SUCCESS  ) {
+							status = fleetResult;
+							waypoint.distance = 0;
+						}
+					}
+
+					moved = true;
+
+					if( alertList.containsKey(selectedShip.getLocation()) ) {
+						selectedShip.setDocked("");
+						if( docked != 0 ) {
+							for( Ship dship : selectedShip.getDockedShips() )
+							{
+								dship.setLocation(selectedShip);
+							}
+							for( Ship dship : selectedShip.getLandedShips() )
+							{
+								dship.setLocation(selectedShip);
+							}
+						}
+						saveFleetShips();
+
+
+						handleAlert(selectedShip);
+					}
+				}
+
+				// Wenn wir laenger als 25 Sekunden fuers fliegen gebraucht haben -> abbrechen!
+				if( System.currentTimeMillis() - starttime > 25000 ) {
+					out.append("<span style=\"color:#ff0000\">Flug dauert zu lange</span><br />\n");
+					out.append("<span style=\"color:#ff0000\">Autopilot bricht ab</span><br />\n");
+					waypoint.distance = 0;
+					status = MovementStatus.SHIP_FAILURE;
+				}
+			}  // while distance > 0
+
+		} // while !error && route.size() > 0
+
+		if( moved ) {
+			out.append("Ankunft bei ").append(selectedShip.getLocation().displayCoordinates(true)).append("<br />\n");
+
+			selectedShip.setDocked("");
+			if( docked != 0 ) {
+				for (Ship dockedShip : selectedShip.getGedockteUndGelandeteSchiffe())
+				{
+					dockedShip.setLocation(selectedShip);
+				}
+			}
+            if(selectedShip.getFleet() != null)
+            {
+                for(Ship ship : selectedShip.getFleet().getShips())
+                {
+                    ship.recalculateShipStatus(false);
+                }
+            }
+            else
+            {
+                selectedShip.recalculateShipStatus(false);
+            }
+		}
+		saveFleetShips();
+
+		return new MovementResult(status, out.toString());
+	}
+
+	private void handleAlert(Ship selectedShip)
+	{
+		User owner = selectedShip.getOwner();
+		List<Ship> attackShips = Ship.alertCheck(owner, selectedShip.getLocation()).values().iterator().next();
+
+		if(attackShips.isEmpty())
+		{
+			return;
+		}
+
+		for(Ship ship: attackShips)
+		{
+			if(ship.getBattle() != null)
+			{
+				BattleShip bship = db.find(BattleShip.class, ship.getId());
+				int oside = (bship.getSide() + 1) % 2 + 1;
+				Battle battle = ship.getBattle();
+				battle.load(selectedShip.getOwner(), null, null, oside, db);
+
+				for(Ship aship: selectedShip.getDockedShips())
+				{
+					battle.addShip(selectedShip.getOwner().getId(), aship.getId());
+				}
+				battle.addShip(selectedShip.getOwner().getId(), selectedShip.getId());
+
+				return;
+			}
+		}
+
+		Ship ship = attackShips.get(0); //Take some ship .. no special mechanism here.
+		battleCreationService.create(ship.getOwner(), ship, selectedShip, true);
+	}
+
+	/**
+	 * @return Die Felder, die das Schiff zuruecklegen kann ohne zu ueberhitzen / keine Energie mehr zu haben.
+	 */
+	public int getSafeTravelDistance(Ship ship)
+	{
+
+		int energy = ship.getEnergy();
+		int heat = ship.getHeat();
+
+		ShipTypeData typeData = ship.getTypeData();
+		int consumption = typeData.getCost();
+		int heatBuildup = typeData.getHeat();
+
+		if(consumption == 0 || heatBuildup == 0)
+		{
+			if(ship.isDocked() || ship.isLanded())
+			{
+				return Integer.MAX_VALUE;
+			}
+			return 0;
+		}
+
+		int distance = Math.min(energy/consumption, (100-heat)/heatBuildup);
+		if(distance < 0)
+		{
+			distance = 0;
+		}
+
+		return distance;
+	}
+}

@@ -23,9 +23,9 @@ import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.entities.User;
-import net.driftingsouls.ds2.server.modules.admin.editoren.EditorForm8;
-import net.driftingsouls.ds2.server.modules.admin.editoren.EntityEditor;
-import net.driftingsouls.ds2.server.ships.Alarmstufe;
+import net.driftingsouls.ds2.server.modules.admin.editors.EditorForm8;
+import net.driftingsouls.ds2.server.modules.admin.editors.EntityEditor;
+import net.driftingsouls.ds2.server.ships.AlertLevel;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.Ship_;
 import net.driftingsouls.ds2.server.ships.ShipType;
@@ -85,7 +85,7 @@ public class EditShip implements EntityEditor<Ship>
 		form.field("Waffen", Integer.class, Ship::getWeapons, Ship::setWeapons);
 		form.field("Hitze", Integer.class, Ship::getHeat, Ship::setHeat);
 
-		form.field("Alarm", Alarmstufe.class, Ship::getAlarm, Ship::setAlarm);
+		form.field("Alarm", AlertLevel.class, Ship::getAlarm, Ship::setAlarm);
 		form.field("Statusflags", String.class, Ship::getStatus, Ship::setStatus);
 		form.field("Cargo", Cargo.class, Ship::getCargo, Ship::setCargo);
 	}

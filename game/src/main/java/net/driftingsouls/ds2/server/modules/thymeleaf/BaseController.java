@@ -2,7 +2,7 @@ package net.driftingsouls.ds2.server.modules.thymeleaf;
 
 import net.driftingsouls.ds2.server.bases.*;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
-import net.driftingsouls.ds2.server.config.Rassen;
+import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.config.items.Item;
 import net.driftingsouls.ds2.server.config.items.effects.ItemEffect;
 import net.driftingsouls.ds2.server.campaign.CampaignAction;
@@ -143,7 +143,7 @@ public class BaseController implements DSController {
             return false;
 		}
 
-		if(ship.getEnergy() < new ConfigService(context.getEM()).getValue(WellKnownConfigValue.ASTI_SCAN_COST) )
+		if(ship.getEnergy() < new ConfigService(context.getEM()).getValue(WellKnownConfigValue.ASTEROID_SCAN_COST) )
 		{
             Error error = new Error ("Nicht ausreichend Energie für den Asteroidenscan vorhanden");
             ctx.setVariable("error", error);
@@ -269,9 +269,9 @@ public class BaseController implements DSController {
         }
         json.put("id",base.getId());
         addFullCargoToJSON(json, base, null);
-        addBaumenuDiffToJSON(json, base);
+        addBuildMenuDiffToJSON(json, base);
         addEnergyToJSON(json, base);
-        addBevoelkerungToJSON(json, base, null, false);
+        addPopulationToJSON(json, base, null, false);
         addBuildingsActionsToJSON(json, base);
         response.getWriter().write(json.toString());
         response.flushBuffer(); // marks response as committed -- if we don't do this the request will go through normally!
@@ -311,10 +311,10 @@ public class BaseController implements DSController {
         }
 
         //Anzahl der Gebaeude berechnen
-        Map<Integer, Integer> buildingcount = berechneGebaeudeanzahlDieserBasis(base);
+        Map<Integer, Integer> buildingcount = calculateBuildingCountOnThisBase(base);
 
         //Anzahl der Gebaeude pro Spieler berechnen
-        Map<Integer, Integer> ownerbuildingcount = berechneGebaeudeanzahlAllerBasen(user);
+        Map<Integer, Integer> ownerbuildingcount = calculateBuildingCountOnAllBases(user);
 
         //Anzahl der Gebaeude berechnen
         if (building.getPerPlanetCount() != 0)
@@ -351,16 +351,16 @@ public class BaseController implements DSController {
 
         if (building.isUComplex())
         {
-            int c = berechneAnzahlUnterirdischerKomplexe(context.getDB(), buildingcount);
-            int grenze = berechneMaximaleAnzahlUnterirdischerKomplexe(base);
+            int c = calculateUndergroundComplexCount(context.getDB(), buildingcount);
+            int limit = calculateMaxUndergroundComplexCount(base);
 
-            if (c > grenze - 1)
+            if (c > limit - 1)
             {
-                JSONPostERROR("Maximale Anzahl (" + grenze + ") unterirdischer Komplexe erreicht",json,response);
+                JSONPostERROR("Maximale Anzahl (" + limit + ") unterirdischer Komplexe erreicht",json,response);
                 return ;
             }
         }
-        if (!Rassen.get().rasse(user.getRace()).isMemberIn(building.getRace()))
+        if (!Races.get().race(user.getRace()).isMemberIn(building.getRace()))
         {
             JSONPostERROR("Sie geh&ouml;ren der falschen Spezies an und k&ouml;nnen dieses Geb&auml;ude nicht selbst errichten.",json,response);
             return ;
@@ -388,12 +388,12 @@ public class BaseController implements DSController {
         }
 
         // Alles OK -> bauen
-        boolean aktiviert = false;
+        boolean activated = false;
         if (success)
         {
-            Integer[] bebauung = base.getBebauung();
-            bebauung[field] = building.getId();
-            base.setBebauung(bebauung);
+            Integer[] buildingIds = base.getBebauung();
+            buildingIds[field] = building.getId();
+            base.setBebauung(buildingIds);
 
             Integer[] active = base.getActive();
             // Muss das Gebaeude aufgrund von Arbeitermangel deaktiviert werden?
@@ -405,7 +405,7 @@ public class BaseController implements DSController {
             else
             {
                 active[field] = 1;
-                aktiviert = true;
+                activated = true;
                 base.setArbeiter(base.getArbeiter() + building.getArbeiter());
             }
             // Resourcen abziehen
@@ -419,7 +419,7 @@ public class BaseController implements DSController {
             JSONObject g = new JSONObject();
             g.put("geb_id",buildingid);
             g.put("field",field);
-            g.put("offline",aktiviert? "" : "offline");
+            g.put("offline",activated? "" : "offline");
             g.put("bildpfad",building.getPictureForRace(user.getRace()));
             g.put("col",base.getId());
             g.put("geb_name",building.getPlainName());
@@ -435,11 +435,11 @@ public class BaseController implements DSController {
         json.put("success",success);
         json.put("id",base.getId());
         //Jetzt das Baumenue, nur Aenderungen
-        addBaumenuDiffToJSON(json, base);
+        addBuildMenuDiffToJSON(json, base);
         //Jetzt den neuen Cargo:
         addFullCargoToJSON(json, base, building);
         addEnergyToJSON(json,base);
-        addBevoelkerungToJSON(json,base, building, aktiviert);
+        addPopulationToJSON(json,base, building, activated);
         addBuildingsActionsToJSON(json, base);
         response.getWriter().write(json.toString());
         response.flushBuffer(); // marks response as committed -- if we don't do this the request will go through normally!
@@ -458,7 +458,7 @@ public class BaseController implements DSController {
             jo.put("ress_name",r.getPlainName());
             jo.put("menge",r.getCount1());
             jo.put("produktion", r.getCount2());
-            jo.put("kategorie",convertItemEffectType2ItemTyp(Item.getItemById(r.getId().getItemID()).getEffect().getType()).getName());
+            jo.put("kategorie",convertItemEffectTypeToItemCategory(Item.getItemById(r.getId().getItemID()).getEffect().getType()).getName());
             jo.put("bildpfad",r.getImage());
             jo.put("verbraucht", building != null ? building.getBuildCosts().hasResource(r.getId()) : false);
             jo.put("prodaenderung", building!=null ? building.getProduces().hasResource(r.getId()) ||building.getConsumes().hasResource(r.getId()):false );
@@ -479,15 +479,15 @@ public class BaseController implements DSController {
         energy.put("energiebilanz", base.getEstat_formated());
         json.put("energy",energy);
     }
-    public void addBevoelkerungToJSON(JSONObject json, Base base, Building building, boolean aktiviert){
+    public void addPopulationToJSON(JSONObject json, Base base, Building building, boolean activated){
         JSONObject bev = new JSONObject();
         BaseStatus basedata = Base.getStatus(base);
-        bev.put("arbeiter", basedata.getArbeiter());
-        bev.put("arbeiteraenderung", building != null && aktiviert? building.getArbeiter() > 0 : false);
+        bev.put("arbeiter", basedata.getWorkers());
+        bev.put("arbeiteraenderung", building != null && activated? building.getArbeiter() > 0 : false);
         bev.put("einwohner",base.getBewohner());
         bev.put("wohnraum",base.getWohnraum());
-        bev.put("wohnraumaenderung", building != null && aktiviert? building.getBewohner() > 0 : false);
-        bev.put("arbeitslos",Math.max(base.getBewohner()-basedata.getArbeiter(),0));
+        bev.put("wohnraumaenderung", building != null && activated? building.getBewohner() > 0 : false);
+        bev.put("arbeitslos",Math.max(base.getBewohner()-basedata.getWorkers(),0));
         bev.put("wohnraumfrei",Math.max(basedata.getLivingSpace()-base.getBewohner(),0));
         bev.put("wohnraumfehlt",Math.max(base.getBewohner()-basedata.getLivingSpace(),0));
         json.put("stats",bev);
@@ -515,13 +515,13 @@ public class BaseController implements DSController {
         }
 
         for( Map.Entry<Integer,Integer> entry : buildingonoffstatus.descendingMap().entrySet() ) {
-            int bstatus = entry.getValue();
+            int buildingStatus = entry.getValue();
             JSONObject b = new JSONObject();
             Building building = Building.getBuilding(entry.getKey());
             b.put("name",building.getPlainName());
             b.put("buildingTypeId",building.getId());
-            b.put("deaktivierbar",(bstatus == -1) || (bstatus == 2));
-            b.put("aktivierbar",(bstatus == -1) || (bstatus == 1));
+            b.put("deaktivierbar",(buildingStatus == -1) || (buildingStatus == 2));
+            b.put("aktivierbar",(buildingStatus == -1) || (buildingStatus == 1));
             act.put(b);
         }
         json.put("buildingActions",act);
@@ -534,7 +534,7 @@ public class BaseController implements DSController {
      * @param json das JSONObject, das erweitert werden soll
      * @param base die Basis, auf der das Baumenu angezeigt werden soll
      */
-    public void addBaumenuDiffToJSON(JSONObject json, Base base){
+    public void addBuildMenuDiffToJSON(JSONObject json, Base base){
         if(base == null){
             return;
         }
@@ -727,7 +727,7 @@ public class BaseController implements DSController {
             if(!validateScan(base,ship, ctx)){
                 return;
             }
-            int e = new ConfigService(context.getEM()).getValue(WellKnownConfigValue.ASTI_SCAN_COST);
+            int e = new ConfigService(context.getEM()).getValue(WellKnownConfigValue.ASTEROID_SCAN_COST);
             ship.setEnergy(ship.getEnergy() - e);
         }
 		User user = (User)context.getActiveUser();
@@ -805,14 +805,14 @@ public class BaseController implements DSController {
 		// Waren
 		//----------------
 
-		base.setArbeiter(basedata.getArbeiter());
+		base.setArbeiter(basedata.getWorkers());
 
 		ResourceList reslist = base.getCargo().compare(basedata.getProduction(), true,true);
         reslist.sortByID(false);
-        List<RessView> ress = new ArrayList<>();
-        for(ItemTyp type : ItemTyp.values()) {
-            List<ResourceEntry> list = reslist.stream().filter(res -> convertItemEffectType2ItemTyp(Item.getItemById(res.getId().getItemID()).getEffect().getType()).equals(type)).collect(Collectors.toList());
-            RessView view = new RessView(type.getName(),list);
+        List<ResourceView> ress = new ArrayList<>();
+        for(ItemCategory type : ItemCategory.values()) {
+            List<ResourceEntry> list = reslist.stream().filter(res -> convertItemEffectTypeToItemCategory(Item.getItemById(res.getId().getItemID()).getEffect().getType()).equals(type)).collect(Collectors.toList());
+            ResourceView view = new ResourceView(type.getName(),list);
             ress.add(view);
         }
         ctx.setVariable("cargo",ress);
@@ -825,10 +825,10 @@ public class BaseController implements DSController {
         List<BuildingGroup> buildings = new ArrayList<>();
 
 		for( Map.Entry<Integer,Integer> entry : buildingonoffstatus.entrySet() ) {
-			int bstatus = entry.getValue();
+			int buildingStatus = entry.getValue();
 
 			Building building = Building.getBuilding(entry.getKey());
-            BuildingGroup bv = new BuildingGroup(building,entry.getKey(),(bstatus == -1) || (bstatus == 2),(bstatus == -1) || (bstatus == 1)  );
+            BuildingGroup bv = new BuildingGroup(building,entry.getKey(),(buildingStatus == -1) || (buildingStatus == 2),(buildingStatus == -1) || (buildingStatus == 1)  );
             buildings.add(bv);
 		}
         ctx.setVariable("buildings",buildings);
@@ -843,12 +843,12 @@ public class BaseController implements DSController {
         }
 
 
-        Bevoelkerung bevoelkerung = new Bevoelkerung(base,basedata);
+        Population population = new Population(base,basedata);
 
-		ctx.setVariable("bevoelkerung", bevoelkerung);
+		ctx.setVariable("bevoelkerung", population);
         if(!scan)
         {
-            erzeugeBaumenue(base, ctx);
+            createBuildMenu(base, ctx);
         }
     }
 
@@ -978,32 +978,32 @@ public class BaseController implements DSController {
      *  @param base Die Basis, auf der das Gebaeude gebaut werden soll
      *  @param ctx der Webkontext
      */
-    public void erzeugeBaumenue(Base base, WebContext ctx)
+    public void createBuildMenu(Base base, WebContext ctx)
     {
         User user = (User) context.getActiveUser();
         org.hibernate.Session db = context.getDB();
 
         //Anzahl der Gebaeude berechnen
-        Map<Integer, Integer> buildingcount = berechneGebaeudeanzahlDieserBasis(base);
+        Map<Integer, Integer> buildingcount = calculateBuildingCountOnThisBase(base);
 
         //Anzahl der Gebaeude pro Spieler berechnen
-        Map<Integer, Integer> ownerbuildingcount = berechneGebaeudeanzahlAllerBasen(user);
+        Map<Integer, Integer> ownerbuildingcount = calculateBuildingCountOnAllBases(user);
 
         Cargo basecargo = base.getCargo();
 
         //Max UComplex-Gebaeude-Check
-        int grenze = berechneMaximaleAnzahlUnterirdischerKomplexe(base);
-        int c = berechneAnzahlUnterirdischerKomplexe(db, buildingcount);
+        int limit = calculateMaxUndergroundComplexCount(base);
+        int c = calculateUndergroundComplexCount(db, buildingcount);
 
-        boolean ucomplex = c <= grenze - 1;
+        boolean ucomplex = c <= limit - 1;
 
-        List<BuildingKategorie> kategorien = new ArrayList<>();
+        List<BuildingCategory> categories = new ArrayList<>();
 
-        BuildingKategorie energie    = new BuildingKategorie("Energie",    new ArrayList<>() );
-        BuildingKategorie nahrung    = new BuildingKategorie("Nahrung",    new ArrayList<>() );
-        BuildingKategorie metalle    = new BuildingKategorie("Metalle",    new ArrayList<>() );
-        BuildingKategorie produktion = new BuildingKategorie("Produktion", new ArrayList<>() );
-        BuildingKategorie sonstiges  = new BuildingKategorie("Sonstiges",  new ArrayList<>() );
+        BuildingCategory energyCategory    = new BuildingCategory("Energie",    new ArrayList<>() );
+        BuildingCategory foodCategory    = new BuildingCategory("Nahrung",    new ArrayList<>() );
+        BuildingCategory metalsCategory    = new BuildingCategory("Metalle",    new ArrayList<>() );
+        BuildingCategory productionCategory = new BuildingCategory("Produktion", new ArrayList<>() );
+        BuildingCategory miscCategory  = new BuildingCategory("Sonstiges",  new ArrayList<>() );
 
         //Alle Gebaeude ausgeben
         Iterator<?> buildingIter = db.createQuery("from Building  order by name")
@@ -1016,12 +1016,12 @@ public class BaseController implements DSController {
             {
                 continue;
             }
-            if (!Rassen.get().rasse(user.getRace()).isMemberIn(building.getRace()))
+            if (!Races.get().race(user.getRace()).isMemberIn(building.getRace()))
             {
                 continue;
             }
 
-            Bauprojekt bp = new Bauprojekt(building, basecargo);
+            BuildProject bp = new BuildProject(building, basecargo);
 
             //Existiert bereits die max. Anzahl dieses Geb. Typs auf dem Asti?
             if ((building.getPerPlanetCount() != 0) && buildingcount.containsKey(building.getId()) &&
@@ -1030,19 +1030,19 @@ public class BaseController implements DSController {
                 bp.setBaubar(false);
                 switch(building.getCategory()){
                     case 0:
-                        energie.gebaeude.add(bp);
+                        energyCategory.gebaeude.add(bp);
                         continue;
                     case 1:
-                        nahrung.gebaeude.add(bp);
+                        foodCategory.gebaeude.add(bp);
                         continue;
                     case 2:
-                        metalle.gebaeude.add(bp);
+                        metalsCategory.gebaeude.add(bp);
                         continue;
                     case 3:
-                        produktion.gebaeude.add(bp);
+                        productionCategory.gebaeude.add(bp);
                         continue;
                     default:
-                        sonstiges.gebaeude.add(bp);
+                        miscCategory.gebaeude.add(bp);
                         continue;
                 }
             }
@@ -1053,19 +1053,19 @@ public class BaseController implements DSController {
                 bp.setBaubar(false);
                 switch(building.getCategory()){
                     case 0:
-                        energie.gebaeude.add(bp);
+                        energyCategory.gebaeude.add(bp);
                         continue;
                     case 1:
-                        nahrung.gebaeude.add(bp);
+                        foodCategory.gebaeude.add(bp);
                         continue;
                     case 2:
-                        metalle.gebaeude.add(bp);
+                        metalsCategory.gebaeude.add(bp);
                         continue;
                     case 3:
-                        produktion.gebaeude.add(bp);
+                        productionCategory.gebaeude.add(bp);
                         continue;
                     default:
-                        sonstiges.gebaeude.add(bp);
+                        miscCategory.gebaeude.add(bp);
                         continue;
                 }
             }
@@ -1075,59 +1075,59 @@ public class BaseController implements DSController {
                 bp.setBaubar(false);
                 switch(building.getCategory()){
                     case 0:
-                        energie.gebaeude.add(bp);
+                        energyCategory.gebaeude.add(bp);
                         continue;
                     case 1:
-                        nahrung.gebaeude.add(bp);
+                        foodCategory.gebaeude.add(bp);
                         continue;
                     case 2:
-                        metalle.gebaeude.add(bp);
+                        metalsCategory.gebaeude.add(bp);
                         continue;
                     case 3:
-                        produktion.gebaeude.add(bp);
+                        productionCategory.gebaeude.add(bp);
                         continue;
                     default:
-                        sonstiges.gebaeude.add(bp);
+                        miscCategory.gebaeude.add(bp);
                         continue;
                 }
             }
             bp.setBaubar(true);
             switch(building.getCategory()){
                 case 0:
-                    energie.gebaeude.add(bp);
+                    energyCategory.gebaeude.add(bp);
                     continue;
                 case 1:
-                    nahrung.gebaeude.add(bp);
+                    foodCategory.gebaeude.add(bp);
                     continue;
                 case 2:
-                    metalle.gebaeude.add(bp);
+                    metalsCategory.gebaeude.add(bp);
                     continue;
                 case 3:
-                    produktion.gebaeude.add(bp);
+                    productionCategory.gebaeude.add(bp);
                     continue;
                 default:
-                    sonstiges.gebaeude.add(bp);
+                    miscCategory.gebaeude.add(bp);
                     continue;
             }
         }
-        kategorien.add(energie);
-        kategorien.add(nahrung);
-        kategorien.add(metalle);
-        kategorien.add(produktion);
-        kategorien.add(sonstiges);
+        categories.add(energyCategory);
+        categories.add(foodCategory);
+        categories.add(metalsCategory);
+        categories.add(productionCategory);
+        categories.add(miscCategory);
 
-        ctx.setVariable("kategorien", kategorien);
+        ctx.setVariable("kategorien", categories);
 
     }
 
     //Hilfsfunktionen
 
-    private static int berechneMaximaleAnzahlUnterirdischerKomplexe(Base base)
+    private static int calculateMaxUndergroundComplexCount(Base base)
     {
         return (base.getWidth() * base.getHeight()) / 8;
     }
 
-    private static int berechneAnzahlUnterirdischerKomplexe(Session db, Map<Integer, Integer> buildingcount)
+    private static int calculateUndergroundComplexCount(Session db, Map<Integer, Integer> buildingcount)
     {
         int c = 0;
 
@@ -1143,7 +1143,7 @@ public class BaseController implements DSController {
         return c;
     }
 
-    private static Map<Integer, Integer> berechneGebaeudeanzahlDieserBasis(Base base)
+    private static Map<Integer, Integer> calculateBuildingCountOnThisBase(Base base)
     {
         Map<Integer, Integer> buildingcount = new HashMap<>();
         for (int building : base.getBebauung())
@@ -1153,7 +1153,7 @@ public class BaseController implements DSController {
         return buildingcount;
     }
 
-    private static Map<Integer, Integer> berechneGebaeudeanzahlAllerBasen(User user)
+    private static Map<Integer, Integer> calculateBuildingCountOnAllBases(User user)
     {
         Map<Integer, Integer> ownerbuildingcount = new HashMap<>();
 
@@ -1170,7 +1170,7 @@ public class BaseController implements DSController {
 
     //ViewKlassen fuer Thymeleaf
 
-    private static class RessView{
+    private static class ResourceView{
         public String getName() {
             return name;
         }
@@ -1186,7 +1186,7 @@ public class BaseController implements DSController {
         public int getAmount(){
             return ress.size();
         }
-        public RessView(String name, List<ResourceEntry> ress) {
+        public ResourceView(String name, List<ResourceEntry> ress) {
             this.name = name;
             this.ress = ress;
         }
@@ -1195,18 +1195,18 @@ public class BaseController implements DSController {
         public String name;
     }
 
-    private static class BuildingKategorie{
+    private static class BuildingCategory{
         public String name;
-        public List<Bauprojekt> gebaeude;
+        public List<BuildProject> gebaeude;
 
-        public BuildingKategorie(String name, List<Bauprojekt> gebauede) {
+        public BuildingCategory(String name, List<BuildProject> buildProjects) {
             this.name = name;
-            this.gebaeude = gebauede;
+            this.gebaeude = buildProjects;
         }
     }
 
-    private static class Bauprojekt{
-        public Bauprojekt(Building building, Cargo basecargo) {
+    private static class BuildProject{
+        public BuildProject(Building building, Cargo basecargo) {
             this.building = building;
             baubar = false;
             baukosten =  building.getBuildCosts().compare(basecargo, false, true);
@@ -1332,14 +1332,14 @@ public class BaseController implements DSController {
 
     }
 
-    private static class Bevoelkerung{
+    private static class Population{
         public final long arbeiter;
         public final long arbeitslos;
         public final long wohnraumFrei;
         public final long wohnraumFehlt;
-        public Bevoelkerung(Base base, BaseStatus basedata) {
-            this.arbeiter = basedata.getArbeiter();
-            this.arbeitslos = Math.max(base.getBewohner()-basedata.getArbeiter(),0);
+        public Population(Base base, BaseStatus basedata) {
+            this.arbeiter = basedata.getWorkers();
+            this.arbeitslos = Math.max(base.getBewohner()-basedata.getWorkers(),0);
             this.wohnraumFrei = Math.max(basedata.getLivingSpace()-base.getBewohner(),0);
             this.wohnraumFehlt = Math.max(base.getBewohner()-basedata.getLivingSpace(),0);
         }
@@ -1355,13 +1355,13 @@ public class BaseController implements DSController {
         }
     }
 
-    public enum ItemTyp{
+    public enum ItemCategory{
         ROHSTOFF("Waren"),
         MODUL("Module"),
         MUNITION("Munition"),
         SONSTIGES("Sonstiges");
         private final String name;
-        ItemTyp(String name) {
+        ItemCategory(String name) {
             this.name = name;
         }
         /**
@@ -1379,17 +1379,17 @@ public class BaseController implements DSController {
      * @param type der ItemEffect.Type
      * @return der GUI-ItemTyp
      */
-    public ItemTyp convertItemEffectType2ItemTyp(ItemEffect.Type type){
+    public ItemCategory convertItemEffectTypeToItemCategory(ItemEffect.Type type){
         switch (type){
             case NONE:
-                return ItemTyp.ROHSTOFF;
+                return ItemCategory.ROHSTOFF;
             case MODULE:
             case MODULE_SET_META:
-                return ItemTyp.MODUL;
+                return ItemCategory.MODUL;
             case AMMO:
-                return ItemTyp.MUNITION;
+                return ItemCategory.MUNITION;
             default:
-                return ItemTyp.SONSTIGES;
+                return ItemCategory.SONSTIGES;
         }
     }
 }

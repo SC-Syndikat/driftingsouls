@@ -3,7 +3,7 @@ package net.driftingsouls.ds2.server.campaign.interaction;
 import net.driftingsouls.ds2.server.DBSingleTransactionTest;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.framework.ConfigService;
-import net.driftingsouls.ds2.server.services.SchlachtErstellenService;
+import net.driftingsouls.ds2.server.services.BattleCreationService;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
@@ -150,7 +150,7 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 			user.setUserValue(WellKnownUserValue.GAMEPLAY_USER_BATTLE_PM, false);
 		}
 		Ship escort = persist(new Ship(npc, type, npcShip.getSystem(), 5, 5));
-		Battle battle = new SchlachtErstellenService(getEM(), new ConfigService(getEM())).erstelle(npc, npcShip, playerShip, true);
+		Battle battle = new BattleCreationService(getEM(), new ConfigService(getEM())).create(npc, npcShip, playerShip, true);
 		int battleId = battle.getId();
 		int id = requests.submitFromBattle(player, playerShip, battle, "Gebt auf, dann verschonen wir euch.");
 

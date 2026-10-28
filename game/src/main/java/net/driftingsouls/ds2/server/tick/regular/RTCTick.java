@@ -29,15 +29,15 @@ import net.driftingsouls.ds2.server.entities.GtuZwischenlager;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserMoneyTransfer;
 import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
-import net.driftingsouls.ds2.server.entities.fraktionsgui.Versteigerung;
-import net.driftingsouls.ds2.server.entities.fraktionsgui.VersteigerungResource;
-import net.driftingsouls.ds2.server.entities.fraktionsgui.VersteigerungSchiff;
-import net.driftingsouls.ds2.server.entities.statistik.StatGtu;
+import net.driftingsouls.ds2.server.entities.factiongui.Versteigerung;
+import net.driftingsouls.ds2.server.entities.factiongui.VersteigerungResource;
+import net.driftingsouls.ds2.server.entities.factiongui.VersteigerungSchiff;
+import net.driftingsouls.ds2.server.entities.statistics.StatGtu;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipType;
 import net.driftingsouls.ds2.server.tick.TickController;
-import net.driftingsouls.ds2.server.werften.ShipWerft;
+import net.driftingsouls.ds2.server.shipyards.ShipWerft;
 import org.hibernate.Transaction;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
@@ -193,11 +193,11 @@ public class RTCTick extends TickController {
 
 					entryname = Cargo.getResourceName(resource.getId());
 
-					Ship posten = findBestTradepostForLocation(db, loc);
+					Ship tradingPost = findBestTradepostForLocation(db, loc);
 
 					this.log("Es wurde " + entryname + " von ID " + winner.getId() + " fuer " + price + " RE ersteigert");
 
-					loc = posten.getLocation();
+					loc = tradingPost.getLocation();
 
 					String msg = "Sie haben " + entryname + " f&uumlr; " + Common.ln(price) + " RE ersteigert.\nDas Objekt wurde ihnen bei " + loc.displayCoordinates(false) + " auf dem Handelsposten hinterlegt.\n\nGaltracorp Unlimited";
 					PM.send(gtuuser, winner.getId(), entryname + " ersteigert", msg, db);
@@ -215,7 +215,7 @@ public class RTCTick extends TickController {
 					}
 					PM.send(sourceUser, Faction.GTU, entryname + " ersteigert", msg, db);
 
-					GtuZwischenlager lager = new GtuZwischenlager(posten, winner, entry.getOwner());
+					GtuZwischenlager lager = new GtuZwischenlager(tradingPost, winner, entry.getOwner());
 					lager.setCargo1(mycargo);
 					lager.setCargo1Need(mycargo);
 
@@ -252,9 +252,9 @@ public class RTCTick extends TickController {
 	private Ship findBestTradepostForLocation(EntityManager db, Location loc)
 	{
 		List<User> gtuUsers = db.createQuery("from User where race=:rasse", User.class)
-			.setParameter("rasse", Faction.GTU_RASSE)
+			.setParameter("rasse", Faction.GTU_RACE)
 			.getResultList();
-		Ship posten = db.createQuery("from Ship " +
+		Ship tradingPost = db.createQuery("from Ship " +
 				"where id>0 and locate('tradepost',status)!=0 and owner in (:userlist) and system=:sys and x=:x and y=:y", Ship.class)
 			.setParameter("userlist", gtuUsers)
 			.setParameter("sys", loc.getSystem())
@@ -263,21 +263,21 @@ public class RTCTick extends TickController {
 			.setMaxResults(1)
 			.getSingleResult();
 
-		if( posten == null ) {
-			posten = db.createQuery("from Ship " +
+		if( tradingPost == null ) {
+			tradingPost = db.createQuery("from Ship " +
 					"where id>0 and locate('tradepost',status)!=0 and owner in (:userlist) and system=:sys", Ship.class)
 				.setParameter("userlist", gtuUsers)
 				.setParameter("sys", loc.getSystem())
 				.setMaxResults(1)
 				.getSingleResult();
 		}
-		if( posten == null ) {
-			posten = db.createQuery("from Ship " +
+		if( tradingPost == null ) {
+			tradingPost = db.createQuery("from Ship " +
 					"where id>0 and locate('tradepost',status)!=0 and owner in (:userlist)", Ship.class)
 				.setParameter("userlist", gtuUsers)
 				.setMaxResults(1)
 				.getSingleResult();
 		}
-		return posten;
+		return tradingPost;
 	}
 }

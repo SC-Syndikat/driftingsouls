@@ -33,7 +33,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.Controller;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.RedirectViewResult;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.UrlParam;
-import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidationException;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.framework.templates.TemplateViewResultFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,12 +58,12 @@ public class CoreController extends Controller
 		setPageTitle("Core");
 	}
 
-	private void validiereBasis(Base base)
+	private void validateBase(Base base)
 	{
 		User user = (User) getUser();
 		if ((base == null) || (base.getOwner() != user))
 		{
-			throw new ValidierungException("Die angegebene Kolonie existiert nicht", Common.buildUrl("default", "module", "basen"));
+			throw new ValidationException("Die angegebene Kolonie existiert nicht", Common.buildUrl("default", "module", "basen"));
 		}
 	}
 
@@ -76,7 +76,7 @@ public class CoreController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine buildAction(@UrlParam(name = "col") Base base, @UrlParam(name = "build") Core core)
 	{
-		validiereBasis(base);
+		validateBase(base);
 		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 
 		User user = (User) getUser();
@@ -86,22 +86,22 @@ public class CoreController extends Controller
 
 		if (base.getCore() != null)
 		{
-			throw new ValidierungException("Sie können nur einen Core pro Asteroid bauen", Common.buildThymeleafUrl("base", "col", base.getId()));
+			throw new ValidationException("Sie können nur einen Core pro Asteroid bauen", Common.buildThymeleafUrl("base", "col", base.getId()));
 		}
 
 		if (core == null)
 		{
-			throw new ValidierungException("Der angegebene Core-Typ existiert nicht", Common.buildThymeleafUrl("base", "col", base.getId()));
+			throw new ValidationException("Der angegebene Core-Typ existiert nicht", Common.buildThymeleafUrl("base", "col", base.getId()));
 		}
 
 		if (!user.hasResearched(core.getTechRequired()))
 		{
-			throw new ValidierungException("Sie haben nicht alle benötigten Forschungen", Common.buildThymeleafUrl( "base", "col", base.getId()));
+			throw new ValidationException("Sie haben nicht alle benötigten Forschungen", Common.buildThymeleafUrl( "base", "col", base.getId()));
 		}
 
 		if (core.getAstiType() != base.getKlasse())
 		{
-			throw new ValidierungException("Diese ausgewählte Core passt nicht in diesen Asteroiden hinein", Common.buildThymeleafUrl( "base", "col", base.getId()));
+			throw new ValidationException("Diese ausgewählte Core passt nicht in diesen Asteroiden hinein", Common.buildThymeleafUrl( "base", "col", base.getId()));
 		}
 
 		Cargo costs = core.getBuildCosts();
@@ -173,7 +173,7 @@ public class CoreController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult deactivateAction(@UrlParam(name = "col") Base base)
 	{
-		validiereBasis(base);
+		validateBase(base);
 		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 
 		if (!base.isCoreActive())
@@ -198,7 +198,7 @@ public class CoreController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult activateAction(@UrlParam(name = "col") Base base)
 	{
-		validiereBasis(base);
+		validateBase(base);
 		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 
 		if (base.isCoreActive())
@@ -355,7 +355,7 @@ public class CoreController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine defaultAction(@UrlParam(name = "col") Base base, RedirectViewResult redirect)
 	{
-		validiereBasis(base);
+		validateBase(base);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 		t.setVar("core.message", redirect != null ? redirect.getMessage() : null);

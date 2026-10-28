@@ -33,7 +33,7 @@ import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
-import net.driftingsouls.ds2.server.services.SchlachtErstellenService;
+import net.driftingsouls.ds2.server.services.BattleCreationService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -623,8 +623,8 @@ public final class StandardActions
 			}
 			try
 			{
-				new SchlachtErstellenService(context.em, new ConfigService(context.em))
-						.erstelle(attacker.getOwner(), attacker, context.ship, true);
+				new BattleCreationService(context.em, new ConfigService(context.em))
+						.create(attacker.getOwner(), attacker, context.ship, true);
 			}
 			catch (IllegalArgumentException e)
 			{

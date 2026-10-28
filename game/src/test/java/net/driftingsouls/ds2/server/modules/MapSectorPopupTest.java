@@ -52,7 +52,7 @@ public class MapSectorPopupTest extends DBSingleTransactionTest
 
 	@Test
 	@Ignore("MapController.sectorAction() has its whole body commented out and always returns an empty result.")
-	public void gegebenEinSichtbarerSprungpunkt_sectorAction_sollteDiesenSprungpunktZurueckgeben()
+	public void givenAVisibleJumpNode_sectorAction_shouldReturnThisJumpNode()
 	{
 		// setup
 		JumpNode node = persist(new JumpNode(new Location(sys.getID(), 1, 1), new Location(sys.getID(), 100,100), "Testsprungpunkt"));
@@ -72,7 +72,7 @@ public class MapSectorPopupTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinNichtSichtbarerSprungpunkt_sectorAction_sollteDiesenSprungpunktNichtZurueckgeben()
+	public void givenAHiddenJumpNode_sectorAction_shouldNotReturnThisJumpNode()
 	{
 		// setup
 		JumpNode node = persist(new JumpNode(new Location(sys.getID(), 1, 1), new Location(sys.getID(), 100,100), "Testsprungpunkt"));
@@ -90,7 +90,7 @@ public class MapSectorPopupTest extends DBSingleTransactionTest
 
 	@Test
 	@Ignore("MapController.sectorAction() has its whole body commented out and always returns an empty result.")
-	public void gegebenEinNichtSichtbarerSprungpunktUndEinEigenesSchiffImSektor_sectorAction_sollteDiesenSprungpunktZurueckgeben()
+	public void givenAHiddenJumpNodeAndAnOwnShipInTheSector_sectorAction_shouldReturnThisJumpNode()
 	{
 		// setup
 		JumpNode node = persist(new JumpNode(new Location(sys.getID(), 1, 1), new Location(sys.getID(), 100,100), "Testsprungpunkt"));
@@ -115,7 +115,7 @@ public class MapSectorPopupTest extends DBSingleTransactionTest
 
 	@Test
 	@Ignore("MapController.sectorAction() has its whole body commented out and always returns an empty result.")
-	public void gegebenEinNichtSichtbarerSprungpunktUndEinEigenesSchiffInLrsReichweite_sectorAction_sollteDiesenSprungpunktZurueckgeben()
+	public void givenAHiddenJumpNodeAndAnOwnShipInLrsRange_sectorAction_shouldReturnThisJumpNode()
 	{
 		// setup
 		JumpNode node = persist(new JumpNode(new Location(sys.getID(), 1, 1), new Location(sys.getID(), 100,100), "Testsprungpunkt"));
@@ -139,7 +139,7 @@ public class MapSectorPopupTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinNichtSichtbarerSprungpunktUndEinEigenesSchiffInAusserhalbDerLrsReichweite_sectorAction_sollteDiesenSprungpunktZurueckgeben()
+	public void givenAHiddenJumpNodeAndAnOwnShipOutsideLrsRange_sectorAction_shouldReturnThisJumpNode()
 	{
 		// setup
 		JumpNode node = persist(new JumpNode(new Location(sys.getID(), 1, 1), new Location(sys.getID(), 100,100), "Testsprungpunkt"));

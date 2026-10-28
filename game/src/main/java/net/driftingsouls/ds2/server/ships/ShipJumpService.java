@@ -1,0 +1,425 @@
+package net.driftingsouls.ds2.server.ships;
+
+import net.driftingsouls.ds2.server.Location;
+import net.driftingsouls.ds2.server.bases.Base;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeLimitService;
+import net.driftingsouls.ds2.server.config.Races;
+import net.driftingsouls.ds2.server.entities.JumpNode;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.entities.UserFlag;
+import net.driftingsouls.ds2.server.framework.Common;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.RequestScope;
+
+import javax.annotation.Nonnull;
+import javax.persistence.EntityManager;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+/**
+ * Service zum Springen von Schiffen ueber verschiedene Arten von Sprungpunkten.
+ */
+@Service
+@RequestScope
+public class ShipJumpService
+{
+	private final EntityManager db;
+
+    public ShipJumpService(EntityManager db) {
+        this.db = db;
+    }
+
+    /**
+	 * Das Ergebnis eines Sprungbefehls.
+	 */
+	public static class JumpResult {
+		private final String messages;
+		private final boolean successful;
+
+		public JumpResult(@Nonnull String messages, boolean successful)
+		{
+			this.messages = messages;
+			this.successful = successful;
+		}
+
+		/**
+		 * Gibt alle Meldungen des Sprungs zurueck.
+		 * @return Die Meldungen
+		 */
+		public @Nonnull String getMessages()
+		{
+			return messages;
+		}
+
+		/**
+		 * Gibt zurueck, ob der Sprung erfolgreich war.
+		 * @return <code>true</code>, falls er erfolgreich war
+		 */
+		public boolean isSuccessful()
+		{
+			return successful;
+		}
+	}
+	/**
+	 * <p>Laesst das Schiff durch einen Sprungpunkt springen.
+	 * Der Sprungpunkt ist dabei ein normaler Sprungpunkt</p>
+	 *
+	 * @param node Der Sprungpunkt
+	 * @return <code>true</code>, falls ein Fehler aufgetreten ist
+	 */
+	public JumpResult jumpViaJumpNode(Ship selectedShip, JumpNode node)
+	{
+		StringBuilder outputbuffer = new StringBuilder();
+
+		User user = selectedShip.getOwner();
+
+		if (selectedShip.getBattle() != null)
+		{
+			outputbuffer.append("Fehler: Sie k&ouml;nnen nicht mit einem Schiff springen, das in einem Kampf ist.<br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		//
+		// Daten der Sprungpunkte laden
+		//
+		String nodetypename = "Der Sprungpunkt";
+
+		if (node == null)
+		{
+			outputbuffer.append("Fehler: Der angegebene Sprungpunkt existiert nicht.<br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		String nodetarget = node.getName() + " (" + node.getSystemOut() + ")";
+
+		if ((user.getId() > 0) && node.isGcpColonistBlock() && Races.get().race(user.getRace()).isMemberIn(0) && !user.hasFlag(UserFlag.NO_JUMPNODE_BLOCK))
+		{
+			outputbuffer.append("<span style=\"color:red\">Die Administration hat diesen Sprungpunkt für Kolonisten gesperrt.</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		Location nodeLoc = node.getLocation();
+		Location outLoc = new Location(node.getSystemOut(), node.getXOut(), node.getYOut());
+
+		Location shipLoc = new Location(selectedShip.getSystem(), selectedShip.getX(), selectedShip.getY());
+
+		if (!shipLoc.sameSector(0, nodeLoc, 0))
+		{
+			outputbuffer.append("<span style=\"color:red\">Fehler: ").append(nodetypename).append(" befindet sich nicht im selben Sektor wie das Schiff.</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), node.getId())
+				.or(() -> new CampaignActionGuard().dialogDenial(user, shipLoc));
+		if (campaignDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(campaignDenial.get()).append("</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		//
+		// Liste der Schiffe ermitteln, welche springen sollen
+		//
+
+		List<Ship> shiplist = new ArrayList<>();
+		// Falls vorhanden die Schiffe der Flotte einfuegen
+		if (selectedShip.getFleet() != null)
+		{
+			shiplist.addAll(findJumpCapableShips(selectedShip));
+		}
+		// Keine Flotte -> nur das aktuelle Schiff einfuegen
+		else
+		{
+			shiplist.add(selectedShip);
+		}
+
+		// Limits des Kampagnen-Sprungpunkts gelten fuer den ganzen Verband samt gedockter Schiffe
+		List<Ship> passage = new ArrayList<>();
+		for (Ship ship : shiplist)
+		{
+			passage.add(ship);
+			passage.addAll(ship.getGedockteUndGelandeteSchiffe());
+		}
+		CampaignJumpNodeLimitService jumpLimits = new CampaignJumpNodeLimitService(db);
+		Optional<String> limitDenial = jumpLimits.check(user, node.getId(), passage);
+		if (limitDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(limitDenial.get()).append("</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		//
+		// Jedes Schiff in der Liste springen lassen
+		//
+		for (Ship ship : shiplist)
+		{
+			ShipTypeData shiptype = ship.getTypeData();
+
+			// Liste der gedockten Schiffe laden
+			List<Ship> docked = ship.getGedockteUndGelandeteSchiffe();
+
+			if (node.isWeaponBlock() && !user.hasFlag(UserFlag.MILITARY_JUMPS))
+			{
+				//Schiff ueberprfen
+				if (shiptype.isMilitary())
+				{
+					outputbuffer.append("<span style=\"color:red\">").append(ship.getName()).append(" (").append(ship.getId()).append("): Die Administration verwehrt Ihrem Kriegsschiff den Einflug nach ").append(node.getName()).append("</span>.<br />\n");
+					return new JumpResult(outputbuffer.toString(), false);
+				}
+
+				//Angedockte Schiffe ueberprfen
+				if (docked.stream().anyMatch(d -> d.getTypeData().isMilitary()))
+				{
+					outputbuffer.append("<span style=\"color:red\">").append(ship.getName()).append(" (").append(ship.getId()).append("): Die Administration verwehrt einem/mehreren Ihrer angedockten Kriegsschiffe den Einflug nach ").append(node.getName()).append("</span>.<br />\n");
+					return new JumpResult(outputbuffer.toString(), false);
+				}
+			}
+
+			if (ship.getEnergy() < 5)
+			{
+				outputbuffer.append("<span style=\"color:red\">").append(ship.getName()).append(" (").append(ship.getId()).append("): Zu wenig Energie zum Springen.</span><br />\n");
+				return new JumpResult(outputbuffer.toString(), false);
+			}
+
+			outputbuffer.append(ship.getName()).append(" (").append(ship.getId()).append(") springt nach ").append(nodetarget).append(".<br />\n");
+			ship.setLocation(outLoc);
+			ship.setEnergy(ship.getEnergy() - 5);
+
+			for (Ship aship : docked)
+			{
+				aship.setLocation(outLoc);
+			}
+		}
+
+		jumpLimits.record(user, node.getId(), passage);
+		return new JumpResult(outputbuffer.toString(), true);
+	}
+
+	private List<Ship> findJumpCapableShips(Ship selectedShip)
+	{
+		return db.createQuery("from Ship where id>0 and fleet=:fleet AND x=:x AND y=:y AND system=:sys and docked='' AND battle is null", Ship.class)
+				.setParameter("fleet", selectedShip.getFleet())
+				.setParameter("x", selectedShip.getX())
+				.setParameter("y", selectedShip.getY())
+				.setParameter("sys", selectedShip.getSystem())
+				.getResultList();
+	}
+
+	/**
+	 * <p>Laesst das Schiff durch einen Sprungpunkt springen.
+	 * Der Sprungpunkt ist dabei ein "Knossos"-Sprungpunkt (also ein mit einem Schiff verbundener
+	 * Sprungpunkt) sein. Der Sprung kann dabei scheitern, wenn keine Sprungberechtigung
+	 * vorliegt.</p>
+	 *
+	 * @param selectedShip Das Schiff, welches springen soll
+	 * @param node Das Schiff mit dem Sprungpunkt
+	 * @return <code>true</code>, falls ein Fehler aufgetreten ist
+	 */
+	public JumpResult jumpViaShip(Ship selectedShip, Ship node)
+	{
+		StringBuilder outputbuffer = new StringBuilder();
+
+		User user = selectedShip.getOwner();
+
+		if (selectedShip.getBattle() != null)
+		{
+			outputbuffer.append("Fehler: Sie können nicht mit einem Schiff springen, das in einem Kampf ist.<br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		//
+		// Daten der Sprungpunkte laden
+		//
+
+		/* Behandlung Knossosportale:
+		 *
+		 * Ziel wird mit ships.jumptarget festgelegt - Format: art|koords/id|user/ally/gruppe
+		 * Beispiele:
+		 * fix|2:35/35|all:
+		 * ship|id:10000|ally:1
+		 * base|id:255|group:-15,455,1200
+		 * fix|8:20/100|default <--- diese Einstellung entspricht der bisherigen Praxis
+		 */
+
+		if (node == null)
+		{
+			outputbuffer.append("Fehler: Der angegebene Sprungpunkt existiert nicht.<br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+
+		Location outLoc;
+		String nodetarget;
+		String nodetypename = node.getTypeData().getNickname();
+
+		/*
+		 * Ermittlung der Zielkoordinaten
+		 * geprueft wird bei Schiffen und Basen das Vorhandensein der Gegenstation
+		 * existiert keine, findet kein Sprung statt
+		 */
+
+		String[] target = StringUtils.split(node.getJumpTarget(), '|');
+		switch (target[0])
+		{
+			case "fix":
+				outLoc = Location.fromString(target[1]);
+
+				nodetarget = target[1];
+				break;
+			case "ship":
+			{
+				String[] shiptarget = StringUtils.split(target[1], ':');
+				Ship jmptarget = db.find(Ship.class, Integer.valueOf(shiptarget[1]));
+				if (jmptarget == null)
+				{
+					outputbuffer.append("<span style=\"color:red\">Die Empfangsstation existiert nicht!</span><br />\n");
+					return new JumpResult(outputbuffer.toString(), false);
+				}
+
+				outLoc = new Location(jmptarget.getSystem(), jmptarget.getX(), jmptarget.getY());
+				nodetarget = outLoc.getSystem() + ":" + outLoc.getX() + "/" + outLoc.getY();
+				break;
+			}
+			case "base":
+			{
+				String[] shiptarget = StringUtils.split(target[1], ':');
+				Base jmptarget = db.find(Base.class, Integer.valueOf(shiptarget[1]));
+				if (jmptarget == null)
+				{
+					outputbuffer.append("<span style=\"color:red\">Die Empfangsbasis existiert nicht!</span><br />\n");
+					return new JumpResult(outputbuffer.toString(), false);
+				}
+
+				outLoc = jmptarget.getLocation();
+				nodetarget = outLoc.toString();
+				break;
+			}
+			default:
+				throw new IllegalArgumentException("Ungültiger Zieltyp: "+target[0]);
+		}
+
+		// Einmalig das aktuelle Schiff ueberpruefen.
+		// Evt vorhandene Schiffe in einer Flotte werden spaeter separat gecheckt
+		if (node.getId() == selectedShip.getId())
+		{
+			outputbuffer.append("<span style=\"color:red\">Sie können nicht mit dem ").append(nodetypename).append(" durch sich selbst springen.</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+			/*
+			 * Ermittlung der Sprungberechtigten
+			 */
+		String[] jmpnodeuser = StringUtils.split(target[2], ':'); // Format art:ids aufgespalten
+
+		switch (jmpnodeuser[0])
+		{
+			case "all":
+				// Keine Einschraenkungen
+				break;
+			// die alte variante
+			case "default":
+			case "ownally":
+				if (((user.getAlly() != null) && (node.getOwner().getAlly() != user.getAlly())) ||
+						(user.getAlly() == null && (node.getOwner() != user)))
+				{
+					outputbuffer.append("<span style=\"color:red\">Sie können kein fremdes ").append(nodetypename).append(" benutzen - default</span><br />\n");
+					return new JumpResult(outputbuffer.toString(), false);
+				}
+				break;
+			// user:$userid
+			case "user":
+				if (Integer.parseInt(jmpnodeuser[1]) != user.getId())
+				{
+					outputbuffer.append("<span style=\"color:red\">Sie können kein fremdes ").append(nodetypename).append(" benutzen - owner</span><br />\n");
+					return new JumpResult(outputbuffer.toString(), false);
+				}
+				break;
+			// ally:$allyid
+			case "ally":
+				if ((user.getAlly() == null) || (Integer.parseInt(jmpnodeuser[1]) != user.getAlly().getId()))
+				{
+					outputbuffer.append("<span style=\"color:red\">Sie können kein fremdes ").append(nodetypename).append(" benutzen - ally</span><br />\n");
+					return new JumpResult(outputbuffer.toString(), false);
+				}
+				break;
+			// group:userid1,userid2, ...,useridn
+			case "group":
+				Integer[] userlist = Common.explodeToInteger(",", jmpnodeuser[1]);
+				if (!Common.inArray(user.getId(), userlist))
+				{
+					outputbuffer.append("<span style=\"color:red\">Sie können kein fremdes ").append(nodetypename).append(" benutzen - group</span><br />\n");
+					return new JumpResult(outputbuffer.toString(), false);
+				}
+				break;
+			default:
+				throw new IllegalArgumentException("Ungültiger Berechtigungstyp: "+jmpnodeuser[0]);
+		}
+
+		Location nodeLoc = new Location(node.getSystem(), node.getX(), node.getY());
+
+		Location shipLoc = new Location(selectedShip.getSystem(), selectedShip.getX(), selectedShip.getY());
+
+		if (!shipLoc.sameSector(0, nodeLoc, 0))
+		{
+			outputbuffer.append("<span style=\"color:red\">Fehler: ").append(nodetypename).append(" befindet sich nicht im selben Sektor wie das Schiff.</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), null)
+				.or(() -> new CampaignActionGuard().dialogDenial(user, shipLoc));
+		if (campaignDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(campaignDenial.get()).append("</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		//
+		// Liste der Schiffe ermitteln, welche springen sollen
+		//
+
+		List<Ship> shiplist = new ArrayList<>();
+		// Falls vorhanden die Schiffe der Flotte einfuegen
+		if (selectedShip.getFleet() != null)
+		{
+			List<Ship> fleetships = findJumpCapableShips(selectedShip);
+
+			// Bei Knossossprungpunkten darauf achten, dass das Portal nicht selbst mitspringt
+			shiplist.addAll(fleetships.stream().filter(s -> s != node).collect(Collectors.toList()));
+		}
+		// Keine Flotte -> nur das aktuelle Schiff einfuegen
+		else
+		{
+			shiplist.add(selectedShip);
+		}
+
+		//
+		// Jedes Schiff in der Liste springen lassen
+		//
+		for (Ship ship : shiplist)
+		{
+			// Liste der gedockten Schiffe laden
+			List<Ship> docked = ship.getGedockteUndGelandeteSchiffe();
+
+			if (ship.getEnergy() < 5)
+			{
+				outputbuffer.append("<span style=\"color:red\">").append(ship.getName()).append(" (").append(ship.getId()).append("): Zu wenig Energie zum Springen.</span><br />\n");
+				return new JumpResult(outputbuffer.toString(), false);
+			}
+
+			outputbuffer.append(ship.getName()).append(" (").append(ship.getId()).append(") springt nach ").append(nodetarget).append(".<br />\n");
+			ship.setLocation(outLoc);
+			ship.setEnergy(ship.getEnergy() - 5);
+
+			for (Ship aship : docked)
+			{
+				aship.setLocation(outLoc);
+			}
+		}
+
+		return new JumpResult(outputbuffer.toString(), true);
+	}
+}

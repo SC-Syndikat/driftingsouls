@@ -10,14 +10,14 @@ import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.map.TileCache;
-import net.driftingsouls.ds2.server.ships.Alarmstufe;
+import net.driftingsouls.ds2.server.ships.AlertLevel;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipFleet;
 import net.driftingsouls.ds2.server.ships.ShipType;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.units.UnitType;
-import net.driftingsouls.ds2.server.werften.ShipWerft;
+import net.driftingsouls.ds2.server.shipyards.ShipWerft;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.persistence.EntityManager;
@@ -70,7 +70,7 @@ public class ShipGroupSpawner
 						? template.name + " " + number
 						: entry.namePattern.replace("{n}", Integer.toString(number)));
 				ship.setCargo(cargoFor(type, entry.cargo));
-				ship.setAlarm(Alarmstufe.values()[Math.max(0, Math.min(entry.alarm, Alarmstufe.values().length - 1))]);
+				ship.setAlarm(AlertLevel.values()[Math.max(0, Math.min(entry.alarm, AlertLevel.values().length - 1))]);
 				addUnits(ship, entry.units);
 				if (entry.officer != null && mayCarryOfficer(type))
 				{

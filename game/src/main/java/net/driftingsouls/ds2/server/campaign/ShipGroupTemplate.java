@@ -1,6 +1,6 @@
 package net.driftingsouls.ds2.server.campaign;
 
-import net.driftingsouls.ds2.server.config.Offiziere;
+import net.driftingsouls.ds2.server.config.Officers;
 import net.driftingsouls.ds2.server.entities.Offizier;
 
 import java.util.List;
@@ -134,7 +134,7 @@ public class ShipGroupTemplate
 		 */
 		public int getRank()
 		{
-			return Math.min(Offiziere.MAX_RANG, (int) ((nav + ing + waf + sec + com) / 5.0 / 125));
+			return Math.min(Officers.MAX_RANK, (int) ((nav + ing + waf + sec + com) / 5.0 / 125));
 		}
 
 		/**
