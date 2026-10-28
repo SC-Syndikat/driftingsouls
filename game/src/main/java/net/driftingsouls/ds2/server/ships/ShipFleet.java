@@ -23,7 +23,7 @@ import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ContextLocalMessage;
 import net.driftingsouls.ds2.server.framework.ContextMap;
-import net.driftingsouls.ds2.server.werften.WerftObject;
+import net.driftingsouls.ds2.server.shipyards.WerftObject;
 import org.apache.log4j.Logger;
 import org.hibernate.Query;
 
@@ -181,7 +181,7 @@ public class ShipFleet {
 	 * Setzt die Alarmstufe der Schiffe in der Flotte.
 	 * @param alarm Die Alarmstufe
 	 */
-	public void setAlarm(Alarmstufe alarm) {
+	public void setAlarm(AlertLevel alarm) {
 		EntityManager em = ContextMap.getContext().getEM();
 
 		List<Ship> ships = em.createQuery("from Ship where id>0 and fleet=:fleet and battle is null", Ship.class)

@@ -44,9 +44,9 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.EmptyHeaderFo
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.RedirectViewResult;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.framework.templates.TemplateViewResultFactory;
-import net.driftingsouls.ds2.server.namegenerator.PersonenNamenGenerator;
-import net.driftingsouls.ds2.server.namegenerator.SchiffsKlassenNamenGenerator;
-import net.driftingsouls.ds2.server.namegenerator.SchiffsNamenGenerator;
+import net.driftingsouls.ds2.server.namegenerator.PersonNameGenerator;
+import net.driftingsouls.ds2.server.namegenerator.ShipClassNameGenerator;
+import net.driftingsouls.ds2.server.namegenerator.ShipNameGenerator;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipTypeData;
 import net.driftingsouls.ds2.server.notification.Notifier;
@@ -107,11 +107,11 @@ public class OptionsController extends Controller
 				addhistory = true;
 			}
 
-			String newname = name;
+			String newName = name;
 			if (user.getAlly() != null)
 			{
-				newname = user.getAlly().getAllyTag();
-				newname = newname.replace("[name]", name);
+				newName = user.getAlly().getAllyTag();
+				newName = newName.replace("[name]", name);
 			}
 
 			changemsg += "<span style=\"color:green\">Der Ingame-Name <span style=\"color:white\">" + Common._title(user.getNickname()) + "</span> wurde in <span style=\"color:white\">" + Common._title(name) + "</span> geändert</span><br />\n";
@@ -120,10 +120,10 @@ public class OptionsController extends Controller
 
 			if (addhistory)
 			{
-				user.addHistory(Common.getIngameTime(getContext().get(ContextCommon.class).getTick()) + ": Umbenennung in " + newname);
+				user.addHistory(Common.getIngameTime(getContext().get(ContextCommon.class).getTick()) + ": Umbenennung in " + newName);
 			}
 
-			user.setName(newname);
+			user.setName(newName);
 			user.setNickname(name);
 		}
 
@@ -215,9 +215,9 @@ public class OptionsController extends Controller
  * von (ScriptParser-)Scripten sichtbar gewesen?
 	 * @param scriptdebugstatus Bei <code>true</code> wird das ScriptDebugging aktiviert
 	 * @param defrelation Die Default-Beziehung zu anderen Spielern (1 = feindlich, 2 = freundlich, sonst neutral)
-	 * @param personenNamenGenerator Der zu verwendende {@link net.driftingsouls.ds2.server.namegenerator.PersonenNamenGenerator}
-	 * @param schiffsKlassenNamenGenerator Der zu verwendende {@link net.driftingsouls.ds2.server.namegenerator.SchiffsKlassenNamenGenerator}
-	 * @param schiffsNamenGenerator Der zu verwendende {@link net.driftingsouls.ds2.server.namegenerator.SchiffsNamenGenerator}
+	 * @param personenNamenGenerator Der zu verwendende {@link net.driftingsouls.ds2.server.namegenerator.PersonNameGenerator}
+	 * @param schiffsKlassenNamenGenerator Der zu verwendende {@link net.driftingsouls.ds2.server.namegenerator.ShipClassNameGenerator}
+	 * @param schiffsNamenGenerator Der zu verwendende {@link net.driftingsouls.ds2.server.namegenerator.ShipNameGenerator}
 	 * @param apikey Der ApiKey fuer die Push-Benachrichtigungen
 	 * @param auktion_pm Angabe, ob fuer neue Auktionen PMs verschickt werden sollen
 	 * @param handel_pm Angabe, ob fuer neue Handelsinserate PMs verschickt werden sollen
@@ -227,9 +227,9 @@ public class OptionsController extends Controller
 	 */
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult changeXtraAction(int shipgroupmulti, int inttutorial, int scriptdebug, boolean scriptdebugstatus, boolean battle_pm, boolean research_pm, boolean ship_build_pm, boolean base_down_pm, boolean officer_build_pm, boolean unit_build_pm, User.Relation defrelation,
-											   PersonenNamenGenerator personenNamenGenerator,
-											   SchiffsKlassenNamenGenerator schiffsKlassenNamenGenerator,
-											   SchiffsNamenGenerator schiffsNamenGenerator,
+											   PersonNameGenerator personenNamenGenerator,
+											   ShipClassNameGenerator schiffsKlassenNamenGenerator,
+											   ShipNameGenerator schiffsNamenGenerator,
 											   String apikey,
 											   boolean auktion_pm,
 												 boolean handel_pm,
@@ -321,15 +321,15 @@ public class OptionsController extends Controller
 	}
 
 	@ViewModel
-	public static class GenerierePersonenNamenBeispieleViewModel
+	public static class GeneratePersonNameExamplesViewModel
 	{
 		public final List<String> namen = new ArrayList<>();
 	}
 
 	@Action(ActionType.AJAX)
-	public GenerierePersonenNamenBeispieleViewModel generierePersonenNamenBeispiele(PersonenNamenGenerator generator)
+	public GeneratePersonNameExamplesViewModel generierePersonenNamenBeispiele(PersonNameGenerator generator)
 	{
-		GenerierePersonenNamenBeispieleViewModel result = new GenerierePersonenNamenBeispieleViewModel();
+		GeneratePersonNameExamplesViewModel result = new GeneratePersonNameExamplesViewModel();
 		if (generator == null)
 		{
 			return result;
@@ -337,16 +337,16 @@ public class OptionsController extends Controller
 
 		for (int i = 0; i < 5; i++)
 		{
-			result.namen.add(generator.generiere());
+			result.namen.add(generator.generate());
 		}
 		return result;
 	}
 
-	public static class SchiffsKlasseNameBeispiel {
+	public static class ShipClassNameExample {
 		private String klasse;
 		private String name;
 
-		public SchiffsKlasseNameBeispiel(String klasse, String name)
+		public ShipClassNameExample(String klasse, String name)
 		{
 			this.klasse = klasse;
 			this.name = name;
@@ -374,17 +374,17 @@ public class OptionsController extends Controller
 	}
 
 	@ViewModel
-	public static class GeneriereSchiffsNamenBeispieleViewModel
+	public static class GenerateShipNameExamplesViewModel
 	{
-		final List<SchiffsKlasseNameBeispiel> namen = new ArrayList<>();
+		final List<ShipClassNameExample> namen = new ArrayList<>();
 	}
 
 	@Action(ActionType.AJAX)
-	public GeneriereSchiffsNamenBeispieleViewModel generiereSchiffsNamenBeispiele(
-			SchiffsKlassenNamenGenerator schiffsKlassenNamenGenerator,
-			SchiffsNamenGenerator schiffsNamenGenerator)
+	public GenerateShipNameExamplesViewModel generiereSchiffsNamenBeispiele(
+			ShipClassNameGenerator schiffsKlassenNamenGenerator,
+			ShipNameGenerator schiffsNamenGenerator)
 	{
-		GeneriereSchiffsNamenBeispieleViewModel result = new GeneriereSchiffsNamenBeispieleViewModel();
+		GenerateShipNameExamplesViewModel result = new GenerateShipNameExamplesViewModel();
 		if (schiffsKlassenNamenGenerator == null || schiffsNamenGenerator == null)
 		{
 			return result;
@@ -403,11 +403,11 @@ public class OptionsController extends Controller
 				continue;
 			}
 
-			String name = (schiffsKlassenNamenGenerator.generiere(cls) + " " + schiffsNamenGenerator.generiere(std)).trim();
+			String name = (schiffsKlassenNamenGenerator.generate(cls) + " " + schiffsNamenGenerator.generate(std)).trim();
 			if( name.isEmpty() ) {
 				continue;
 			}
-			result.namen.add(new SchiffsKlasseNameBeispiel(cls.getSingular(), name));
+			result.namen.add(new ShipClassNameExample(cls.getSingular(), name));
 		}
 
 		return result;
@@ -456,7 +456,7 @@ public class OptionsController extends Controller
 				"discord.inviteurl", discordInviteUrl(discordKonfiguration));
 
 		t.setBlock("_OPTIONS", "personenNamenGenerator.listitem", "personenNamenGenerator.list");
-		for (PersonenNamenGenerator png : PersonenNamenGenerator.values())
+		for (PersonNameGenerator png : PersonNameGenerator.values())
 		{
 			t.setVar("personenNamenGenerator.name", png.name(),
 					"personenNamenGenerator.label", png.getLabel(),
@@ -465,7 +465,7 @@ public class OptionsController extends Controller
 		}
 
 		t.setBlock("_OPTIONS", "schiffsKlassenNamenGenerator.listitem", "schiffsKlassenNamenGenerator.list");
-		for (SchiffsKlassenNamenGenerator skng : SchiffsKlassenNamenGenerator.values())
+		for (ShipClassNameGenerator skng : ShipClassNameGenerator.values())
 		{
 			t.setVar("schiffsKlassenNamenGenerator.name", skng.name(),
 					"schiffsKlassenNamenGenerator.label", skng.getLabel(),
@@ -474,7 +474,7 @@ public class OptionsController extends Controller
 		}
 
 		t.setBlock("_OPTIONS", "schiffsNamenGenerator.listitem", "schiffsNamenGenerator.list");
-		for (SchiffsNamenGenerator skng : SchiffsNamenGenerator.values())
+		for (ShipNameGenerator skng : ShipNameGenerator.values())
 		{
 			t.setVar("schiffsNamenGenerator.name", skng.name(),
 					"schiffsNamenGenerator.label", skng.getLabel(),

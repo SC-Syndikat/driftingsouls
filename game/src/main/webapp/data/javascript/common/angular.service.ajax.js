@@ -35,7 +35,7 @@
 		/**
 		 * @name success
 		 * @function
-		 * @param {function(data:ds.viewmodel.modules.admin.editoren.JqGridTableDataViewModel)} callback
+		 * @param {function(data:ds.viewmodel.modules.admin.editors.JqGridTableDataViewModel)} callback
 		 * @memberof DsAjaxPromise_AdminControllerStub_tableDataAction
 		 **/
 		success : function(callback) {}
@@ -516,7 +516,7 @@
 		/**
 		 * @name success
 		 * @function
-		 * @param {function(data:ds.viewmodel.modules.MapController.SystemauswahlViewModel)} callback
+		 * @param {function(data:ds.viewmodel.modules.MapController.StarSystemSelectionViewModel)} callback
 		 * @memberof DsAjaxPromise_MapControllerStub_systemauswahlAction
 		 **/
 		success : function(callback) {}
@@ -717,7 +717,7 @@
 		/**
 		 * @name success
 		 * @function
-		 * @param {function(data:ds.viewmodel.modules.NpcController.RaengeMenuViewModel)} callback
+		 * @param {function(data:ds.viewmodel.modules.NpcController.RanksMenuViewModel)} callback
 		 * @memberof DsAjaxPromise_NpcControllerStub_raengeMenuAction
 		 **/
 		success : function(callback) {}
@@ -954,7 +954,7 @@
 		/**
 		 * @name success
 		 * @function
-		 * @param {function(data:ds.viewmodel.modules.OptionsController.GenerierePersonenNamenBeispieleViewModel)} callback
+		 * @param {function(data:ds.viewmodel.modules.OptionsController.GeneratePersonNameExamplesViewModel)} callback
 		 * @memberof DsAjaxPromise_OptionsControllerStub_generierePersonenNamenBeispiele
 		 **/
 		success : function(callback) {}
@@ -966,7 +966,7 @@
 		/**
 		 * @name success
 		 * @function
-		 * @param {function(data:ds.viewmodel.modules.OptionsController.GeneriereSchiffsNamenBeispieleViewModel)} callback
+		 * @param {function(data:ds.viewmodel.modules.OptionsController.GenerateShipNameExamplesViewModel)} callback
 		 * @memberof DsAjaxPromise_OptionsControllerStub_generiereSchiffsNamenBeispiele
 		 **/
 		success : function(callback) {}
@@ -1005,65 +1005,65 @@
 		}
 	}
 	angularModule = angularModule.factory('OptionsControllerStub', ['ds', OptionsControllerStub]);
-	// net.driftingsouls.ds2.server.modules.SchiffAjaxController
+	// net.driftingsouls.ds2.server.modules.ShipAjaxController
 	/**
 	 * @class
 	 **/
-	var DsAjaxPromise_SchiffAjaxControllerStub_alarmAction = {
+	var DsAjaxPromise_ShipAjaxControllerStub_alarmAction = {
 		/**
 		 * @name success
 		 * @function
 		 * @param {function(data:ds.viewmodel.framework.ViewMessage)} callback
-		 * @memberof DsAjaxPromise_SchiffAjaxControllerStub_alarmAction
+		 * @memberof DsAjaxPromise_ShipAjaxControllerStub_alarmAction
 		 **/
 		success : function(callback) {}
 	};
 	/**
 	 * @class
 	 **/
-	var DsAjaxPromise_SchiffAjaxControllerStub_springenAction = {
+	var DsAjaxPromise_ShipAjaxControllerStub_springenAction = {
 		/**
 		 * @name success
 		 * @function
 		 * @param {function(data:object)} callback
-		 * @memberof DsAjaxPromise_SchiffAjaxControllerStub_springenAction
+		 * @memberof DsAjaxPromise_ShipAjaxControllerStub_springenAction
 		 **/
 		success : function(callback) {}
 	};
 	/**
 	 * @class
 	 **/
-	var DsAjaxPromise_SchiffAjaxControllerStub_springenViaSchiffAction = {
+	var DsAjaxPromise_ShipAjaxControllerStub_springenViaSchiffAction = {
 		/**
 		 * @name success
 		 * @function
 		 * @param {function(data:object)} callback
-		 * @memberof DsAjaxPromise_SchiffAjaxControllerStub_springenViaSchiffAction
+		 * @memberof DsAjaxPromise_ShipAjaxControllerStub_springenViaSchiffAction
 		 **/
 		success : function(callback) {}
 	};
 	/**
 	 * @class
 	 **/
-	var DsAjaxPromise_SchiffAjaxControllerStub_fliegeSchiffAction = {
+	var DsAjaxPromise_ShipAjaxControllerStub_fliegeSchiffAction = {
 		/**
 		 * @name success
 		 * @function
 		 * @param {function(data:object)} callback
-		 * @memberof DsAjaxPromise_SchiffAjaxControllerStub_fliegeSchiffAction
+		 * @memberof DsAjaxPromise_ShipAjaxControllerStub_fliegeSchiffAction
 		 **/
 		success : function(callback) {}
 	};
 	/**
-	 * @class {object} SchiffAjaxControllerStub
+	 * @class {object} ShipAjaxControllerStub
 	 **/
-	function SchiffAjaxControllerStub(ds) {
+	function ShipAjaxControllerStub(ds) {
 		return {
 			/**
-			 * @memberof SchiffAjaxControllerStub
+			 * @memberof ShipAjaxControllerStub
 			 * @param {object} schiff 
 			 * @param {object} alarm 
-			 * @returns {DsAjaxPromise_SchiffAjaxControllerStub_alarmAction}
+			 * @returns {DsAjaxPromise_ShipAjaxControllerStub_alarmAction}
 			 **/
 			alarm : function(schiff,alarm) {
 				var options={};
@@ -1074,10 +1074,10 @@
 				return ds(options);
 			},
 			/**
-			 * @memberof SchiffAjaxControllerStub
+			 * @memberof ShipAjaxControllerStub
 			 * @param {object} schiff 
 			 * @param {object} sprungpunkt 
-			 * @returns {DsAjaxPromise_SchiffAjaxControllerStub_springenAction}
+			 * @returns {DsAjaxPromise_ShipAjaxControllerStub_springenAction}
 			 **/
 			springen : function(schiff,sprungpunkt) {
 				var options={};
@@ -1088,10 +1088,10 @@
 				return ds(options);
 			},
 			/**
-			 * @memberof SchiffAjaxControllerStub
+			 * @memberof ShipAjaxControllerStub
 			 * @param {object} schiff 
 			 * @param {object} sprungpunktSchiff 
-			 * @returns {DsAjaxPromise_SchiffAjaxControllerStub_springenViaSchiffAction}
+			 * @returns {DsAjaxPromise_ShipAjaxControllerStub_springenViaSchiffAction}
 			 **/
 			springenViaSchiff : function(schiff,sprungpunktSchiff) {
 				var options={};
@@ -1102,11 +1102,11 @@
 				return ds(options);
 			},
 			/**
-			 * @memberof SchiffAjaxControllerStub
+			 * @memberof ShipAjaxControllerStub
 			 * @param {object} schiff 
 			 * @param {number} x 
 			 * @param {number} y 
-			 * @returns {DsAjaxPromise_SchiffAjaxControllerStub_fliegeSchiffAction}
+			 * @returns {DsAjaxPromise_ShipAjaxControllerStub_fliegeSchiffAction}
 			 **/
 			fliegeSchiff : function(schiff,x,y) {
 				var options={};
@@ -1119,7 +1119,7 @@
 			}		
 		}
 	}
-	angularModule = angularModule.factory('SchiffAjaxControllerStub', ['ds', SchiffAjaxControllerStub]);
+	angularModule = angularModule.factory('ShipAjaxControllerStub', ['ds', ShipAjaxControllerStub]);
 	// net.driftingsouls.ds2.server.modules.SearchController
 	/**
 	 * @class
@@ -1220,28 +1220,28 @@
 		}
 	}
 	angularModule = angularModule.factory('StatsControllerStub', ['ds', StatsControllerStub]);
-	// net.driftingsouls.ds2.server.modules.TechListeController
+	// net.driftingsouls.ds2.server.modules.TechListController
 	/**
 	 * @class
 	 **/
-	var DsAjaxPromise_TechListeControllerStub_defaultAction = {
+	var DsAjaxPromise_TechListControllerStub_defaultAction = {
 		/**
 		 * @name success
 		 * @function
-		 * @param {function(data:ds.viewmodel.modules.TechListeController.TechListeViewModel)} callback
-		 * @memberof DsAjaxPromise_TechListeControllerStub_defaultAction
+		 * @param {function(data:ds.viewmodel.modules.TechListController.TechListViewModel)} callback
+		 * @memberof DsAjaxPromise_TechListControllerStub_defaultAction
 		 **/
 		success : function(callback) {}
 	};
 	/**
-	 * @class {object} TechListeControllerStub
+	 * @class {object} TechListControllerStub
 	 **/
-	function TechListeControllerStub(ds) {
+	function TechListControllerStub(ds) {
 		return {
 			/**
-			 * @memberof TechListeControllerStub
+			 * @memberof TechListControllerStub
 			 * @param {number} rasse 
-			 * @returns {DsAjaxPromise_TechListeControllerStub_defaultAction}
+			 * @returns {DsAjaxPromise_TechListControllerStub_defaultAction}
 			 **/
 			defaultAction : function(rasse) {
 				var options={};
@@ -1252,7 +1252,7 @@
 			}		
 		}
 	}
-	angularModule = angularModule.factory('TechListeControllerStub', ['ds', TechListeControllerStub]);
+	angularModule = angularModule.factory('TechListControllerStub', ['ds', TechListControllerStub]);
 	/**
 	 * @namespace ds
 	 **/
@@ -1287,14 +1287,14 @@
 	 **/
 	/**
 	 * @typedef {object} ds.viewmodel.modules.AdminController.EntityPluginOverviewViewModel
-	 * @property {ds.viewmodel.modules.admin.editoren.JqGridViewModel} table
-	 * @property {ds.viewmodel.modules.admin.editoren.EntitySelectionViewModel} entitySelection
+	 * @property {ds.viewmodel.modules.admin.editors.JqGridViewModel} table
+	 * @property {ds.viewmodel.modules.admin.editors.EntitySelectionViewModel} entitySelection
 	 **/
 	/**
 	 * @namespace ds.viewmodel.modules.OptionsController
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.OptionsController.GenerierePersonenNamenBeispieleViewModel
+	 * @typedef {object} ds.viewmodel.modules.OptionsController.GeneratePersonNameExamplesViewModel
 	 * @property {object} namen
 	 **/
 	/**
@@ -1323,7 +1323,7 @@
 	 * @typedef {object} ds.viewmodel.modules.BuildingController.BuildingActionViewModel
 	 * @property {number} col
 	 * @property {number} field
-	 * @property {ds.viewmodel.modules.viewmodels.GebaeudeAufBasisViewModel} building
+	 * @property {ds.viewmodel.modules.viewmodels.BuildingOnBaseViewModel} building
 	 * @property {boolean} success
 	 * @property {string} message
 	 **/
@@ -1369,10 +1369,10 @@
 	 * @property {object} bases
 	 * @property {object} jumpnodes
 	 * @property {object} battles
-	 * @property {ds.viewmodel.modules.MapController.SectorViewModel.NebelViewModel} nebel
+	 * @property {ds.viewmodel.modules.MapController.SectorViewModel.NebulaViewModel} nebel
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.NpcController.RaengeMenuViewModel
+	 * @typedef {object} ds.viewmodel.modules.NpcController.RanksMenuViewModel
 	 * @property {ds.viewmodel.modules.viewmodels.UserViewModel} user
 	 * @property {number} aktiverRang
 	 * @property {object} raenge
@@ -1385,7 +1385,7 @@
 	 * @property {number} field
 	 * @property {boolean} noJsonSupport
 	 * @property {ds.viewmodel.bases.Building.BuildingUiViewModel} buildingUI
-	 * @property {ds.viewmodel.modules.viewmodels.GebaeudeAufBasisViewModel} building
+	 * @property {ds.viewmodel.modules.viewmodels.BuildingOnBaseViewModel} building
 	 **/
 	/**
 	 * @typedef {object} ds.viewmodel.modules.BuildingController.DemoViewModel
@@ -1432,20 +1432,20 @@
 	 * @namespace ds.viewmodel.modules.admin
 	 **/
 	/**
-	 * @namespace ds.viewmodel.modules.admin.editoren
+	 * @namespace ds.viewmodel.modules.admin.editors
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.admin.editoren.JqGridTableDataViewModel
+	 * @typedef {object} ds.viewmodel.modules.admin.editors.JqGridTableDataViewModel
 	 * @property {number} page
 	 * @property {number} total
 	 * @property {number} records
 	 * @property {object} rows
 	 **/
 	/**
-	 * @namespace ds.viewmodel.modules.TechListeController
+	 * @namespace ds.viewmodel.modules.TechListController
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.TechListeController.TechListeViewModel
+	 * @typedef {object} ds.viewmodel.modules.TechListController.TechListViewModel
 	 * @property {object} auswaehlbareRassen
 	 * @property {string} rassenName
 	 * @property {object} erforscht
@@ -1454,14 +1454,14 @@
 	 * @property {object} unsichtbar
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.MapController.SystemauswahlViewModel
+	 * @typedef {object} ds.viewmodel.modules.MapController.StarSystemSelectionViewModel
 	 * @property {number} system
 	 * @property {boolean} adminSichtVerfuegbar
 	 * @property {boolean} systemkarteEditierbar
 	 * @property {object} systeme
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.OptionsController.GeneriereSchiffsNamenBeispieleViewModel
+	 * @typedef {object} ds.viewmodel.modules.OptionsController.GenerateShipNameExamplesViewModel
 	 **/
 	/**
 	 * @namespace ds.viewmodel.modules.viewmodels
@@ -1474,7 +1474,7 @@
 	 * @property {string} plainname
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.admin.editoren.JqGridViewModel
+	 * @typedef {object} ds.viewmodel.modules.admin.editors.JqGridViewModel
 	 * @property {string} url
 	 * @property {string} datatype
 	 * @property {string} mtype
@@ -1508,7 +1508,7 @@
 	 * @namespace ds.viewmodel.modules.MapController.SectorViewModel
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.MapController.SectorViewModel.NebelViewModel
+	 * @typedef {object} ds.viewmodel.modules.MapController.SectorViewModel.NebulaViewModel
 	 * @property {number} type
 	 * @property {string} image
 	 **/
@@ -1546,7 +1546,7 @@
 	 * @property {number} id
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.admin.editoren.EntitySelectionViewModel
+	 * @typedef {object} ds.viewmodel.modules.admin.editors.EntitySelectionViewModel
 	 * @property {boolean} allowSelection
 	 * @property {boolean} allowAdd
 	 * @property {object} input
@@ -1573,7 +1573,7 @@
 	 * @property {number} height
 	 **/
 	/**
-	 * @typedef {object} ds.viewmodel.modules.viewmodels.GebaeudeAufBasisViewModel
+	 * @typedef {object} ds.viewmodel.modules.viewmodels.BuildingOnBaseViewModel
 	 * @property {number} id
 	 * @property {string} name
 	 * @property {string} picture

@@ -27,7 +27,7 @@ import net.driftingsouls.ds2.server.comm.Ordner;
 import net.driftingsouls.ds2.server.config.Medal;
 import net.driftingsouls.ds2.server.config.Medals;
 import net.driftingsouls.ds2.server.config.Rang;
-import net.driftingsouls.ds2.server.config.Rassen;
+import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.config.StarSystem.Access;
 import net.driftingsouls.ds2.server.config.items.Item;
 import net.driftingsouls.ds2.server.entities.ally.Ally;
@@ -35,10 +35,10 @@ import net.driftingsouls.ds2.server.entities.ally.AllyPosten;
 import net.driftingsouls.ds2.server.framework.*;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.framework.utils.StringToTypeConverter;
-import net.driftingsouls.ds2.server.namegenerator.PersonenNamenGenerator;
-import net.driftingsouls.ds2.server.namegenerator.SchiffsKlassenNamenGenerator;
-import net.driftingsouls.ds2.server.namegenerator.SchiffsNamenGenerator;
-import net.driftingsouls.ds2.server.ships.SchiffsReKosten;
+import net.driftingsouls.ds2.server.namegenerator.PersonNameGenerator;
+import net.driftingsouls.ds2.server.namegenerator.ShipClassNameGenerator;
+import net.driftingsouls.ds2.server.namegenerator.ShipNameGenerator;
+import net.driftingsouls.ds2.server.ships.ShipUpkeepCosts;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.units.UnitType;
 import org.apache.commons.lang3.StringUtils;
@@ -218,11 +218,11 @@ public class User extends BasicUser {
 	@Column(nullable = false)
     private BigInteger bounty;
 	@Enumerated(EnumType.STRING)
-	private PersonenNamenGenerator personenNamenGenerator;
+	private PersonNameGenerator personenNamenGenerator;
 	@Enumerated(EnumType.STRING)
-	private SchiffsKlassenNamenGenerator schiffsKlassenNamenGenerator;
+	private ShipClassNameGenerator schiffsKlassenNamenGenerator;
 	@Enumerated(EnumType.STRING)
-	private SchiffsNamenGenerator schiffsNamenGenerator;
+	private ShipNameGenerator schiffsNamenGenerator;
 
 	@OneToMany(mappedBy="userRankKey.owner")
     private Set<UserRank> userRanks;
@@ -371,54 +371,54 @@ public class User extends BasicUser {
 	 * Gibt den vom Spieler verwendeten Generator fuer Personenanmen zurueck.
 	 * @return Der Generator
 	 */
-	public PersonenNamenGenerator getPersonenNamenGenerator()
+	public PersonNameGenerator getPersonenNamenGenerator()
 	{
-		return this.personenNamenGenerator == null ? Rassen.get().rasse(this.race).getPersonenNamenGenerator() : this.personenNamenGenerator;
+		return this.personenNamenGenerator == null ? Races.get().race(this.race).getPersonenNamenGenerator() : this.personenNamenGenerator;
 	}
 
 	/**
 	 * Setzt den vom Spieler verwendeten Generator fuer Personenanmen.
 	 * @param personenNamenGenerator Der Generator
 	 */
-	public void setPersonenNamenGenerator(PersonenNamenGenerator personenNamenGenerator)
+	public void setPersonenNamenGenerator(PersonNameGenerator personenNamenGenerator)
 	{
-		this.personenNamenGenerator = Rassen.get().rasse(this.race).getPersonenNamenGenerator() == personenNamenGenerator ? null : personenNamenGenerator;
+		this.personenNamenGenerator = Races.get().race(this.race).getPersonenNamenGenerator() == personenNamenGenerator ? null : personenNamenGenerator;
 	}
 
 	/**
 	 * Gibt den vom Spieler verwendeten Generator fuer Schiffsklassen-Prefixe zurueck.
 	 * @return Der Generator
 	 */
-	public SchiffsKlassenNamenGenerator getSchiffsKlassenNamenGenerator()
+	public ShipClassNameGenerator getSchiffsKlassenNamenGenerator()
 	{
-		return this.schiffsKlassenNamenGenerator == null ? Rassen.get().rasse(this.race).getSchiffsKlassenNamenGenerator() : this.schiffsKlassenNamenGenerator;
+		return this.schiffsKlassenNamenGenerator == null ? Races.get().race(this.race).getSchiffsKlassenNamenGenerator() : this.schiffsKlassenNamenGenerator;
 	}
 
 	/**
 	 * Setzt den vom Spieler verwendeten Generator fuer Schiffsklassen-Prefixe.
 	 * @param schiffsKlassenNamenGenerator Der Generator
 	 */
-	public void setSchiffsKlassenNamenGenerator(SchiffsKlassenNamenGenerator schiffsKlassenNamenGenerator)
+	public void setSchiffsKlassenNamenGenerator(ShipClassNameGenerator schiffsKlassenNamenGenerator)
 	{
-		this.schiffsKlassenNamenGenerator = Rassen.get().rasse(this.race).getSchiffsKlassenNamenGenerator() == schiffsKlassenNamenGenerator ? null : schiffsKlassenNamenGenerator;
+		this.schiffsKlassenNamenGenerator = Races.get().race(this.race).getSchiffsKlassenNamenGenerator() == schiffsKlassenNamenGenerator ? null : schiffsKlassenNamenGenerator;
 	}
 
 	/**
 	 * Gibt den vom Spieler verwendeten Generator fuer Schiffsnamen zurueck.
 	 * @return Der Generator
 	 */
-	public SchiffsNamenGenerator getSchiffsNamenGenerator()
+	public ShipNameGenerator getSchiffsNamenGenerator()
 	{
-		return this.schiffsNamenGenerator == null ? Rassen.get().rasse(this.race).getSchiffsNamenGenerator() : this.schiffsNamenGenerator;
+		return this.schiffsNamenGenerator == null ? Races.get().race(this.race).getSchiffsNamenGenerator() : this.schiffsNamenGenerator;
 	}
 
 	/**
 	 * Setzt den vom Spieler verwendeten Generator fuer Schiffsnamen.
 	 * @param schiffsNamenGenerator Der Generator
 	 */
-	public void setSchiffsNamenGenerator(SchiffsNamenGenerator schiffsNamenGenerator)
+	public void setSchiffsNamenGenerator(ShipNameGenerator schiffsNamenGenerator)
 	{
-		this.schiffsNamenGenerator = Rassen.get().rasse(this.race).getSchiffsNamenGenerator() == schiffsNamenGenerator ? null : schiffsNamenGenerator;
+		this.schiffsNamenGenerator = Races.get().race(this.race).getSchiffsNamenGenerator() == schiffsNamenGenerator ? null : schiffsNamenGenerator;
 	}
 
 	/**
@@ -1359,7 +1359,7 @@ public class User extends BasicUser {
 				.setParameter("access", Access.NORMAL)
 				.getResultList().stream().filter(Objects::nonNull).findFirst().orElse(0L);
 
-		return baseRe - SchiffsReKosten.berecheKosten(schiffsKosten, einheitenKosten).longValue();
+		return baseRe - ShipUpkeepCosts.calculateCosts(schiffsKosten, einheitenKosten).longValue();
 	}
 
 	private long getNahrungBalance()
@@ -1452,7 +1452,7 @@ public class User extends BasicUser {
 		//Drop dependent researchs
 		var db = ContextMap.getContext().getEM();
 		List<Forschung> dependentResearchs = db.createQuery("from Forschung where req1= :fid or req2= :fid or req3= :fid", Forschung.class)
-				.setParameter("fid", research.getID())
+				.setParameter("fid", research)
 				.getResultList();
 
 		dependentResearchs.forEach(this::dropResearch);
@@ -1472,7 +1472,7 @@ public class User extends BasicUser {
 		var db = ContextMap.getContext().getEM();
 
 		long baseunit = db.createQuery("select sum(e.amount) from BaseUnitCargoEntry e where e.unittype=:unittype and e.basis.owner=:user", Long.class)
-				.setParameter("unittype", unitType.getId())
+				.setParameter("unittype", unitType)
 				.setParameter("user", this)
 				.getResultList().stream().filter(Objects::nonNull).findFirst().orElse(0L);
 		if( baseunit > 0 )
@@ -1483,7 +1483,7 @@ public class User extends BasicUser {
 		long shipunit = db.createQuery("select sum(e.amount) " +
 						"from ShipUnitCargoEntry e " +
 						"where e.unittype=:unittype and e.schiff.owner=:user", Long.class)
-				.setParameter("unittype", unitType.getId())
+				.setParameter("unittype", unitType)
 				.setParameter("user", this)
 				.getResultList().stream().filter(Objects::nonNull).findFirst().orElse(0L);
 
@@ -1565,7 +1565,7 @@ public class User extends BasicUser {
 		{
 			return this.ally.getFullRangNameList();
 		}
-		return new TreeSet<>(Medals.get().raenge().values());
+		return new TreeSet<>(Medals.get().ranks().values());
 	}
 
 	/**

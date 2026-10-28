@@ -25,15 +25,15 @@ import net.driftingsouls.ds2.server.framework.pipeline.Module;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.Action;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.Controller;
-import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidationException;
 import net.driftingsouls.ds2.server.modules.admin.AdminMenuEntry;
 import net.driftingsouls.ds2.server.modules.admin.AdminPlugin;
-import net.driftingsouls.ds2.server.modules.admin.editoren.EditPlugin8;
-import net.driftingsouls.ds2.server.modules.admin.editoren.EntityEditor;
-import net.driftingsouls.ds2.server.modules.admin.editoren.EntitySelectionViewModel;
-import net.driftingsouls.ds2.server.modules.admin.editoren.JqGridSortOrder;
-import net.driftingsouls.ds2.server.modules.admin.editoren.JqGridTableDataViewModel;
-import net.driftingsouls.ds2.server.modules.admin.editoren.JqGridViewModel;
+import net.driftingsouls.ds2.server.modules.admin.editors.EditPlugin8;
+import net.driftingsouls.ds2.server.modules.admin.editors.EntityEditor;
+import net.driftingsouls.ds2.server.modules.admin.editors.EntitySelectionViewModel;
+import net.driftingsouls.ds2.server.modules.admin.editors.JqGridSortOrder;
+import net.driftingsouls.ds2.server.modules.admin.editors.JqGridTableDataViewModel;
+import net.driftingsouls.ds2.server.modules.admin.editors.JqGridViewModel;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -65,7 +65,7 @@ public class AdminController extends Controller
 
 	static
 	{
-		SortedSet<Class<?>> entityClasses = AnnotationUtils.INSTANCE.findeKlassenMitAnnotation(AdminMenuEntry.class);
+		SortedSet<Class<?>> entityClasses = AnnotationUtils.INSTANCE.findClassesWithAnnotation(AdminMenuEntry.class);
 		plugins.addAll(entityClasses.stream().filter(cls -> AdminPlugin.class.isAssignableFrom(cls) || EntityEditor.class.isAssignableFrom(cls)).collect(Collectors.toList()));
 	}
 
@@ -183,7 +183,7 @@ public class AdminController extends Controller
 	{
 		if (!hasPermission(WellKnownAdminPermission.SICHTBAR))
 		{
-			throw new ValidierungException("Sie sind nicht berechtigt diese Seite aufzurufen");
+			throw new ValidationException("Sie sind nicht berechtigt diese Seite aufzurufen");
 		}
 
 		for (Class<?> cls : plugins)
@@ -242,7 +242,7 @@ public class AdminController extends Controller
 	{
 		if (namedplugin.isEmpty() || !validPlugins.contains(namedplugin))
 		{
-			throw new ValidierungException("Ungueltiges Plugin: '"+namedplugin+"'");
+			throw new ValidationException("Ungueltiges Plugin: '"+namedplugin+"'");
 		}
 
 		try
@@ -250,7 +250,7 @@ public class AdminController extends Controller
 			AdminPlugin plugin = instantiate(Class.forName(namedplugin));
 			if( !(plugin instanceof EditPlugin8) )
 			{
-				throw new ValidierungException("Fuer dieses Plugin koennen keine Tabellendaten generiert werden: '"+namedplugin+"'");
+				throw new ValidationException("Fuer dieses Plugin koennen keine Tabellendaten generiert werden: '"+namedplugin+"'");
 			}
 
 			EditPlugin8<?> eplugin = (EditPlugin8<?>)plugin;
@@ -262,7 +262,7 @@ public class AdminController extends Controller
 		catch (ReflectiveOperationException e)
 		{
 			LOG.warn("Fehler beim Aufruf des Admin-Plugins " + namedplugin, e);
-			throw new ValidierungException("Fehler beim Aufruf des Admin-Plugins: " + e);
+			throw new ValidationException("Fehler beim Aufruf des Admin-Plugins: " + e);
 		}
 	}
 
@@ -271,7 +271,7 @@ public class AdminController extends Controller
 	{
 		if (namedplugin.isEmpty() || !validPlugins.contains(namedplugin))
 		{
-			throw new ValidierungException("Ungueltiges Plugin: '"+namedplugin+"'");
+			throw new ValidationException("Ungueltiges Plugin: '"+namedplugin+"'");
 		}
 
 		try
@@ -279,7 +279,7 @@ public class AdminController extends Controller
 			AdminPlugin plugin = instantiate(Class.forName(namedplugin));
 			if( !(plugin instanceof EditPlugin8) )
 			{
-				throw new ValidierungException("Fuer dieses Plugin koennen keine Tabellendaten generiert werden: '"+namedplugin+"'");
+				throw new ValidationException("Fuer dieses Plugin koennen keine Tabellendaten generiert werden: '"+namedplugin+"'");
 			}
 
 			return ((EditPlugin8<?>)plugin).generateTableData(page,
@@ -290,7 +290,7 @@ public class AdminController extends Controller
 		catch (ReflectiveOperationException e)
 		{
 			LOG.warn("Fehler beim Aufruf des Admin-Plugins " + namedplugin, e);
-			throw new ValidierungException("Fehler beim Aufruf des Admin-Plugins: " + e);
+			throw new ValidationException("Fehler beim Aufruf des Admin-Plugins: " + e);
 		}
 	}
 
@@ -361,7 +361,7 @@ public class AdminController extends Controller
 		catch (IOException | RuntimeException | ReflectiveOperationException e)
 		{
 			LOG.warn("Fehler beim Aufruf des Admin-Plugins "+namedplugin, e);
-			throw new ValidierungException("Fehler beim Aufruf des Admin-Plugins: " + e);
+			throw new ValidationException("Fehler beim Aufruf des Admin-Plugins: " + e);
 		}
 	}
 

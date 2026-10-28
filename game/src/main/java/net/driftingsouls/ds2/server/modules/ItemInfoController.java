@@ -23,7 +23,7 @@ import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.cargo.*;
 import net.driftingsouls.ds2.server.config.ModuleSlots;
 import net.driftingsouls.ds2.server.config.NoSuchSlotException;
-import net.driftingsouls.ds2.server.config.Rassen;
+import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.config.Weapons;
 import net.driftingsouls.ds2.server.config.items.Item;
 import net.driftingsouls.ds2.server.config.items.Schiffsmodul;
@@ -33,8 +33,8 @@ import net.driftingsouls.ds2.server.entities.Forschung;
 import net.driftingsouls.ds2.server.entities.Munitionsdefinition;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.Weapon;
-import net.driftingsouls.ds2.server.entities.statistik.StatItemLocations;
-import net.driftingsouls.ds2.server.entities.statistik.StatUserCargo;
+import net.driftingsouls.ds2.server.entities.statistics.StatItemLocations;
+import net.driftingsouls.ds2.server.entities.statistics.StatUserCargo;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.ViewModel;
 import net.driftingsouls.ds2.server.framework.pipeline.Module;
@@ -411,13 +411,13 @@ public class ItemInfoController extends Controller
 				t.parse("itemdetails.entrylist", "itemdetails.entry", true);
 
 				t.setVar("entry.name", "Rasse",
-						"entry.data", Rassen.get().rasse(effect.getRace()).getName());
+						"entry.data", Races.get().race(effect.getRace()).getName());
 
 				t.parse("itemdetails.entrylist", "itemdetails.entry", true);
 
 				data.setLength(0);
 				boolean entry = false;
-				for( Forschung forschung : effect.getBenoetigteForschungen() )
+				for( Forschung forschung : effect.getRequiredResearch() )
 				{
 					if (!forschung.isVisibile(user) && !user.hasResearched(forschung.getBenoetigteForschungen()))
 					{
@@ -472,16 +472,16 @@ public class ItemInfoController extends Controller
 				t.parse("itemdetails.entrylist", "itemdetails.entry", true);
 
 				t.setVar("entry.name", "Dauer",
-						"entry.data", "<img valign=\"middle\" src=\"./data/interface/time.gif\" alt=\"\" />" + effect.getDauer());
+						"entry.data", "<img valign=\"middle\" src=\"./data/interface/time.gif\" alt=\"\" />" + effect.getDuration());
 
 				t.parse("itemdetails.entrylist", "itemdetails.entry", true);
 
 				t.setVar("entry.name", "Werftslots",
-						"entry.data", "<img valign=\"middle\" src=\"./data/interface/schiffinfo/werftslots.png\" alt=\"\" />" + effect.getWerftSlots());
+						"entry.data", "<img valign=\"middle\" src=\"./data/interface/schiffinfo/werftslots.png\" alt=\"\" />" + effect.getShipyardSlots());
 
 				t.parse("itemdetails.entrylist", "itemdetails.entry", true);
 
-				if (effect.isFlagschiff())
+				if (effect.isFlagship())
 				{
 					t.setVar("entry.name", "Flaggschiff",
 							"entry.data", "ja");

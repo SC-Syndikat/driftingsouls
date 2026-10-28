@@ -27,6 +27,15 @@ _Avoid_: Nebel
 A fixed link between two sectors, usually in different star systems, that ships can traverse.
 _Avoid_: Sprungpunkt
 
+**Asteroid**:
+A large rocky body occupying a Sector, on which a Base can be established. Not to be confused with a
+Boulder.
+
+**Boulder**:
+A small rocky body, far smaller than an Asteroid. Modelled as a Ship of its own ship class, spawned per
+star system with configured cargo, and plundered for that cargo. No Base can be built on it.
+_Avoid_: Felsbrocken
+
 ### Bases and buildings
 
 **Base**:
@@ -56,11 +65,11 @@ _Avoid_: Kaserne
 The Building that trains Officers on a Base.
 _Avoid_: Akademie
 
-**Research Centre**:
+**Research Center**:
 The Building on a Base at which Research is carried out.
 _Avoid_: Forschungszentrum
 
-**Command Centre**:
+**Command Center**:
 The Building that establishes a Base as owned and provides its core administrative functions.
 _Avoid_: Kommandozentrale
 
@@ -188,6 +197,11 @@ A non-player organisation in the game world. Factions award Loyalty Points for s
 sell goods in return for them.
 _Avoid_: Fraktion
 
+**Faction Gui Entry**:
+An entry on the page where Factions advertise themselves to players. "Gui" here carries its ordinary
+meaning of graphical user interface, and is kept.
+_Avoid_: FraktionsGuiEintrag
+
 **Race**:
 The species a User belongs to, affecting available Ship Types and Research.
 _Avoid_: Rasse
@@ -197,7 +211,7 @@ A User's standing, either within the game generally or within an Alliance.
 _Avoid_: Rang
 
 **Research**:
-A technology a User unlocks at a Research Centre, gating Ship Types, Buildings and Items.
+A technology a User unlocks at a Research Center, gating Ship Types, Buildings and Items.
 _Avoid_: Forschung
 
 ### Communication and time

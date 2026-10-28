@@ -14,7 +14,7 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.PermissionDescriptor;
 import net.driftingsouls.ds2.server.framework.PermissionResolver;
 import net.driftingsouls.ds2.server.framework.bbcode.Smilie;
-import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidationException;
 import net.driftingsouls.ds2.server.services.ComNetService;
 
 import org.thymeleaf.ITemplateEngine;
@@ -82,7 +82,7 @@ public class ComNetController implements DSController, PermissionResolver {
           return;
         }
         ComNetChannel channel = ComNetChannel.getChannelByNr(channelnr, context);
-        if(!validiereComNetChannel(channel,ctx))
+        if(!validateComNetChannel(channel,ctx))
         {
           templateEngine.process("comnet", ctx, response.getWriter());
           return;
@@ -111,7 +111,7 @@ public class ComNetController implements DSController, PermissionResolver {
         templateEngine.process("comnet", ctx, response.getWriter());
     }
 
-  private boolean validiereComNetChannel(ComNetChannel comNetChannel, WebContext ctx)
+  private boolean validateComNetChannel(ComNetChannel comNetChannel, WebContext ctx)
   {
     if (comNetChannel == null)
     {
@@ -181,12 +181,12 @@ public class ComNetController implements DSController, PermissionResolver {
 
       User user = (User) context.getActiveUser();
       Channel c = new Channel(channel);
-      var searchtitel = request.getParameter("searchtitel");
-      var searchinhalt = request.getParameter("searchinhalt");
-      Integer searchsender = (request.getParameter("searchsender") == null ||request.getParameter("searchsender").isBlank() )? null : Integer.parseInt(request.getParameter("searchsender"));
+      var titleSearchText = request.getParameter("searchtitel");
+      var contentSearchText = request.getParameter("searchinhalt");
+      Integer senderSearchId = (request.getParameter("searchsender") == null ||request.getParameter("searchsender").isBlank() )? null : Integer.parseInt(request.getParameter("searchsender"));
 
 
-      if( (searchtitel == null || searchtitel.isBlank() ) && (searchsender == null) && (searchinhalt == null || searchinhalt.isBlank()) )
+      if( (titleSearchText == null || titleSearchText.isBlank() ) && (senderSearchId == null) && (contentSearchText == null || contentSearchText.isBlank()) )
       {
         c.setShowsearchform(true);
         ctx.setVariable("channel",c);
@@ -207,8 +207,8 @@ public class ComNetController implements DSController, PermissionResolver {
         return;
       }
       ComNetService service = new ComNetService();
-      service.markiereKanalAlsGelesen(channel, user);
-      Search s = new Search(searchinhalt, searchsender, searchtitel);
+      service.markChannelAsRead(channel, user);
+      Search s = new Search(contentSearchText, senderSearchId, titleSearchText);
       ctx.setVariable("search", s);
 
       if (channel.isWriteable(user, this))
@@ -217,7 +217,7 @@ public class ComNetController implements DSController, PermissionResolver {
       }
       List<Post> posts = new ArrayList<>();
       try{
-        List<ComNetEntry> entries = service.durchsucheKanal(channel, searchinhalt, searchtitel, searchsender, back, 10);
+        List<ComNetEntry> entries = service.searchChannel(channel, contentSearchText, titleSearchText, senderSearchId, back, 10);
 
         if (entries.isEmpty())
         {
@@ -287,7 +287,7 @@ public class ComNetController implements DSController, PermissionResolver {
         c.setIswriteable(true);
       }
       ComNetService service = new ComNetService();
-      service.markiereKanalAlsGelesen(channel, user);
+      service.markChannelAsRead(channel, user);
       int back = 0;
       try{
         back = Integer.parseInt(request.getParameter("back"));
@@ -518,7 +518,7 @@ public class ComNetController implements DSController, PermissionResolver {
         this.rawtitle = rawtitle;
         this.text = Smilie.parseSmilies(db, Common._text(rawtext));
         this.title = Common._title(rawtitle);
-        this.userRank = user == null? null : Medals.get().rang(user.getRang());
+        this.userRank = user == null? null : Medals.get().rank(user.getRang());
         this.ally = user == null? null : user.getAlly();
         this.username = user == null ? "" : Common._title(user.getName());
         this.post = post;
@@ -531,7 +531,7 @@ public class ComNetController implements DSController, PermissionResolver {
         this.rawtitle = rawtitle;
         this.text = Smilie.parseSmilies(db, Common._text(rawtext));
         this.title = Common._title(rawtitle);
-        this.userRank = Medals.get().rang(user.getRang());
+        this.userRank = Medals.get().rank(user.getRang());
         this.ally = null;
         this.username = Common._title(user.getName());
         this.post = post;
@@ -549,14 +549,14 @@ public class ComNetController implements DSController, PermissionResolver {
     }
 
     private static class Search{
-      public final String searchinhalt;
-      public final Integer searchsender;
-      public final String searchtitel;
+      public final String contentSearchText;
+      public final Integer senderSearchId;
+      public final String titleSearchText;
 
-      public Search(String searchinhalt, Integer searchsender, String searchtitel) {
-        this.searchinhalt = searchinhalt;
-        this.searchsender = searchsender;
-        this.searchtitel = searchtitel;
+      public Search(String contentSearchText, Integer senderSearchId, String titleSearchText) {
+        this.contentSearchText = contentSearchText;
+        this.senderSearchId = senderSearchId;
+        this.titleSearchText = titleSearchText;
       }
     }
 

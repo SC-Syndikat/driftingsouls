@@ -9,7 +9,7 @@ import net.driftingsouls.ds2.server.bases.BaseType;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.comm.PM;
-import net.driftingsouls.ds2.server.config.Rassen;
+import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.Nebel;
 import net.driftingsouls.ds2.server.entities.Offizier;
@@ -160,7 +160,7 @@ public class RegisterController implements DSController {
             errors.add("Diese E-Mail Adresse wird bereits genutzt.");
         }
 
-        if (!Rassen.get().rasse(raceId).isPlayable()) {
+        if (!Races.get().race(raceId).isPlayable()) {
             errors.add("Die Rasse existiert nicht.");
         }
 
@@ -224,8 +224,8 @@ public class RegisterController implements DSController {
         String[] baselayoutStr = configService().getValue(WellKnownConfigValue.REGISTER_BASELAYOUT).split(",");
         Integer[] activebuildings = new Integer[baselayoutStr.length];
         Integer[] baselayout = new Integer[baselayoutStr.length];
-        int bewohner = 0;
-        int arbeiter = 0;
+        int inhabitants = 0;
+        int workers = 0;
 
         for (int i = 0; i < baselayoutStr.length; i++) {
             baselayout[i] = Integer.parseInt(baselayoutStr[i]);
@@ -233,22 +233,22 @@ public class RegisterController implements DSController {
             if (baselayout[i] != 0) {
                 activebuildings[i] = 1;
                 Building building = Building.getBuilding(baselayout[i]);
-                bewohner += building.getBewohner();
-                arbeiter += building.getArbeiter();
+                inhabitants += building.getBewohner();
+                workers += building.getArbeiter();
             } else {
                 activebuildings[i] = 0;
             }
         }
 
         // Alte Gebaeude entfernen
-        Integer[] bebauung = base.getBebauung();
-        for (Integer aBebauung : bebauung) {
-            if (aBebauung == 0) {
+        Integer[] buildingIds = base.getBebauung();
+        for (Integer buildingId : buildingIds) {
+            if (buildingId == 0) {
                 continue;
             }
 
-            Building building = Building.getBuilding(aBebauung);
-            building.cleanup(ContextMap.getContext(), base, aBebauung);
+            Building building = Building.getBuilding(buildingId);
+            building.cleanup(ContextMap.getContext(), base, buildingId);
         }
 
         BaseType basetype = (BaseType) db.get(BaseType.class, 1);
@@ -257,8 +257,8 @@ public class RegisterController implements DSController {
         base.setOwner(newUser);
         base.setBebauung(baselayout);
         base.setActive(activebuildings);
-        base.setArbeiter(arbeiter);
-        base.setBewohner(bewohner);
+        base.setArbeiter(workers);
+        base.setBewohner(inhabitants);
         base.setWidth(basetype.getWidth());
         base.setHeight(basetype.getHeight());
         base.setMaxCargo(basetype.getCargo());

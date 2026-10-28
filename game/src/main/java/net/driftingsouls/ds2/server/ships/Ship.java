@@ -41,8 +41,8 @@ import net.driftingsouls.ds2.server.tasks.Taskmanager;
 import net.driftingsouls.ds2.server.units.ShipUnitCargo;
 import net.driftingsouls.ds2.server.units.UnitCargo;
 import net.driftingsouls.ds2.server.units.UnitCargoEntry;
-import net.driftingsouls.ds2.server.werften.ShipWerft;
-import net.driftingsouls.ds2.server.werften.WerftObject;
+import net.driftingsouls.ds2.server.shipyards.ShipWerft;
+import net.driftingsouls.ds2.server.shipyards.WerftObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -134,7 +134,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 	private String docked;
 
 	@Enumerated(EnumType.ORDINAL)
-	private Alarmstufe alarm;
+	private AlertLevel alarm;
 
 	@OneToOne(fetch=FetchType.LAZY)
 	@BatchSize(size=100)
@@ -240,7 +240,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 		this.comm = 100;
 		this.sensors = 100;
 		this.offiziere = new HashSet<>();
-		this.alarm = Alarmstufe.GREEN;
+		this.alarm = AlertLevel.GREEN;
 	}
 
     /**
@@ -427,7 +427,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 	 * Gibt die Alarmstufe des Schiffes zurueck.
 	 * @return Die Alarmstufe
 	 */
-	public Alarmstufe getAlarm() {
+	public AlertLevel getAlarm() {
 		return alarm;
 	}
 
@@ -435,7 +435,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 	 * Setzt die Alarmstufe des Schiffes.
 	 * @param alarm Die neue Alarmstufe
 	 */
-	public void setAlarm(Alarmstufe alarm) {
+	public void setAlarm(AlertLevel alarm) {
 		this.alarm = alarm;
 	}
 
@@ -756,7 +756,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 	private static final int MANGEL_TICKS = 9;
 	private int GetMangelTicksReaktorByType(ShipTypeData type)
 	{
-		if( (this.alarm != Alarmstufe.GREEN) && (type.getShipClass() != ShipClasses.GESCHUETZ) ) {
+		if( (this.alarm != AlertLevel.GREEN) && (type.getShipClass() != ShipClasses.GESCHUETZ) ) {
 			return MANGEL_TICKS;
 		}
 
@@ -897,7 +897,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 			long er = ep/type.getRm();
 
 			int turns = 2;
-			if( (this.alarm != Alarmstufe.GREEN) && (type.getShipClass() != ShipClasses.GESCHUETZ) ) {
+			if( (this.alarm != AlertLevel.GREEN) && (type.getShipClass() != ShipClasses.GESCHUETZ) ) {
 				turns = 4;
 			}
 
@@ -1139,7 +1139,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 		if(getUnits() != null)
 		{
 			double scale = alarm.getAlertScaleFactor();
-			return (int)Math.ceil(this.getUnits().getNahrung()*scale);
+			return (int)Math.ceil(this.getUnits().getFoodConsumption()*scale);
 		}
 		return 0;
 	}
@@ -1609,7 +1609,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 				"s.crew != 0 AND s.system = :system AND s.owner != :owner AND " +
 				"(s.owner.vaccount = 0 OR s.owner.wait4vac > 0) AND " +
 				"s.x IN (:xSektoren) AND s.y IN (:ySektoren)", Ship.class)
-			.setParameter("green", Alarmstufe.GREEN)
+			.setParameter("green", AlertLevel.GREEN)
 			.setParameter("system", locs[0].getSystem())
 			.setParameter("owner", user)
 			.setParameter("xSektoren", xSektoren)
@@ -1626,9 +1626,9 @@ public class Ship implements Locatable,Transfering,Feeding {
 			}
 
 			User owner = ship.getOwner();
-			Alarmstufe alert = ship.getAlarm();
+			AlertLevel alert = ship.getAlarm();
 			boolean attack = false;
-			if(alert == Alarmstufe.RED)
+			if(alert == AlertLevel.RED)
 			{
 				if(relationlist.beziehungVon(owner) != User.Relation.FRIEND)
 				{
@@ -1639,7 +1639,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 					attack = true;
 				}
 			}
-			else if(alert == Alarmstufe.YELLOW)
+			else if(alert == AlertLevel.YELLOW)
 			{
 				if(relationlist.beziehungVon(owner) == User.Relation.ENEMY)
 				{
@@ -2175,6 +2175,25 @@ public class Ship implements Locatable,Transfering,Feeding {
 				start();
 			}
 
+			// Safety net: undock()/start() are driven by the carrier's *current* type data, and
+			// getDockedShips() bails out early when it reports no docks. A carrier whose module
+			// configuration no longer advertises the docks its ships are actually sitting in
+			// therefore releases nobody, and those ships keep pointing at a row that is about to be
+			// deleted. They still exist, but since the client only ever shows docked and landed
+			// ships underneath their carrier, the owner sees them as gone. Release whatever is left.
+			int strandedShips = db.createQuery(
+					"UPDATE Ship s SET s.docked='', s.system=:system, s.x=:x, s.y=:y WHERE s.docked IN (:dockedEntries)")
+					.setParameter("system", this.system)
+					.setParameter("x", this.x)
+					.setParameter("y", this.y)
+					.setParameter("dockedEntries", Arrays.asList(Integer.toString(this.id), "l " + this.id))
+					.executeUpdate();
+			if (strandedShips > 0) {
+				log.warn("Ship " + this.id + ": " + strandedShips + " docked/landed ships were not released by the " +
+						"regular undock path on destruction (docks per type data: " + type.getADocks() + "/" +
+						type.getJDocks() + ")");
+			}
+
 			// Gibts bereits einen Loesch-Task? Wenn ja, dann diesen entfernen
 			Taskmanager taskmanager = Taskmanager.getInstance();
 			Task[] tasks = taskmanager.getTasksByData(Taskmanager.Types.SHIP_DESTROY_COUNTDOWN, Integer.toString(this.id), "*", "*");
@@ -2663,7 +2682,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 	 */
 	public int getAlertEnergyCost()
 	{
-		return (int)Math.ceil(this.getTypeData().getRm() * alarm.getEnergiekostenFaktor());
+		return (int)Math.ceil(this.getTypeData().getRm() * alarm.getEnergyCostFactor());
 	}
 
 	/**

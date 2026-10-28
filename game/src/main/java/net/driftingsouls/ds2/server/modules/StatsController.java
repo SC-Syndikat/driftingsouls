@@ -29,20 +29,20 @@ import net.driftingsouls.ds2.server.modules.stats.StatBiggestFleet;
 import net.driftingsouls.ds2.server.modules.stats.StatBiggestPopulation;
 import net.driftingsouls.ds2.server.modules.stats.StatBiggestTrader;
 import net.driftingsouls.ds2.server.modules.stats.StatData;
-import net.driftingsouls.ds2.server.modules.stats.StatEinheiten;
+import net.driftingsouls.ds2.server.modules.stats.StatUnits;
 import net.driftingsouls.ds2.server.modules.stats.StatGtuPrice;
 import net.driftingsouls.ds2.server.modules.stats.StatMemberCount;
 import net.driftingsouls.ds2.server.modules.stats.StatOwnCiv;
-import net.driftingsouls.ds2.server.modules.stats.StatOwnKampf;
-import net.driftingsouls.ds2.server.modules.stats.StatOwnOffiziere;
+import net.driftingsouls.ds2.server.modules.stats.StatOwnBattles;
+import net.driftingsouls.ds2.server.modules.stats.StatOwnOfficers;
 import net.driftingsouls.ds2.server.modules.stats.StatPlayerList;
 import net.driftingsouls.ds2.server.modules.stats.StatPopulationDensity;
 import net.driftingsouls.ds2.server.modules.stats.StatRichestUser;
 import net.driftingsouls.ds2.server.modules.stats.StatShipCount;
 import net.driftingsouls.ds2.server.modules.stats.StatShips;
-import net.driftingsouls.ds2.server.modules.stats.StatSpieleraktivitaet;
-import net.driftingsouls.ds2.server.modules.stats.StatWaren;
-import net.driftingsouls.ds2.server.modules.stats.StatWarenentwicklung;
+import net.driftingsouls.ds2.server.modules.stats.StatUserActivity;
+import net.driftingsouls.ds2.server.modules.stats.StatItems;
+import net.driftingsouls.ds2.server.modules.stats.StatItemHistory;
 import net.driftingsouls.ds2.server.modules.stats.Statistic;
 
 import java.io.IOException;
@@ -104,18 +104,18 @@ public class StatsController extends Controller
 		registerStat( "Sonstiges", new StatPopulationDensity(), "Siedlungsdichte", 0 );
 		registerStat( "Sonstiges", new StatShips(), "Schiffe", 0 );
 		registerStat( "Sonstiges", new StatShipCount(), "Schiffsentwicklung", 0 );
-		registerStat( "Sonstiges", new StatSpieleraktivitaet(), "Spieleraktivität", 0 );
-		registerStat( "Sonstiges", new StatWarenentwicklung(), "Warenentwicklung", 0 );
-		registerStat( "Sonstiges", new StatWaren(), "Waren", 0 );
-		registerStat( "Sonstiges", new StatEinheiten(), "Einheiten", 0);
+		registerStat( "Sonstiges", new StatUserActivity(), "Spieleraktivität", 0 );
+		registerStat( "Sonstiges", new StatItemHistory(), "Warenentwicklung", 0 );
+		registerStat( "Sonstiges", new StatItems(), "Waren", 0 );
+		registerStat( "Sonstiges", new StatUnits(), "Einheiten", 0);
 		registerStat( "Sonstiges", new StatData(), "diverse Daten", 0 );
 
-		registerStat( "Eigene K&auml;mpfe", new StatOwnKampf(), "eigene Kämpfe", 0 );
-		registerStat( "Offiziere", new StatOwnOffiziere(), "Offiziere", 0 );
+		registerStat( "Eigene K&auml;mpfe", new StatOwnBattles(), "eigene Kämpfe", 0 );
+		registerStat( "Offiziere", new StatOwnOfficers(), "Offiziere", 0 );
 		registerStat( "Spielerliste", new StatPlayerList(), "Spielerliste", 0 );
 	}
 
-	protected int ermittleAnzuzeigendeStatistikkategorie(int show) {
+	protected int determineCategoryToShow(int show) {
 		if( (show == 0) || !this.statslist.containsKey(show) ) {
 			show = 1;
 		}
@@ -190,7 +190,7 @@ public class StatsController extends Controller
 	 */
 	@Action(ActionType.AJAX)
 	public AjaxStatistic.DataViewModel ajaxAction(int stat, int show) {
-		show = ermittleAnzuzeigendeStatistikkategorie(show);
+		show = determineCategoryToShow(show);
 		if( this.statslist.get(show).size() <= stat ) {
 			stat = 1;
 		}
@@ -212,7 +212,7 @@ public class StatsController extends Controller
 	 */
 	@Action(ActionType.DEFAULT)
 	public void defaultAction(int stat, int show) throws IOException {
-		show = ermittleAnzuzeigendeStatistikkategorie(show);
+		show = determineCategoryToShow(show);
 		if( this.statslist.get(show).size() <= stat ) {
 			stat = 1;
 		}

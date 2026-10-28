@@ -21,7 +21,7 @@ package net.driftingsouls.ds2.server.tick.regular;
 import net.driftingsouls.ds2.server.bases.AcademyQueueEntry;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.comm.PM;
-import net.driftingsouls.ds2.server.config.Offiziere;
+import net.driftingsouls.ds2.server.config.Officers;
 import net.driftingsouls.ds2.server.entities.Academy;
 import net.driftingsouls.ds2.server.entities.Offizier;
 import net.driftingsouls.ds2.server.entities.User;
@@ -73,25 +73,33 @@ public class AcademyTick extends TickController {
 	{
 		var db = getEM();
 
-		List<Academy> accList;
+		// Only the ids are collected up front: the unit of work below clears the persistence context
+		// on every flush, which would detach any entity loaded here. Each academy is therefore
+		// re-loaded inside doWork, where it is guaranteed to be attached to the current context.
+		List<Integer> academyIds;
 		if(isCampaignTick()) {
 
-			accList = db.createQuery("from Academy a left join fetch a.queue " +
-					"where a.train=true and (a.base.owner.vaccount=0 or a.base.owner.wait4vac!=0) and a.base.system in (:systeme)", Academy.class)
+			academyIds = db.createQuery("select a.id from Academy a " +
+					"where a.train=true and (a.base.owner.vaccount=0 or a.base.owner.wait4vac!=0) and a.base.system in (:systeme)", Integer.class)
 					.setParameter("systeme", affectedSystems)
 					.getResultList();
 		}
 		else {
-			accList = db.createQuery("from Academy a left join fetch a.queue " +
-					"where a.train=true and (a.base.owner.vaccount=0 or a.base.owner.wait4vac!=0)", Academy.class)
+			academyIds = db.createQuery("select a.id from Academy a " +
+					"where a.train=true and (a.base.owner.vaccount=0 or a.base.owner.wait4vac!=0)", Integer.class)
 					.getResultList();
 		}
-		
-		new UnitOfWork<Academy>("Academy Tick", db)
+
+		new UnitOfWork<Integer>("Academy Tick", db)
 		{
 			@Override
-			public void doWork(Academy acc) {
+			public void doWork(Integer academyId) {
 				var db = getEM();
+				Academy acc = db.find(Academy.class, academyId);
+				if( acc == null )
+				{
+					return;
+				}
 				Base base = acc.getBase();
 
 				log("Akademie "+acc.getId()+":");
@@ -158,7 +166,7 @@ public class AcademyTick extends TickController {
 		}
 		.setFlushSize(10)
 		.setClearOnFlush(true)
-		.executeFor(accList);
+		.executeFor(academyIds);
 
 		//
 		// Raenge der Offiziere neu berechnen
@@ -168,7 +176,7 @@ public class AcademyTick extends TickController {
 			public void doWork() {
 				var db = getEM();
 				int count = 0;
-				for( int i = Offiziere.MAX_RANG; i > 0; i-- ) {
+				for( int i = Officers.MAX_RANK; i > 0; i-- ) {
 					count += db.createQuery("update Offizier " +
 							"set rang= :rang " +
 					"where rang < :rang and (ing+waf+nav+sec+com)/125 >= :rang")

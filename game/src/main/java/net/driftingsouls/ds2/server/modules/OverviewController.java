@@ -1,0 +1,871 @@
+/*
+ *	Drifting Souls 2
+ *	Copyright (c) 2006 Christopher Jung
+ *
+ *	This library is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU Lesser General Public
+ *	License as published by the Free Software Foundation; either
+ *	version 2.1 of the License, or (at your option) any later version.
+ *
+ *	This library is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *	Lesser General Public License for more details.
+ *
+ *	You should have received a copy of the GNU Lesser General Public
+ *	License along with this library; if not, write to the Free Software
+ *	Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+package net.driftingsouls.ds2.server.modules;
+
+import net.driftingsouls.ds2.server.ContextCommon;
+import net.driftingsouls.ds2.server.WellKnownPermission;
+import net.driftingsouls.ds2.server.bases.Base;
+import net.driftingsouls.ds2.server.bases.BaseStatus;
+import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.cargo.Cargo;
+import net.driftingsouls.ds2.server.cargo.ResourceEntry;
+import net.driftingsouls.ds2.server.cargo.ResourceList;
+import net.driftingsouls.ds2.server.cargo.Resources;
+import net.driftingsouls.ds2.server.config.Races;
+import net.driftingsouls.ds2.server.config.items.Item;
+import net.driftingsouls.ds2.server.discord.DiscordChatMessage;
+import net.driftingsouls.ds2.server.discord.DiscordException;
+import net.driftingsouls.ds2.server.discord.DiscordKanal;
+import net.driftingsouls.ds2.server.discord.DiscordKonfiguration;
+import net.driftingsouls.ds2.server.discord.DiscordNachricht;
+import net.driftingsouls.ds2.server.discord.DiscordService;
+import net.driftingsouls.ds2.server.discord.DiscordUser;
+import net.driftingsouls.ds2.server.entities.IntTutorial;
+import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.entities.UserFlag;
+import net.driftingsouls.ds2.server.entities.UserRank;
+import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
+import net.driftingsouls.ds2.server.entities.ally.Ally;
+import net.driftingsouls.ds2.server.framework.Common;
+import net.driftingsouls.ds2.server.framework.Configuration;
+import net.driftingsouls.ds2.server.framework.ViewMessage;
+import net.driftingsouls.ds2.server.framework.ViewModel;
+import net.driftingsouls.ds2.server.framework.pipeline.Module;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.Action;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.ActionType;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.Controller;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.RedirectViewResult;
+import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
+import net.driftingsouls.ds2.server.framework.templates.TemplateViewResultFactory;
+import net.driftingsouls.ds2.server.repositories.MessageRepository;
+import net.driftingsouls.ds2.server.repositories.ShipsRepository;
+import net.driftingsouls.ds2.server.ships.Ship;
+import net.driftingsouls.ds2.server.ships.ShipFleet;
+import net.driftingsouls.ds2.server.ships.ShipTypeData;
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import static net.driftingsouls.ds2.server.repositories.ShipsRepository.getShipBookmarkViewData;
+
+/**
+ * Die Uebersicht.
+ *
+ * @author Christopher Jung
+ */
+@Module(name = "ueber")
+public class OverviewController extends Controller
+{
+	private static final Logger log = LoggerFactory.getLogger(OverviewController.class);
+
+	private static final String BOX_FLEETS = "fleets";
+	private static final String BOX_BOOKMARKS = "bookmarks";
+
+	private final TemplateViewResultFactory templateViewResultFactory;
+	private final DiscordService discordService;
+
+	@Autowired
+	public OverviewController(TemplateViewResultFactory templateViewResultFactory, DiscordService discordService)
+	{
+		this.templateViewResultFactory = templateViewResultFactory;
+		this.discordService = discordService;
+	}
+
+	/**
+	 * Beendet den Vacation-Modus-Vorlauf.
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult stopWait4VacAction()
+	{
+		User user = (User) getUser();
+
+		user.setVacationCount(0);
+		user.setWait4VacationCount(0);
+
+		Common.writeLog("login.log", Common.date("j+m+Y H:i:s") + ": <" + getRequest().getRemoteAddress() + "> (" + user.getId() + ") <" + user.getUN() + "> Abbruch Vac-Vorlauf Browser <" + getRequest().getUserAgent() + "> \n");
+
+		return new RedirectViewResult("default");
+	}
+
+	/**
+	 * Wechselt die Tutorial-Seite bzw beendet das Tutorial.
+	 *
+	 * @param tutorial 1, falls die naechste Tutorialseite angezeigt werden soll. Zum Beenden -1
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult tutorialAction(int tutorial)
+	{
+		User user = (User) getUser();
+
+		if (tutorial == 1)
+		{
+			int inttutorial = user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_INTTUTORIAL);
+
+			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_INTTUTORIAL, inttutorial + 1);
+		}
+		else if (tutorial == -1)
+		{
+			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_INTTUTORIAL, 0);
+		}
+
+		return new RedirectViewResult("default");
+	}
+
+	/**
+	 * Merkt sich, ob in der Flotten/Bookmark-Box die Flotten oder die Bookmarks angezeigt werden.
+	 *
+	 * @param box Der Name des neuen Anzeigemodus (<code>fleets</code> oder <code>bookmarks</code>)
+	 */
+	@Action(ActionType.AJAX)
+	public ViewMessage boxAction(String box)
+	{
+		if (!BOX_FLEETS.equals(box) && !BOX_BOOKMARKS.equals(box))
+		{
+			return ViewMessage.failure("Unbekannter Anzeigemodus");
+		}
+
+		User user = (User)getUser();
+		if (!box.equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_BOX)))
+		{
+			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_BOX, box);
+		}
+
+		return ViewMessage.success("gespeichert");
+	}
+
+	@ViewModel
+	public static class DiscordChatViewModel
+	{
+		public boolean connected;
+		/**
+		 * <code>true</code>, falls der Spieler die Verknuepfung bei Discord erneut bestaetigen muss.
+		 */
+		public boolean bestaetigen;
+		/**
+		 * <code>true</code>, falls der Spieler noch nicht zugestimmt hat, dass der Chat Inhalte von Discord laedt.
+		 */
+		public boolean zustimmungFehlt;
+		public boolean schreiben;
+		public String channel;
+		public String error;
+		public List<DiscordChatMessage> messages = new ArrayList<>();
+	}
+
+	/**
+	 * Gibt die neuesten Nachrichten eines Discord-Kanals fuer den Chat auf der Uebersicht zurueck.
+	 * Es werden nur Kanaele geliefert, die der Spieler lesen darf und deren Sichtbarkeit in Discord
+	 * noch der Freigabe entspricht. Ohne Zustimmung des Spielers werden keine Nachrichten geliefert,
+	 * deren Avatare und Bilder sein Browser von Discord laden wuerde.
+	 *
+	 * @param channel Die ID des Kanals. Ist sie unbekannt oder nicht erlaubt, wird der zuletzt gewaehlte bzw. der Standardkanal verwendet.
+	 */
+	@Action(ActionType.AJAX)
+	public DiscordChatViewModel discordChatAction(String channel)
+	{
+		User user = (User)getUser();
+		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
+		List<DiscordKanal> kanaele = DiscordKanal.lesbare(getEM(), konfiguration, user);
+
+		DiscordChatViewModel result = new DiscordChatViewModel();
+		result.connected = isDiscordVerbunden(konfiguration, user);
+		result.bestaetigen = result.connected && !DiscordUser.isVerknuepfungAktuell(user.getUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM));
+		if (!user.getUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT))
+		{
+			result.zustimmungFehlt = true;
+			return result;
+		}
+
+		DiscordKanal selected = waehleDiscordKanal(user, kanaele, channel);
+		if (selected == null)
+		{
+			result.error = "Im Moment ist kein Discord-Kanal verfügbar.";
+			return result;
+		}
+
+		result.channel = selected.getChannelId();
+		result.schreiben = result.connected && !result.bestaetigen && selected.darfSchreiben(user);
+		if (!selected.getChannelId().equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL)))
+		{
+			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL, selected.getChannelId());
+		}
+
+		try
+		{
+			pruefeFreigabe(konfiguration, selected);
+			result.messages = markiereIngameNachrichten(konfiguration, discordService.getMessages(konfiguration, selected.getChannelId(), discordKanalNamen(kanaele)));
+		}
+		catch (DiscordException e)
+		{
+			result.error = e.getMessage();
+		}
+		return result;
+	}
+
+	/**
+	 * Vermerkt die Zustimmung des Spielers, dass der Chat Inhalte von Discord laedt, und gibt
+	 * danach die neuesten Nachrichten zurueck. Widerrufen laesst sie sich in den Einstellungen.
+	 *
+	 * @param channel Die ID des Kanals
+	 */
+	@Action(ActionType.AJAX)
+	public DiscordChatViewModel discordZustimmungAction(String channel)
+	{
+		if (!isAusDemChat())
+		{
+			DiscordChatViewModel result = new DiscordChatViewModel();
+			result.zustimmungFehlt = true;
+			result.error = "Ungültige Anfrage.";
+			return result;
+		}
+		User user = (User)getUser();
+		user.setUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT, true);
+		return discordChatAction(channel);
+	}
+
+	/**
+	 * Prueft, ob der Kanal in Discord noch so sichtbar ist wie bei seiner Freigabe. Falls nicht,
+	 * wird das vermerkt - damit ist der Kanal fuer alle gesperrt, bis ein Admin ihn neu freigibt.
+	 */
+	private void pruefeFreigabe(DiscordKonfiguration konfiguration, DiscordKanal kanal)
+	{
+		String signatur = discordService.getRechteSignatur(konfiguration, kanal.getChannelId());
+		if (!signatur.equals(kanal.getFreigabeSignatur()))
+		{
+			kanal.setDiscordSignatur(signatur);
+			throw new DiscordException("Wer diesen Kanal in Discord sehen darf, hat sich geändert. Bis ein Admin ihn erneut freigibt, ist er gesperrt.");
+		}
+	}
+
+	/**
+	 * Webhook-Nachrichten verraten nicht, ob sie aus dem Spiel kommen oder von einer anderen
+	 * Integration. Als aus dem Spiel gesendet gelten nur die beim Senden vermerkten, fuer
+	 * deren Verfasser wird auch die Rollenfarbe nachgetragen.
+	 */
+	private List<DiscordChatMessage> markiereIngameNachrichten(DiscordKonfiguration konfiguration, List<DiscordChatMessage> nachrichten)
+	{
+		List<String> webhookNachrichten = new ArrayList<>();
+		for (DiscordChatMessage nachricht : nachrichten)
+		{
+			if (nachricht.webhook)
+			{
+				webhookNachrichten.add(nachricht.id);
+			}
+		}
+		Map<String, String> verfasser = DiscordNachricht.verfasser(getEM(), webhookNachrichten);
+		if (verfasser.isEmpty())
+		{
+			return nachrichten;
+		}
+		Map<String, String> farben = discordService.getRollenFarben(konfiguration, verfasser.values());
+		List<DiscordChatMessage> result = new ArrayList<>(nachrichten.size());
+		for (DiscordChatMessage nachricht : nachrichten)
+		{
+			String discordUserId = verfasser.get(nachricht.id);
+			result.add(discordUserId != null ? nachricht.alsIngame(farben.get(discordUserId)) : nachricht);
+		}
+		return result;
+	}
+
+	/**
+	 * Sendet eine Nachricht des Spielers in einen Discord-Kanal und gibt danach die neuesten Nachrichten zurueck.
+	 *
+	 * @param channel Die ID des Kanals. Der Spieler muss darin schreiben duerfen.
+	 * @param text Der Text der Nachricht
+	 */
+	@Action(ActionType.AJAX)
+	public DiscordChatViewModel discordSendAction(String channel, String text)
+	{
+		DiscordChatViewModel result = new DiscordChatViewModel();
+		result.channel = channel;
+		if (!isAusDemChat())
+		{
+			result.error = "Ungültige Anfrage.";
+			return result;
+		}
+
+		User user = (User)getUser();
+		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
+		String discordUserId = user.getUserValue(WellKnownUserValue.DISCORD_USER_ID);
+		result.connected = isDiscordVerbunden(konfiguration, user);
+		if (!result.connected)
+		{
+			result.error = "Verbinde deinen Account zuerst in den Einstellungen mit Discord.";
+			return result;
+		}
+		if (!DiscordUser.isVerknuepfungAktuell(user.getUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM)))
+		{
+			result.bestaetigen = true;
+			result.error = "Bitte bestätige die Verknüpfung mit Discord erneut - das ist alle " + DiscordUser.VERKNUEPFUNG_GUELTIG_TAGE + " Tage nötig.";
+			return result;
+		}
+
+		DiscordKanal kanal = DiscordKanal.lesbare(getEM(), konfiguration, user).stream()
+				.filter(k -> k.getChannelId().equals(channel))
+				.findFirst()
+				.orElse(null);
+		if (kanal == null || !kanal.darfSchreiben(user))
+		{
+			result.error = "Du darfst in diesen Kanal nicht schreiben.";
+			return result;
+		}
+
+		try
+		{
+			pruefeFreigabe(konfiguration, kanal);
+			String messageId = discordService.sendMessage(
+					konfiguration,
+					kanal.getChannelId(),
+					discordUserId,
+					text);
+			getEM().persist(new DiscordNachricht(messageId, discordUserId, user.getId()));
+			DiscordNachricht.loeschenAbgelaufene(getEM());
+		}
+		catch (DiscordException e)
+		{
+			result.schreiben = true;
+			result.error = e.getMessage();
+			return result;
+		}
+
+		return discordChatAction(kanal.getChannelId());
+	}
+
+	/**
+	 * Aktionen mit Seiteneffekten nimmt der Chat nur per POST aus dem eigenen Skript an.
+	 * Eine Bild-URL, etwa per <code>[img]</code> in einer PM, kann sie so nicht ausloesen.
+	 */
+	private boolean isAusDemChat()
+	{
+		return getRequest().isPost() && "XMLHttpRequest".equals(getRequest().getHeader("X-Requested-With"));
+	}
+
+	private static boolean isDiscordVerbunden(DiscordKonfiguration konfiguration, User user)
+	{
+		return konfiguration.isLoginEingerichtet() && !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty();
+	}
+
+	private DiscordKanal waehleDiscordKanal(User user, List<DiscordKanal> kanaele, String gewuenscht)
+	{
+		String bevorzugt = gewuenscht != null && !gewuenscht.isEmpty() ? gewuenscht : user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL);
+		return kanaele.stream()
+				.filter(k -> k.getChannelId().equals(bevorzugt))
+				.findFirst()
+				.or(() -> kanaele.stream().filter(DiscordKanal::isStandard).findFirst())
+				.orElse(kanaele.isEmpty() ? null : kanaele.get(0));
+	}
+
+	private static Map<String, String> discordKanalNamen(List<DiscordKanal> kanaele)
+	{
+		Map<String, String> namen = new HashMap<>();
+		for (DiscordKanal kanal : kanaele)
+		{
+			namen.put(kanal.getChannelId(), kanal.getName());
+		}
+		return namen;
+	}
+
+	/**
+	 * Setzt Bereitschaft des Spielers fuer Kampagnentick
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult tickAction()
+	{
+		User user = (User)getUser();
+		user.setTickReady(true);
+		return new RedirectViewResult("default");
+	}
+
+	/**
+	 * Zeigt die Uebersicht an.
+	 */
+	@Action(value = ActionType.DEFAULT, readOnly = true)
+	public TemplateEngine defaultAction()
+	{
+		org.hibernate.Session db = getDB();
+		User user = (User) getUser();
+		TemplateEngine t = templateViewResultFactory.createFor(this);
+		String ticktime = getTickTime();
+
+		String race = "???";
+		var spezies = Races.get().race(user.getRace());
+		if (spezies != null)
+		{
+			race = spezies.getName();
+		}
+
+		int ticks = getContext().get(ContextCommon.class).getTick();
+
+		long[] fullbalance = user.getFullBalance();
+
+
+		t.setVar("user.name", Common._title(user.getName()),
+				"user.race", race,
+				"res.nahrung.image", Cargo.getResourceImage(Resources.NAHRUNG),
+				"res.re.image", Cargo.getResourceImage(Resources.RE),
+				"user.nahrung.new", Common.ln(fullbalance[0]),
+				"user.nahrung.new.plain", fullbalance[0],
+				"user.konto", Common.ln(user.getKonto()),
+				"user.balance", Common.ln(fullbalance[1]),
+				"user.balance.plain", fullbalance[1],
+				//"user.specpoints", user.getFreeSpecializationPoints(),
+				//"user.maxspecpoints", user.getSpecializationPoints(),
+				"global.ticks", ticks,
+				"global.ticktime", ticktime);
+
+		//
+		// Ingame-Zeit setzen
+		//
+
+		String curtime = Common.getIngameTime(ticks);
+
+		t.setVar("time.current", curtime);
+
+		//------------------------------
+		// auf neue Nachrichten checken
+		//------------------------------
+
+		int newCount = MessageRepository.getNewMessageCount(user.getId());
+		t.setVar("user.newmsgs", Common.ln(newCount));
+
+		//------------------------------
+		// Mangel auf Asteroiden checken
+		//------------------------------
+
+		int baseCount = showShortagesOnAsteroids(db, user, t);
+
+		//------------------------------
+		// Mangel auf Schiffen checken
+		//------------------------------
+
+		showShortagesOnShips(db, user, t);
+
+		//------------------------------
+		// Schlachten anzeigen
+		//------------------------------
+
+		showRunningBattles(db, user, t);
+		//------------------------------
+		// Logo anzeigen
+		//------------------------------
+
+		if (user.getAlly() != null)
+		{
+			t.setVar("ally.logo", user.getAlly().getId());
+		}
+
+		//------------------------------
+		// Interaktives Tutorial
+		//------------------------------
+
+		int inttutorial = user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_INTTUTORIAL);
+
+		if (inttutorial != 0)
+		{
+			long shipcount = (Long) db.createQuery("select count(*) from Ship " +
+					"where id>0 and owner= :user")
+					.setEntity("user", user)
+					.iterate().next();
+			showTutorialPages(t, baseCount, shipcount, inttutorial);
+		}
+
+		//------------------------------------
+		// Discord-Chat
+		//------------------------------------
+
+		discordChatAnzeigen(user, t);
+
+		//------------------------------------
+		// Die Box (Bookmarks/Flotten)
+		//------------------------------------
+
+		boolean showBookmarks = BOX_BOOKMARKS.equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_BOX));
+		t.setVar("box.fleets.style", showBookmarks ? "display:none" : "",
+				"box.fleets.aktiv", showBookmarks ? "" : "aktiv",
+				"box.bookmarks.style", showBookmarks ? "" : "display:none",
+				"box.bookmarks.aktiv", showBookmarks ? "aktiv" : "");
+
+		t.setBlock("_UEBER", "bookmarks.listitem", "bookmarks.list");
+		t.setBlock("_UEBER", "fleets.listitem", "fleets.list");
+		t.setVar("bookmarks.list", "",
+				"fleets.list", "");
+
+
+		// Bookmarks zusammenbauen
+		t.setVar("show.bookmarks", 1);
+
+		long start = System.nanoTime();
+		var bookmarks = ShipsRepository.getShipBookmarkViewData(user.getId());
+		long duration = System.nanoTime() - start;
+		log.info("Bookmark loading took: {}ms", TimeUnit.NANOSECONDS.toMillis(duration));
+
+		for (var bookmark : bookmarks)
+		{
+			//ShipTypeData shiptype = bookmark.getTypeData();
+			t.setVar("bookmark.shipid", bookmark.getId(),
+					"bookmark.shipname", bookmark.getName(),
+					"bookmark.location", bookmark.getLocation().displayCoordinates(false),
+					"bookmark.shiptype", bookmark.getTypeName(),
+					"bookmark.description", bookmark.getDestLocation().getSystem() + ":" + bookmark.getDestLocation().getY() + "/" + bookmark.getDestLocation().getY() + "<br />" + bookmark.getDestCom().replace("\r\n", "<br />"));
+			t.parse("bookmarks.list", "bookmarks.listitem", true);
+		}
+		// Flotten zusammenbauen
+		t.setVar("show.fleets", 1);
+		boolean jdocked = false;
+
+		var fleets = ShipsRepository.getFleetsOverviewViewData(user.getId());
+
+		for (var fleet : fleets)
+		{
+			if (!jdocked && fleet.isLandedFleet())
+			{
+				jdocked = true;
+				t.setVar("fleet.jaegerfleet", 1);
+			}
+			else
+			{
+				t.setVar("fleet.jaegerfleet", 0);
+			}
+
+			t.setVar("fleet.shipid", fleet.getFleetShipId(),
+					"fleet.name", fleet.getName(),
+					"fleet.location", fleet.getLocation().displayCoordinates(false),
+					"fleet.shipcount", fleet.getShipCount());
+			t.parse("fleets.list", "fleets.listitem", true);
+		}
+
+		return t;
+	}
+
+	private void discordChatAnzeigen(User user, TemplateEngine t)
+	{
+		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
+		List<DiscordKanal> kanaele = DiscordKanal.lesbare(getEM(), konfiguration, user);
+		DiscordKanal selected = waehleDiscordKanal(user, kanaele, null);
+		boolean connected = isDiscordVerbunden(konfiguration, user);
+		boolean bestaetigen = connected && !DiscordUser.isVerknuepfungAktuell(user.getUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM));
+		String inviteUrl = konfiguration.getSichereInviteUrl();
+
+		t.setVar("discord.chat", selected != null,
+				"discord.connected", connected,
+				"discord.bestaetigen", bestaetigen,
+				"discord.inhalte", user.getUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT),
+				"discord.login", konfiguration.isLoginEingerichtet(),
+				"discord.guild", konfiguration.getGuildId(),
+				"discord.channel", selected != null ? selected.getChannelId() : "",
+				"discord.channel.name", selected != null ? Common.escapeHTML(selected.getName()) : "",
+				"discord.maxlength", DiscordService.MAX_MESSAGE_LENGTH,
+				"discord.inviteurl", inviteUrl != null ? Common.escapeHTML(inviteUrl) : "");
+
+		t.setBlock("_UEBER", "discordchannels.listitem", "discordchannels.list");
+		t.setVar("discordchannels.list", "");
+		for (DiscordKanal kanal : kanaele)
+		{
+			t.setVar("discordchannel.id", kanal.getChannelId(),
+					"discordchannel.name", Common.escapeHTML(kanal.getName()),
+					"discordchannel.aktiv", kanal == selected ? "aktiv" : "",
+					"discordchannel.schreiben", connected && !bestaetigen && kanal.darfSchreiben(user) ? "1" : "0");
+			t.parse("discordchannels.list", "discordchannels.listitem", true);
+		}
+	}
+
+	private void showShortagesOnShips(Session db, User user, TemplateEngine t)
+	{
+		long sw;
+		long shipNoCrew;
+
+		sw = (Long) db.createQuery("select count(*) " +
+				"from Ship " +
+				"where id>0 and owner= :user and (locate('mangel_nahrung',status)!=0 or locate('mangel_reaktor',status)!=0) and locate('nocrew',status)=0")
+				.setEntity("user", user)
+				.iterate().next();
+
+		shipNoCrew = (Long) db.createQuery("select count(*) from Ship as s where s.id>0 and s.owner= :user" +
+				" and ((s.modules is not null and s.crew < (select crew from ShipModules where id=s.modules.id)) or s.crew < (select crew from ShipType where id = s.shiptype.id))")
+				.setEntity("user", user)
+				.iterate().next();
+
+		t.setVar("schiffe.mangel", Common.ln(sw),
+				"schiffe.nocrew", Common.ln(shipNoCrew));
+	}
+
+	private void showRunningBattles(Session db, User user, TemplateEngine t)
+	{
+		// Ab hier beginnt das erste Bier
+		Set<Battle> battles = createListOfRelevantBattles(db, user);
+
+		// Ab hier beginnt das zweite Bier
+		StringBuilder battlelist = new StringBuilder();
+
+		for (Battle battle : battles)
+		{
+			String eparty;
+			String eparty2;
+			if (battle.getAlly(0) == 0)
+			{
+				final User commander1 = battle.getCommander(0);
+				eparty = Common._title(commander1.getName());
+			}
+			else
+			{
+				final Ally ally = (Ally) db.get(Ally.class, battle.getAlly(0));
+				eparty = Common._title(ally.getName());
+			}
+
+			if (battle.getAlly(1) == 0)
+			{
+				final User commander2 = battle.getCommander(1);
+				eparty2 = Common._title(commander2.getName());
+			}
+			else
+			{
+				final Ally ally = (Ally) db.get(Ally.class, battle.getAlly(1));
+				eparty2 = Common._title(ally.getName());
+			}
+
+
+			battlelist.append("<a class=\"error\" href=\"ds?module=angriff&amp;battle=").append(battle.getId()).append("\">Schlacht ").append(eparty).append(" vs ").append(eparty2).append(" bei ").append(battle.getLocation().displayCoordinates(false)).append("</a>&nbsp;");
+
+			// Nahrunganzeige der Schlacht
+			int foodBalance = battle.getNahrungsBalance(user, getEM());
+
+			if (foodBalance < 0)
+			{
+				battlelist.append("<span style=\"color:red\">(").append(Common.ln(foodBalance));
+			}
+			else
+			{
+				battlelist.append("<span style=\"color:green\">(+").append(Common.ln(foodBalance));
+			}
+
+			battlelist.append(" <img src=\"").append(Cargo.getResourceImage(Resources.NAHRUNG)).append("\" alt=\"Nahrung\" title=\"Nahrung\" />)</span>");
+
+			battlelist.append("<br />\n");
+		}
+
+		t.setVar("global.battlelist", battlelist);
+	}
+
+	private Set<Battle> createListOfRelevantBattles(Session db, User user)
+	{
+		Set<Battle> battles = new LinkedHashSet<>();
+
+		Set<UserRank> ownRanks = user.getOwnRanks();
+		Set<User> commanderSet = new LinkedHashSet<>();
+		commanderSet.add(user);
+		for (UserRank ownRank : ownRanks)
+		{
+			if (ownRank.getRank() > 0 && ownRank.getRankGiver().getAlly() != null)
+			{
+				commanderSet.addAll(ownRank.getRankGiver().getAlly().getMembers());
+			}
+		}
+
+		if (!hasPermission(WellKnownPermission.SCHLACHT_LISTE))
+		{
+			// Zwei separate Queries fuer alle Schlachten um einen sehr unvorteilhaften Join zu vermeiden
+			String query = "from Battle " +
+					"where commander1 in (:commanders) or commander2 in (:commanders) ";
+
+			//hat der Benutzer eine ally, dann haeng das hier an
+			if (user.getAlly() != null)
+			{
+				query += " or ally1 = :ally or ally2 = :ally";
+			}
+			// ach haengen wir mal den quest kram dran
+			if (user.hasFlag(UserFlag.QUEST_BATTLES))
+			{
+				query += " or quest is not null";
+			}
+
+			Query battleQuery = db.createQuery(query)
+					.setParameterList("commanders", commanderSet);
+
+			if (user.getAlly() != null)
+			{
+				battleQuery = battleQuery.setInteger("ally", user.getAlly().getId());
+			}
+
+			battles.addAll(Common.cast(battleQuery.list(), Battle.class));
+
+			battles.addAll(Common.cast(
+					db.createQuery("select distinct battle from Ship where battle is not null and owner=:user")
+							.setEntity("user", user)
+							.list(),
+					Battle.class));
+		}
+		// Bei entsprechendem AccessLevel/Flag alle Schlachten anzeigen
+		else
+		{
+			battles.addAll(Common.cast(db.createQuery("from Battle").list(), Battle.class));
+		}
+		return battles;
+	}
+
+	private int showShortagesOnAsteroids(Session db, User user, TemplateEngine t)
+	{
+		int bw = 0;
+		int bases = 0;
+
+		List<Base> ownBases = db.createQuery("from Base b left join fetch b.core where owner= :user order by b.id")
+				.setEntity("user", user)
+				.list();
+
+		for (Base base : ownBases)
+		{
+			bases++;
+
+			BaseStatus basedata = Base.getStatus(base);
+
+			Cargo cargo = new Cargo(base.getCargo());
+			cargo.addResource(Resources.RE, user.getKonto().longValue());
+
+			boolean shortage = false;
+
+			ResourceList reslist = basedata.getProduction().getResourceList();
+			for (ResourceEntry res : reslist)
+			{
+				if ((res.getCount1() < 0) && (-(cargo.getResourceCount(res.getId()) / res.getCount1()) <= 9))
+				{
+					shortage = true;
+					break;
+				}
+			}
+
+			if (basedata.getEnergy() < 0 && base.getEnergy() / -basedata.getEnergy() <= 9)
+			{
+				shortage = true;
+			}
+
+			if (shortage)
+			{
+				bw++;
+			}
+		}
+
+		t.setVar("astis.mangel", bw);
+		return bases;
+	}
+
+	private String getTickTime()
+	{
+		String ticktime = "";
+
+		// Letzten Tick ermitteln (Zeitpunkt)
+        try (BufferedReader bf = new BufferedReader(new FileReader(Configuration.getLogPath() + "ticktime.log")))
+        {
+            ticktime = bf.readLine();
+        }
+		catch (IOException e)
+		{
+			log.warn("Es konnte nicht auf die Datei ticktime.log zugegriffen werden: "+e.getMessage());
+		}
+
+		if (ticktime == null)
+		{
+			ticktime = "";
+		}
+		return ticktime;
+	}
+
+	private void showTutorialPages(TemplateEngine t, int bases, long shipcount, int inttutorial)
+	{
+		org.hibernate.Session db = getDB();
+		User user = (User) getUser();
+
+		boolean reqname = !"Kolonist".equals(user.getName());
+		boolean reqship = shipcount > 0;
+		boolean reqbase = bases > 0;
+
+		if (!reqship)
+		{
+			reqbase = true;
+		}
+
+		if (!reqname)
+		{
+			reqship = true;
+			reqbase = true;
+		}
+
+		IntTutorial sheet = (IntTutorial) db.createQuery("from IntTutorial where id= :id and reqName= :reqname and reqBase= :reqbase and reqShip= :reqship")
+				.setInteger("id", inttutorial)
+				.setBoolean("reqname", reqname)
+				.setBoolean("reqbase", reqbase)
+				.setBoolean("reqship", reqship)
+				.uniqueResult();
+
+		// Ist die aktuelle Tutorialseite veraltet?
+		if ((sheet == null) || (sheet.getId() != inttutorial))
+		{
+			sheet = (IntTutorial) db.createQuery("from IntTutorial where reqName= :reqname and reqBase= :reqbase and reqShip= :reqship order by id")
+					.setBoolean("reqname", reqname)
+					.setBoolean("reqbase", reqbase)
+					.setBoolean("reqship", reqship)
+					.setMaxResults(1)
+					.uniqueResult();
+
+			if (sheet == null)
+			{
+				user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_INTTUTORIAL, 0);
+				return;
+			}
+
+			// Neue Tutorialseite speichern
+			inttutorial = sheet.getId();
+			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_INTTUTORIAL, inttutorial);
+		}
+
+		// Existiert eine Nachfolgerseite?
+		IntTutorial nextsheet = (IntTutorial) db.createQuery("from IntTutorial where benoetigteSeite= :reqsheet and reqName= :reqname and reqBase= :reqbase and reqShip= :reqship")
+				.setEntity("reqsheet", sheet)
+				.setBoolean("reqname", reqname)
+				.setBoolean("reqbase", reqbase)
+				.setBoolean("reqship", reqship)
+				.setMaxResults(1)
+				.uniqueResult();
+
+		// Kann das Tutorial jetzt beendet werden?
+		if ((nextsheet == null) && reqname && reqship && reqbase)
+		{
+			t.setVar("sheet.endtutorial", 1);
+		}
+		else if (nextsheet != null)
+		{
+			t.setVar("sheet.nextsheet", 1);
+		}
+
+		t.setVar("interactivetutorial.show", 1,
+				"sheet.headpic", sheet.getHeadImg(),
+				"sheet.text", Common._text(sheet.getText()));
+	}
+
+}

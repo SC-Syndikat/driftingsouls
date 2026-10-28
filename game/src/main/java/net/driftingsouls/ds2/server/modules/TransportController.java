@@ -150,12 +150,12 @@ public class TransportController extends Controller
 				{
 					if (list.size() == 0)
 					{
-						throw new ValidierungException("Es wurde kein Schiff angegeben, zu dem die Flotte ausgewaehlt werden soll");
+						throw new ValidationException("Es wurde kein Schiff angegeben, zu dem die Flotte ausgewaehlt werden soll");
 					}
 					ShipTransportTarget handler = (ShipTransportTarget) list.remove(list.size() - 1);
 					if (handler.getFleet() == null)
 					{
-						throw new ValidierungException("Das angegebene Schiff befindet sich in keiner Flotte");
+						throw new ValidationException("Das angegebene Schiff befindet sich in keiner Flotte");
 					}
 
 					Session db = ContextMap.getContext().getDB();
@@ -180,7 +180,7 @@ public class TransportController extends Controller
 				{
 					if (!NumberUtils.isDigits(aFromlist))
 					{
-						throw new ValidierungException("Es wurde kein Schiff angegeben");
+						throw new ValidationException("Es wurde kein Schiff angegeben");
 					}
 					ShipTransportTarget handler = new ShipTransportTarget();
 					handler.create(role, Integer.parseInt(aFromlist));
@@ -361,14 +361,14 @@ public class TransportController extends Controller
 		{
 			if ((ship == null) || (ship.getId() < 0))
 			{
-				throw new ValidierungException("Eines der angegebenen Schiffe existiert nicht");
+				throw new ValidationException("Eines der angegebenen Schiffe existiert nicht");
 			}
 
 			super.create(role, ship.getId());
 
 			if (ship.getBattle() != null)
 			{
-				throw new ValidierungException("Das Schiff (id:" + ship.getId() + ") ist in einen Kampf verwickelt");
+				throw new ValidationException("Das Schiff (id:" + ship.getId() + ") ist in einen Kampf verwickelt");
 			}
 
 			if (role == ROLE_TARGET)
@@ -376,7 +376,7 @@ public class TransportController extends Controller
 				User user = (User) ContextMap.getContext().getActiveUser();
 				if ((ship.getStatus().contains("disable_iff")) && (ship.getOwner() != user))
 				{
-					throw new ValidierungException("Zu dem angegebenen Schiff (id:" + ship.getId() + ") k&ouml;nnen sie keine Waren transportieren");
+					throw new ValidationException("Zu dem angegebenen Schiff (id:" + ship.getId() + ") k&ouml;nnen sie keine Waren transportieren");
 				}
 			}
 
@@ -384,7 +384,7 @@ public class TransportController extends Controller
 
 			if (tmptype.hasFlag(ShipTypeFlag.KEIN_TRANSFER))
 			{
-				throw new ValidierungException("Sie k&ouml;nnen keine Waren zu oder von diesem Schiff (id:" + ship.getId() + ") transferieren");
+				throw new ValidationException("Sie k&ouml;nnen keine Waren zu oder von diesem Schiff (id:" + ship.getId() + ") transferieren");
 			}
 
 			setOwner(ship.getOwner().getId());
@@ -478,7 +478,7 @@ public class TransportController extends Controller
 
 			if (base == null)
 			{
-				throw new ValidierungException("Die angegebene Basis (id:" + baseid + ") existiert nicht");
+				throw new ValidationException("Die angegebene Basis (id:" + baseid + ") existiert nicht");
 			}
 
 			setOwner(base.getOwner().getId());
@@ -540,11 +540,11 @@ public class TransportController extends Controller
 		wayhandler.put("b", new BaseTransportFactory());
 	}
 
-	private void validiereWarenKoennenZwischenQuelleUndZielTransferiertWerden(List<TransportTarget> from, List<TransportTarget> to, String fromKey, String toKey)
+	private void validateGoodsCanBeTransferredBetweenSourceAndTarget(List<TransportTarget> from, List<TransportTarget> to, String fromKey, String toKey)
 	{
 		if ((from.size() == 0) || (to.size() == 0))
 		{
-			throw new ValidierungException("Sie muessen mindestens ein Quell- und ein Zielobjekt angeben");
+			throw new ValidationException("Sie muessen mindestens ein Quell- und ein Zielobjekt angeben");
 		}
 
 		/*
@@ -558,7 +558,7 @@ public class TransportController extends Controller
 				{
 					if (aTo.getId() == afrom.getId())
 					{
-						throw new ValidierungException("Sie können keine Waren zu sich selbst transportieren");
+						throw new ValidationException("Sie können keine Waren zu sich selbst transportieren");
 					}
 				}
 			}
@@ -572,11 +572,11 @@ public class TransportController extends Controller
 		Location toLoc = to.get(0).getLocation();
 		if (!fromLoc.sameSector(from.get(0).getSize(), toLoc, to.get(0).getSize()))
 		{
-			throw new ValidierungException("Die angegebenen Objekte befinden sich nicht im selben Sektor");
+			throw new ValidationException("Die angegebenen Objekte befinden sich nicht im selben Sektor");
 		}
 	}
 
-	private List<TransportTarget> parseListeDerTransportZiele(String key, String toString)
+	private List<TransportTarget> parseTransportTargetList(String key, String toString)
 	{
 		List<TransportTarget> to;
 		if (wayhandler.containsKey(key))
@@ -585,14 +585,14 @@ public class TransportController extends Controller
 		}
 		else
 		{
-			throw new ValidierungException("Ungültiges Transportziel", "./ds?module=ueber");
+			throw new ValidationException("Ungültiges Transportziel", "./ds?module=ueber");
 		}
 
-		validiereAlleTransportZieleImSelbenSektor(to);
+		validateAllTransportTargetsInSameSector(to);
 		return to;
 	}
 
-	private List<TransportTarget> parseListeDerTransportQuellen(String key, String fromString)
+	private List<TransportTarget> parseTransportSourceList(String key, String fromString)
 	{
 		List<TransportTarget> from;
 		if (wayhandler.containsKey(key))
@@ -601,35 +601,35 @@ public class TransportController extends Controller
 		}
 		else
 		{
-			throw new ValidierungException("Ungültige Transportquelle", "./ds?module=ueber");
+			throw new ValidationException("Ungültige Transportquelle", "./ds?module=ueber");
 		}
 
-		validiereAlleTransportZieleGehoerenDenSpieler(from);
+		validateAllTransportTargetsBelongToUser(from);
 
-		validiereAlleTransportZieleImSelbenSektor(from);
+		validateAllTransportTargetsInSameSector(from);
 
 		return from;
 	}
 
-	private void validiereAlleTransportZieleGehoerenDenSpieler(List<TransportTarget> from)
+	private void validateAllTransportTargetsBelongToUser(List<TransportTarget> from)
 	{
 		for (TransportTarget afrom : from)
 		{
 			if (afrom.getOwner() != getUser().getId())
 			{
-				throw new ValidierungException("Das Schiff gehört ihnen nicht", Common.buildUrl("default", "module", "ueber"));
+				throw new ValidationException("Das Schiff gehört ihnen nicht", Common.buildUrl("default", "module", "ueber"));
 			}
 		}
 	}
 
-	private void validiereAlleTransportZieleImSelbenSektor(List<TransportTarget> to)
+	private void validateAllTransportTargetsInSameSector(List<TransportTarget> to)
 	{
 		Location toLoc = to.get(0).getLocation();
 		for (int i = 1; i < to.size(); i++)
 		{
 			if (!toLoc.sameSector(to.get(0).getSize(), to.get(i).getLocation(), to.get(i).getSize()))
 			{
-				throw new ValidierungException("Die angegebenen Objekte befinden sich nicht im selben Sektor");
+				throw new ValidationException("Die angegebenen Objekte befinden sich nicht im selben Sektor");
 			}
 		}
 	}
@@ -735,9 +735,9 @@ public class TransportController extends Controller
 		String[] way = StringUtils.split(rawWay, "to");
 
 
-		List<TransportTarget> from = parseListeDerTransportQuellen(way[0], fromString);
-		List<TransportTarget> to = parseListeDerTransportZiele(way[1], toString);
-		validiereWarenKoennenZwischenQuelleUndZielTransferiertWerden(from, to, way[0], way[1]);
+		List<TransportTarget> from = parseTransportSourceList(way[0], fromString);
+		List<TransportTarget> to = parseTransportTargetList(way[1], toString);
+		validateGoodsCanBeTransferredBetweenSourceAndTarget(from, to, way[0], way[1]);
 
 		StringBuilder message = new StringBuilder();
 		var db = getEM();
@@ -955,9 +955,9 @@ public class TransportController extends Controller
 	{
 		String[] way = StringUtils.split(rawWay, "to");
 
-		List<TransportTarget> from = parseListeDerTransportQuellen(way[0], fromString);
-		List<TransportTarget> to = parseListeDerTransportZiele(way[1], toString);
-		validiereWarenKoennenZwischenQuelleUndZielTransferiertWerden(from, to, way[0], way[1]);
+		List<TransportTarget> from = parseTransportSourceList(way[0], fromString);
+		List<TransportTarget> to = parseTransportTargetList(way[1], toString);
+		validateGoodsCanBeTransferredBetweenSourceAndTarget(from, to, way[0], way[1]);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 
@@ -971,22 +971,22 @@ public class TransportController extends Controller
 				"target.isbase", way[1].equals("b"));
 
 		// Die Quelle(n) ausgeben
-		transportQuelleAnzeigen(fromString, t, from);
+		showTransportSource(fromString, t, from);
 
 		// Das Ziel / die Ziele ausgeben
-		transportZielAnzeigen(toString, t, to);
+		showTransportTarget(toString, t, to);
 
 		// Transfermodi ausgeben
-		transportModusAnzeigen(fromString, toString, t, from, to);
+		showTransportMode(fromString, toString, t, from, to);
 
 
 		// Soll der Zielcargo gezeigt werden?
-		gegenstandsListeAnzeigen(t, from, to);
+		showItemList(t, from, to);
 
 		return t;
 	}
 
-	private void gegenstandsListeAnzeigen(TemplateEngine t, List<TransportTarget> from, List<TransportTarget> to)
+	private void showItemList(TemplateEngine t, List<TransportTarget> from, List<TransportTarget> to)
 	{
 		t.setBlock("_TRANSPORT", "res.listitem", "res.list");
 
@@ -1052,7 +1052,7 @@ public class TransportController extends Controller
 		}
 	}
 
-	private void transportModusAnzeigen(String rawFrom, String rawTo, TemplateEngine t, List<TransportTarget> from, List<TransportTarget> to)
+	private void showTransportMode(String rawFrom, String rawTo, TemplateEngine t, List<TransportTarget> from, List<TransportTarget> to)
 	{
 		t.setBlock("_TRANSPORT", "transfermode.listitem", "transfermode.list");
 		if ((to.size() > 1) || (from.size() > 1) || (to.get(0).getMultiTarget() != null) ||
@@ -1134,7 +1134,7 @@ public class TransportController extends Controller
 		}
 	}
 
-	private void transportZielAnzeigen(String rawTo, TemplateEngine t, List<TransportTarget> to)
+	private void showTransportTarget(String rawTo, TemplateEngine t, List<TransportTarget> to)
 	{
 		t.setBlock("_TRANSPORT", "target.targets.listitem", "target.targets.list");
 
@@ -1180,7 +1180,7 @@ public class TransportController extends Controller
 		}
 	}
 
-	private void transportQuelleAnzeigen(String rawFrom, TemplateEngine t, List<TransportTarget> from)
+	private void showTransportSource(String rawFrom, TemplateEngine t, List<TransportTarget> from)
 	{
 		t.setBlock("_TRANSPORT", "source.sources.listitem", "source.sources.list");
 

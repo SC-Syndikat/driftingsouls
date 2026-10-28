@@ -20,7 +20,7 @@ package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.Building;
-import net.driftingsouls.ds2.server.config.Rassen;
+import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.entities.Rasse;
 import net.driftingsouls.ds2.server.framework.DynamicContentManager;
 
@@ -42,7 +42,7 @@ public class EditBuildingPicture extends AbstractEditPlugin<Building> implements
 
 	@Override
 	protected void reset(StatusWriter writer, Building building) {
-		for( Rasse rasse : Rassen.get() )
+		for( Rasse rasse : Races.get() )
 		{
 			if( isResetted("rasse"+rasse.getId()) )
 			{
@@ -60,7 +60,7 @@ public class EditBuildingPicture extends AbstractEditPlugin<Building> implements
 	@Override
 	protected void update(StatusWriter writer, Building building) throws IOException
 	{
-		Map<Integer,String> altBilder = building.getAlternativeBilder();
+		Map<Integer,String> alternativePictures = building.getAlternativeBilder();
 
 		String buildingImg = processDynamicContent("picture", building.getDefaultPicture());
 		if( buildingImg != null )
@@ -72,13 +72,13 @@ public class EditBuildingPicture extends AbstractEditPlugin<Building> implements
 				DynamicContentManager.remove(oldImg);
 			}
 		}
-		for( Rasse rasse : Rassen.get() )
+		for( Rasse rasse : Races.get() )
 		{
-			String rasseImg = processDynamicContent("rasse"+rasse.getId(), altBilder.get(rasse.getId()));
-			if( rasseImg != null )
+			String raceImage = processDynamicContent("rasse"+rasse.getId(), alternativePictures.get(rasse.getId()));
+			if( raceImage != null )
 			{
-				String curPicture = altBilder.get(rasse.getId());
-				altBilder.put(rasse.getId(), "data/dynamicContent/"+rasseImg);
+				String curPicture = alternativePictures.get(rasse.getId());
+				alternativePictures.put(rasse.getId(), "data/dynamicContent/"+raceImage);
 				if( curPicture != null && curPicture.startsWith("data/dynamicContent/"))
 				{
 					DynamicContentManager.remove(curPicture);
@@ -93,10 +93,10 @@ public class EditBuildingPicture extends AbstractEditPlugin<Building> implements
 		form.label("Name", building.getName());
 		form.dynamicContentField("Bild", "picture", building.getDefaultPicture());
 
-		Map<Integer,String> altBilder = building.getAlternativeBilder();
-		for( Rasse rasse : Rassen.get() )
+		Map<Integer,String> alternativePictures = building.getAlternativeBilder();
+		for( Rasse rasse : Races.get() )
 		{
-			form.dynamicContentField(rasse.getName(), "rasse" + rasse.getId(), altBilder.get(rasse.getId())).withRemove();
+			form.dynamicContentField(rasse.getName(), "rasse" + rasse.getId(), alternativePictures.get(rasse.getId())).withRemove();
 		}
 	}
 }

@@ -33,7 +33,7 @@ import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.ships.*;
-import net.driftingsouls.ds2.server.werften.ShipWerft;
+import net.driftingsouls.ds2.server.shipyards.ShipWerft;
 
 import java.io.IOException;
 import java.util.*;
@@ -176,11 +176,11 @@ public class AddShips implements AdminPlugin {
 			echo.append("<td class=\"noBorderX\">\n");
 			echo.append("<select name=\"jaeger\" size=\"1\" onchange=\"Admin_AddShips.jaegerSelectChange(this.options[this.options.selectedIndex].value)\">\n");
 			echo.append("<option id=\"0\">[Nichts]</option>\n");
-			final Iterator<?> jaegerIter = db.createQuery("from ShipType where locate(:jaeger, flags)!=0")
+			final Iterator<?> fighterTypeIter = db.createQuery("from ShipType where locate(:jaeger, flags)!=0")
 				.setString("jaeger", ShipTypeFlag.JAEGER.getFlag())
 				.iterate();
-			while( jaegerIter.hasNext() ) {
-				ShipType st = (ShipType)jaegerIter.next();
+			while( fighterTypeIter.hasNext() ) {
+				ShipType st = (ShipType)fighterTypeIter.next();
 				echo.append("<option value=\"").append(st.getId()).append("\">").append(Common._plaintitle(st.getNickname())).append(" (").append(st.getId()).append(")</option>\n");
 			}
 			echo.append("</select>\n");
@@ -243,9 +243,9 @@ public class AddShips implements AdminPlugin {
 			int x = context.getRequest().getParameterInt("x");
 			int y = context.getRequest().getParameterInt("y");
 			String name = context.getRequest().getParameterString("name");
-			int offitype = context.getRequest().getParameterInt("offitype");
-			String offiname = context.getRequest().getParameterString("offiname");
-			final int jaegerTypeId = context.getRequest().getParameterInt("jaeger");
+			int officerType = context.getRequest().getParameterInt("offitype");
+			String officerName = context.getRequest().getParameterString("offiname");
+			final int fighterTypeId = context.getRequest().getParameterInt("jaeger");
 			int inteliid = context.getRequest().getParameterInt("inteliid");
 			int lowid = context.getRequest().getParameterInt("lowid");
 			int jlowid = context.getRequest().getParameterInt("jlowid");
@@ -312,12 +312,12 @@ public class AddShips implements AdminPlugin {
 				echo.append("<a href='ds?module=schiff&action=default&ship=").append(ship.getId()).append("'>Schiff (").append(ship.getId()).append(")</a> hinzugef&uuml;gt<br />");
 
 				// Offizier einfuegen
-				if( (offitype > 0) && (offiname.length() > 0) &&
+				if( (officerType > 0) && (officerName.length() > 0) &&
 						((ship.getTypeData().getSize() > ShipType.SMALL_SHIP_MAXSIZE) ||
 								ship.getTypeData().getShipClass() == ShipClasses.RETTUNGSKAPSEL) ) {
-					OrderableOffizier offi = (OrderableOffizier)db.get(OrderableOffizier.class, offitype);
+					OrderableOffizier offi = (OrderableOffizier)db.get(OrderableOffizier.class, officerType);
 					if( offi != null ) {
-						Offizier offizier = new Offizier(auser, offiname);
+						Offizier offizier = new Offizier(auser, officerName);
 						offizier.setRang(offi.getRang());
 						offizier.setAbility(Offizier.Ability.ING, offi.getIng());
 						offizier.setAbility(Offizier.Ability.WAF, offi.getWaf());
@@ -328,16 +328,16 @@ public class AddShips implements AdminPlugin {
 						offizier.setSpecial(Offizier.Special.values()[ThreadLocalRandom.current().nextInt(Offizier.Special.values().length)]);
 						db.persist(offizier);
 
-						echo.append("Offizier '").append(offiname).append("' hinzugef&uuml;gt<br />\n");
+						echo.append("Offizier '").append(officerName).append("' hinzugef&uuml;gt<br />\n");
 					}
 				}
 
 				ship.recalculateShipStatus();
 
 				// Jaeger einfuegen
-				if( (jaegerTypeId > 0) && (shiptype.getJDocks()>0) ) {
+				if( (fighterTypeId > 0) && (shiptype.getJDocks()>0) ) {
 					echo.append("F&uuml;ge J&auml;ger ein:<br />\n");
-					ShipType jshiptype = (ShipType)db.get(ShipType.class, jaegerTypeId);
+					ShipType jshiptype = (ShipType)db.get(ShipType.class, fighterTypeId);
 
 					ShipFleet fleet = new ShipFleet(name+"-Staffel");
 					db.persist(fleet);
@@ -362,22 +362,22 @@ public class AddShips implements AdminPlugin {
 					for( int j=1; j <= shiptype.getJDocks(); j++ ) {
 						history = "Indienststellung am "+currentTime+" durch "+auser.getName()+" ("+auser.getId()+") [hide]Admin: "+user.getId()+"[/hide]";
 
-						Ship jaeger = new Ship(auser, jshiptype, system, x, y);
-						jaeger.getHistory().addHistory(history);
+						Ship fighter = new Ship(auser, jshiptype, system, x, y);
+						fighter.getHistory().addHistory(history);
 
-						jaeger.setName(name+" "+j);
-						jaeger.setHull(jshiptype.getHull());
-						jaeger.setEnergy(jshiptype.getEps());
-						jaeger.setCrew(jshiptype.getCrew());
-						jaeger.setShields(jshiptype.getShields());
-						jaeger.setDocked("l "+ship.getId());
-						jaeger.setFleet(fleet);
-						jaeger.setCargo(jcargo);
-						jaeger.setAblativeArmor(jshiptype.getAblativeArmor());
-						jaeger.setEngine(100);
-						jaeger.setWeapons(100);
-						jaeger.setComm(100);
-						jaeger.setSensors(100);
+						fighter.setName(name+" "+j);
+						fighter.setHull(jshiptype.getHull());
+						fighter.setEnergy(jshiptype.getEps());
+						fighter.setCrew(jshiptype.getCrew());
+						fighter.setShields(jshiptype.getShields());
+						fighter.setDocked("l "+ship.getId());
+						fighter.setFleet(fleet);
+						fighter.setCargo(jcargo);
+						fighter.setAblativeArmor(jshiptype.getAblativeArmor());
+						fighter.setEngine(100);
+						fighter.setWeapons(100);
+						fighter.setComm(100);
+						fighter.setSensors(100);
 
 						// Jaeger erstellen
 						if( inteliid != 0 ) {
@@ -386,13 +386,13 @@ public class AddShips implements AdminPlugin {
 								shouldId = 1;
 							}
 
-							jaeger.setId(shouldId);
+							fighter.setId(shouldId);
 						}
-						db.save(jaeger);
+						db.save(fighter);
 
-						jaeger.recalculateShipStatus();
+						fighter.recalculateShipStatus();
 
-						echo.append("J&auml;ger (").append(jaeger.getId()).append(") hinzugef&uuml;gt<br />");
+						echo.append("J&auml;ger (").append(fighter.getId()).append(") hinzugef&uuml;gt<br />");
 					} // For jdocks
 				} // if Jaeger
 

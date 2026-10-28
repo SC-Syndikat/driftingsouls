@@ -31,9 +31,9 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.*;
 import net.driftingsouls.ds2.server.framework.templates.TemplateEngine;
 import net.driftingsouls.ds2.server.framework.templates.TemplateViewResultFactory;
 import net.driftingsouls.ds2.server.ships.*;
-import net.driftingsouls.ds2.server.werften.SchiffBauinformationen;
-import net.driftingsouls.ds2.server.werften.ShipWerft;
-import net.driftingsouls.ds2.server.werften.WerftObject;
+import net.driftingsouls.ds2.server.shipyards.ShipBuildInformation;
+import net.driftingsouls.ds2.server.shipyards.ShipWerft;
+import net.driftingsouls.ds2.server.shipyards.WerftObject;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -55,7 +55,7 @@ public class FleetMgntController extends Controller
 		this.templateViewResultFactory = templateViewResultFactory;
 	}
 
-	private int ermittleIdEinesGeeignetenSchiffsDerFlotte(ShipFleet fleet)
+	private int determineSuitableShipIdOfFleet(ShipFleet fleet)
 	{
 		User user = (User)getUser();
 		org.hibernate.Session db = getDB();
@@ -75,18 +75,18 @@ public class FleetMgntController extends Controller
 			}
 			else
 			{
-				throw new ValidierungException("Die angegebene Flotte ist ungültig.");
+				throw new ValidationException("Die angegebene Flotte ist ungültig.");
 			}
 		}
 
 		return shipid;
 	}
 
-	private void validiereGueltigeFlotteVorhanden(ShipFleet fleet)
+	private void validateFleetExists(ShipFleet fleet)
 	{
 		if (fleet == null)
 		{
-			throw new ValidierungException("Die angegebene Flotte existiert nicht.");
+			throw new ValidationException("Die angegebene Flotte existiert nicht.");
 		}
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -97,7 +97,7 @@ public class FleetMgntController extends Controller
 
 		if (user.getId() != owner.getId())
 		{
-			throw new ValidierungException("Diese Flotte gehört einem anderen Spieler.");
+			throw new ValidationException("Diese Flotte gehört einem anderen Spieler.");
 		}
 
 		// Falls sich doch ein Schiff eines anderen Spielers eingeschlichen hat
@@ -199,7 +199,7 @@ public class FleetMgntController extends Controller
 
 		if (shiplist.length() == 0)
 		{
-			throw new ValidierungException("Sie haben keine Schiffe angegeben.");
+			throw new ValidationException("Sie haben keine Schiffe angegeben.");
 		}
 
 		if (shiplist.charAt(0) != 'g')
@@ -207,7 +207,7 @@ public class FleetMgntController extends Controller
 			shiplistInt = Common.explodeToInteger("|", shiplist);
 			if (shiplistInt.length == 0)
 			{
-				throw new ValidierungException("Sie haben keine Schiffe angegeben.");
+				throw new ValidationException("Sie haben keine Schiffe angegeben.");
 			}
 
 			boolean nonEmpty = db.createQuery("from Ship where id in (:shipIds) and (owner!=:user or id < 0)")
@@ -216,7 +216,7 @@ public class FleetMgntController extends Controller
 					.iterate().hasNext();
 			if (nonEmpty)
 			{
-				throw new ValidierungException("Alle Schiffe müssen Ihrem Kommando unterstehen.");
+				throw new ValidationException("Alle Schiffe müssen Ihrem Kommando unterstehen.");
 			}
 		}
 		else
@@ -228,7 +228,7 @@ public class FleetMgntController extends Controller
 			Ship sectorShip = (Ship) db.get(Ship.class, sector);
 			if ((sectorShip == null) || (sectorShip.getOwner() != user) || (sectorShip.getId() < 0))
 			{
-				throw new ValidierungException("Das Schiff untersteht nicht Ihrem Kommando.");
+				throw new ValidationException("Das Schiff untersteht nicht Ihrem Kommando.");
 			}
 
 			List<Ship> ships = Common.cast(db.createQuery("from Ship where id>0 and owner=:owner and system=:sys and x=:x and y=:y and shiptype=:type and docked='' order by fleet.id,id asc")
@@ -281,7 +281,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine addFromSRSGroupAction(ShipFleet fleet, @UrlParam(name = "sector") Ship sectorShip, int type, int count)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 		User user = (User) getUser();
@@ -342,7 +342,7 @@ public class FleetMgntController extends Controller
 			s.setFleet(fleet);
 		}
 
-		int shipid = ermittleIdEinesGeeignetenSchiffsDerFlotte(fleet);
+		int shipid = determineSuitableShipIdOfFleet(fleet);
 
 		t.setVar("jscript.reloadmain.ship", shipid);
 		t.setVar("fleetmgnt.message", count + " Schiffe der Flotte hinzugefügt.",
@@ -357,7 +357,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine renameAction(ShipFleet fleet, RedirectViewResult redirect)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 
@@ -379,7 +379,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult rename2Action(ShipFleet fleet, String fleetname)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		if (fleetname.length() > 0)
 		{
@@ -399,7 +399,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine killAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 
@@ -417,12 +417,12 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine kill2Action(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 		org.hibernate.Session db = getDB();
 
-		int shipid = ermittleIdEinesGeeignetenSchiffsDerFlotte(fleet);
+		int shipid = determineSuitableShipIdOfFleet(fleet);
 
 		db.createQuery("update Ship set fleet=null where fleet=:fleet")
 				.setEntity("fleet", fleet)
@@ -443,7 +443,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine newownerAction(ShipFleet fleet, RedirectViewResult redirect)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 
@@ -464,7 +464,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public Object newowner2Action(ShipFleet fleet, @UrlParam(name = "ownerid") User newowner)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		if (newowner != null)
 		{
@@ -494,7 +494,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public Object newowner3Action(ShipFleet fleet, @UrlParam(name = "ownerid") User newowner)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		User user = (User) this.getUser();
 		org.hibernate.Session db = getDB();
@@ -541,7 +541,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult shupAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		org.hibernate.Session db = getDB();
 
@@ -579,99 +579,12 @@ public class FleetMgntController extends Controller
 	}
 
 	/**
-	 * Entlaedt die Batterien auf den Schiffen der Flotte, um die EPS wieder aufzuladen.
-	 */
-/*	@Action(ActionType.DEFAULT)
-	public RedirectViewResult dischargeBatteriesAction(ShipFleet fleet)
-	{
-		validiereGueltigeFlotteVorhanden(fleet);
-
-		org.hibernate.Session db = getDB();
-
-		StringBuilder message = new StringBuilder(100);
-
-		List<?> ships = db.createQuery("select s from Ship as s left join s.modules m " +
-				"where s.fleet=:fleet and (s.e < s.shiptype.eps or (s.e < m.eps)) and s.battle is null")
-				.setEntity("fleet", fleet)
-				.list();
-		for (Object ship : ships)
-		{
-			Ship s = (Ship) ship;
-			ShipTypeData stype = s.getTypeData();
-
-			if (s.getEnergy() >= stype.getEps())
-			{
-				continue;
-			}
-
-			Cargo cargo = s.getCargo();
-
-			long unload = stype.getEps() - s.getEnergy();
-			if (unload > cargo.getResourceCount(Resources.BATTERIEN))
-			{
-				unload = cargo.getResourceCount(Resources.BATTERIEN);
-
-				message.append(s.getName()).append(" (").append(s.getId()).append(") - <span style=\"color:orange\">Energie bei ").append(Math.round((s.getEnergy() + unload) / (double) stype.getEps() * 100)).append("%</span><br />");
-			}
-			cargo.substractResource(Resources.BATTERIEN, unload);
-			cargo.addResource(Resources.LBATTERIEN, unload);
-
-			s.setEnergy((int) (s.getEnergy() + unload));
-			s.setCargo(cargo);
-		}
-
-		return new RedirectViewResult("default").withMessage(message + "Batterien wurden entladen");
-	}*/
-
-	/**
-	 * Laedt die Batterien auf den Schiffen der Flotte auf.
-	 */
-	/*@Action(ActionType.DEFAULT)
-	public RedirectViewResult chargeBatteriesAction(ShipFleet fleet)
-	{
-		validiereGueltigeFlotteVorhanden(fleet);
-
-		org.hibernate.Session db = getDB();
-
-		StringBuilder message = new StringBuilder(100);
-
-		List<?> ships = db.createQuery("from Ship as s WHERE s.fleet=:fleet and s.battle is null")
-				.setEntity("fleet", fleet)
-				.list();
-		for (Object ship : ships)
-		{
-			Ship s = (Ship) ship;
-
-			Cargo cargo = new Cargo(s.getCargo());
-			if (!cargo.hasResource(Resources.LBATTERIEN))
-			{
-				continue;
-			}
-
-			long load = cargo.getResourceCount(Resources.LBATTERIEN);
-			if (load > s.getEnergy())
-			{
-				load = s.getEnergy();
-
-				message.append(s.getName()).append(" (").append(s.getId()).append(") - <span style=\"color:orange\">").append(load).append("/").append(cargo.getResourceCount(Resources.LBATTERIEN)).append(" Batterien aufgeladen</span><br />");
-			}
-			cargo.substractResource(Resources.LBATTERIEN, load);
-			cargo.addResource(Resources.BATTERIEN, load);
-
-			s.setEnergy((int) (s.getEnergy() - load));
-			s.setCargo(cargo);
-		}
-
-		return new RedirectViewResult("default").withMessage(message + "Batterien wurden aufgeladen");
-	}*/
-
-	/**
 	 * Exportiert die Schiffsliste der Flotte.
 	 */
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine exportAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 		org.hibernate.Session db = getDB();
@@ -705,7 +618,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult undockAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		fleet.undockContainers();
 
@@ -718,7 +631,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult redockAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		User user = (User) getUser();
 
@@ -733,7 +646,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult redock2Action(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		User user = (User) getUser();
 
@@ -748,7 +661,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult jstartAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		fleet.startFighters();
 
@@ -761,7 +674,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult jlandAction(ShipFleet fleet, int jaegertype)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		User user = (User) getUser();
 
@@ -778,7 +691,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult fleetcombineAction(ShipFleet fleet, @UrlParam(name = "fleetcombine") ShipFleet targetFleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		User user = (User) getUser();
 
@@ -806,9 +719,9 @@ public class FleetMgntController extends Controller
 	 * @param alarm Die neue Alarmstufe
 	 */
 	@Action(ActionType.DEFAULT)
-	public RedirectViewResult alarmAction(ShipFleet fleet, Alarmstufe alarm)
+	public RedirectViewResult alarmAction(ShipFleet fleet, AlertLevel alarm)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		fleet.setAlarm(alarm);
 
@@ -823,7 +736,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult schnelleKampfbereitschaftAction(ShipFleet fleet, boolean schnelleKampfbereitschaft)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		for(Ship ship : fleet.getShips())
 		{
@@ -841,7 +754,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine renameShipsAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 
@@ -861,7 +774,7 @@ public class FleetMgntController extends Controller
 	@SuppressWarnings("unchecked")
 	public RedirectViewResult buildAction(ShipFleet fleet, int buildcount, String buildid)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		if (buildcount <= 0)
 		{
@@ -896,7 +809,7 @@ public class FleetMgntController extends Controller
 				{
 					shipyard = shipyard.getKomplex();
 				}
-				if (shipyard.buildShip(SchiffBauinformationen.fromId(buildid), false, false))
+				if (shipyard.buildShip(ShipBuildInformation.fromId(buildid), false, false))
 				{
 					buildcount--;
 				}
@@ -927,7 +840,7 @@ public class FleetMgntController extends Controller
 	 */
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult fillFoodAction(ShipFleet fleet) {
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -942,18 +855,18 @@ public class FleetMgntController extends Controller
 			Ship s = (Ship) ship;
 			Cargo cargo = new Cargo(s.getCargo());
 
-			long usenahrung = s.getTypeData().getNahrungCargo() - s.getNahrungCargo();
-			if(usenahrung > cargo.getResourceCount(Resources.NAHRUNG)) {
-				usenahrung = cargo.getResourceCount(Resources.NAHRUNG);
+			long foodToUse = s.getTypeData().getNahrungCargo() - s.getNahrungCargo();
+			if(foodToUse > cargo.getResourceCount(Resources.NAHRUNG)) {
+				foodToUse = cargo.getResourceCount(Resources.NAHRUNG);
 			}
 
-			s.setNahrungCargo(s.getNahrungCargo()+usenahrung);
-			cargo.substractResource(Resources.NAHRUNG, usenahrung);
+			s.setNahrungCargo(s.getNahrungCargo()+foodToUse);
+			cargo.substractResource(Resources.NAHRUNG, foodToUse);
 			s.setCargo(cargo);
 
-			if(usenahrung > 0) {
+			if(foodToUse > 0) {
 				message.append(s.getName()).append(" (").append(s.getId()).append(") - <span style=\"color:orange\">")
-					.append(usenahrung).append(" Nahrung transferiert</span><br />");
+					.append(foodToUse).append(" Nahrung transferiert</span><br />");
 			}
 		}
 		return new RedirectViewResult("default").withMessage(message.append("Nahrung erfolgreich in den Nahrungsspeicher transferiert.").toString());
@@ -961,7 +874,7 @@ public class FleetMgntController extends Controller
 
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult fillFoodFromAstiAction(ShipFleet fleet){
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 		StringBuilder message = new StringBuilder(100);
 
 		org.hibernate.Session db = getDB();
@@ -979,8 +892,8 @@ public class FleetMgntController extends Controller
 			{
 					Ship s = (Ship) ship;
 
-					long usenahrung = s.getTypeData().getNahrungCargo() - s.getNahrungCargo();
-					if (usenahrung <= 0)
+					long foodToUse = s.getTypeData().getNahrungCargo() - s.getNahrungCargo();
+					if (foodToUse <= 0)
 					{
 						//Scheinbar braucht das Schiff keine Nahrung mehr, also weiter
 						continue;
@@ -989,27 +902,27 @@ public class FleetMgntController extends Controller
 					for(Base base : bases)
 					{
 						Cargo cargo = base.getCargo();
-						long nahrungsvorrat = cargo.getResourceCount(Resources.NAHRUNG);
-						if (nahrungsvorrat <= 0)
+						long foodSupply = cargo.getResourceCount(Resources.NAHRUNG);
+						if (foodSupply <= 0)
 						{
 							//Keine Nahrung mehr da, weiter
 							continue;
 						}
 
-						if(usenahrung > nahrungsvorrat) {
-							usenahrung = nahrungsvorrat;
+						if(foodToUse > foodSupply) {
+							foodToUse = foodSupply;
 						}
 
-						s.setNahrungCargo(s.getNahrungCargo()+usenahrung);
-						cargo.substractResource(Resources.NAHRUNG, usenahrung);
+						s.setNahrungCargo(s.getNahrungCargo()+foodToUse);
+						cargo.substractResource(Resources.NAHRUNG, foodToUse);
 						base.setCargo(cargo);
-						if(usenahrung > 0) {
+						if(foodToUse > 0) {
 							message.append(s.getName()).append(" (").append(s.getId()).append(") - <span style=\"color:orange\">")
-								.append(usenahrung).append(" Nahrung transferiert</span><br />");
+								.append(foodToUse).append(" Nahrung transferiert</span><br />");
 						}
 						//Noch die benoetigte Nahrungsmenge updaten
-						usenahrung = s.getTypeData().getNahrungCargo() - s.getNahrungCargo();
-						if (usenahrung <= 0 )
+						foodToUse = s.getTypeData().getNahrungCargo() - s.getNahrungCargo();
+						if (foodToUse <= 0 )
 						{
 							//wir sind fuer das Schiff fertig, also raus hier
 							break;
@@ -1192,7 +1105,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult renameShips2Action(ShipFleet fleet, String name)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		org.hibernate.Session db = getDB();
 		List<NamePatternElement> nameParts = parseNamePattern(name);
@@ -1220,7 +1133,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult getCrewAction(ShipFleet fleet, int crewinpercent)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -1254,7 +1167,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public TemplateEngine askDismantleAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		TemplateEngine t = templateViewResultFactory.createFor(this);
 
@@ -1271,7 +1184,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public Object dismantleAction(ShipFleet fleet)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		List<WerftObject> shipyards = new ArrayList<>();
 
@@ -1307,7 +1220,7 @@ public class FleetMgntController extends Controller
 				if (fleet.dismantleFleet(shipyard))
 				{
 					TemplateEngine t = templateViewResultFactory.createFor(this);
-					int shipid = ermittleIdEinesGeeignetenSchiffsDerFlotte(fleet);
+					int shipid = determineSuitableShipIdOfFleet(fleet);
 
 					t.setVar("jscript.reloadmain.ship", shipid);
 					t.setVar("fleetmgnt.message", "Die Flotte '" + fleet.getName() + "' wurde demontiert.",
@@ -1331,7 +1244,7 @@ public class FleetMgntController extends Controller
     @Action(ActionType.DEFAULT)
     public TemplateEngine askRepairAction(ShipFleet fleet)
     {
-        validiereGueltigeFlotteVorhanden(fleet);
+        validateFleetExists(fleet);
 
         TemplateEngine t = templateViewResultFactory.createFor(this);
 
@@ -1348,7 +1261,7 @@ public class FleetMgntController extends Controller
     @Action(ActionType.DEFAULT)
     public Object repairAction(ShipFleet fleet)
     {
-        validiereGueltigeFlotteVorhanden(fleet);
+        validateFleetExists(fleet);
 
         List<WerftObject> shipyards = new ArrayList<>();
 
@@ -1410,7 +1323,7 @@ public class FleetMgntController extends Controller
                 }
             }
 
-            int shipid = ermittleIdEinesGeeignetenSchiffsDerFlotte(fleet);
+            int shipid = determineSuitableShipIdOfFleet(fleet);
 
             t.setVar("jscript.reloadmain.ship", shipid);
             t.setVar("fleetmgnt.message", "Es wurden " + repaired + " Schiffe repariert.");
@@ -1428,7 +1341,7 @@ public class FleetMgntController extends Controller
     @Action(value = ActionType.DEFAULT)
     public RedirectViewResult activateTanker(ShipFleet fleet)
     {
-        validiereGueltigeFlotteVorhanden(fleet);
+        validateFleetExists(fleet);
 
         org.hibernate.Session db = getDB();
         User user = (User) getUser();
@@ -1454,7 +1367,7 @@ public class FleetMgntController extends Controller
     @Action(value = ActionType.DEFAULT)
     public RedirectViewResult deactivateTanker(ShipFleet fleet)
     {
-        validiereGueltigeFlotteVorhanden(fleet);
+        validateFleetExists(fleet);
 
         org.hibernate.Session db = getDB();
         User user = (User) getUser();
@@ -1480,7 +1393,7 @@ public class FleetMgntController extends Controller
 	@Action(value = ActionType.DEFAULT, readOnly = true)
 	public TemplateEngine defaultAction(ShipFleet fleet, RedirectViewResult redirect)
 	{
-		validiereGueltigeFlotteVorhanden(fleet);
+		validateFleetExists(fleet);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -1500,7 +1413,7 @@ public class FleetMgntController extends Controller
 
 		if( redirect != null )
 		{
-			int shipid = ermittleIdEinesGeeignetenSchiffsDerFlotte(fleet);
+			int shipid = determineSuitableShipIdOfFleet(fleet);
 			t.setVar("fleetmgnt.message", redirect.getMessage(),
 					"jscript.reloadmain.ship", shipid,
 					"jscript.reloadmain", 1);
@@ -1524,12 +1437,12 @@ public class FleetMgntController extends Controller
 		Set<WerftObject> werften = new HashSet<>();
         boolean hasTanker = false;
 		boolean schnelleKampfbereitschaft = true;
-		boolean schnelleKampfbereitschaft_or = false;
+		boolean anyInstantBattleEnter = false;
 		for (Object ship1 : ships)
 		{
 			Ship ship = (Ship) ship1;
 			schnelleKampfbereitschaft &= ship.getEinstellungen().useInstantBattleEnter();
-			schnelleKampfbereitschaft_or |= ship.getEinstellungen().useInstantBattleEnter();
+			anyInstantBattleEnter |= ship.getEinstellungen().useInstantBattleEnter();
 
 			ShipTypeData shiptype = ship.getTypeData();
 			Location loc = ship.getLocation();
@@ -1556,7 +1469,7 @@ public class FleetMgntController extends Controller
                 hasTanker = true;
 						}
 
-			String offi = null;
+			String officerLink = null;
 
 			if (ship.getStatus().contains("offizier"))
 			{
@@ -1564,7 +1477,7 @@ public class FleetMgntController extends Controller
 				if (offizier != null)
 				{
 					//offi = " <a class=\"forschinfo\" href=\"" + Common.buildUrl("default", "module", "choff", "off", offizier.getID()) + "\"><img style=\"vertical-align:middle\" src=\"" + offizier.getPicture() + "\" alt=\"Rang " + offizier.getRang() + "\" /></a>";
-					offi = " <a class=\"forschinfo\" href=\"choff?off="+offizier.getID()  + "\"><img style=\"vertical-align:middle\" src=\"" + offizier.getPicture() + "\" alt=\"Rang " + offizier.getRang() + "\" /></a>";
+					officerLink = " <a class=\"forschinfo\" href=\"choff?off="+offizier.getID()  + "\"><img style=\"vertical-align:middle\" src=\"" + offizier.getPicture() + "\" alt=\"Rang " + offizier.getRang() + "\" /></a>";
 				}
 			}
 
@@ -1583,7 +1496,7 @@ public class FleetMgntController extends Controller
 					"ship.type.name", shiptype.getNickname(),
 					"ship.heat.color", color,
 					"ship.heat", ship.getHeat(),
-					"ship.offi", offi,
+					"ship.offi", officerLink,
 					"ship.showbattle", ship.getBattle() != null ? ship.getBattle() : 0,
 					"ship.showwarning", !aloc.sameSector(0, loc, 0));
 
@@ -1596,7 +1509,7 @@ public class FleetMgntController extends Controller
 			t.parse("ships.list", "ships.listitem", true);
 		}
 
-		Set<SchiffBauinformationen> buildableShips = new TreeSet<>();
+		Set<ShipBuildInformation> buildableShips = new TreeSet<>();
 		for (WerftObject werft : werften)
 		{
 			buildableShips.addAll(werft.getBuildShipList());
@@ -1606,10 +1519,10 @@ public class FleetMgntController extends Controller
 		if (!buildableShips.isEmpty())
 		{
 			t.setBlock("_FLEETMGNT", "buildableships.listitem", "buildableships.list");
-			for (SchiffBauinformationen ship : buildableShips)
+			for (ShipBuildInformation ship : buildableShips)
 			{
 				t.setVar("buildableships.id", ship.getId(),
-						"buildableships.name", ship.getBaudaten().getType().getNickname());
+						"buildableships.name", ship.getBuildData().getType().getNickname());
 
 				t.parse("buildableships.list", "buildableships.listitem", true);
 			}
@@ -1636,7 +1549,7 @@ public class FleetMgntController extends Controller
 		{
 			t.setVar("schnelleKampfbereitschaft", 1);
 		}
-		if(schnelleKampfbereitschaft != schnelleKampfbereitschaft_or)
+		if(schnelleKampfbereitschaft != anyInstantBattleEnter)
 		{
 			t.setVar("schnelleKampfbereitschaft_intermediate",1);
 		}

@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.WellKnownPermission;
-import net.driftingsouls.ds2.server.config.Rassen;
+import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.Nebel;
 import net.driftingsouls.ds2.server.entities.User;
@@ -14,7 +14,7 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.PermissionDescriptor;
 import net.driftingsouls.ds2.server.framework.PermissionResolver;
 import net.driftingsouls.ds2.server.framework.db.DBUtil;
-import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidierungException;
+import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidationException;
 import net.driftingsouls.ds2.server.map.*;
 import net.driftingsouls.ds2.server.modules.MapController;
 import net.driftingsouls.ds2.server.modules.viewmodels.AllyViewModel;
@@ -156,7 +156,7 @@ public class StarmapController implements DSController, PermissionResolver {
         boolean admin = false;
 
         StarSystem sys = (StarSystem) db.get(StarSystem.class, systemId);
-        validiereSystem(sys);
+        validateSystem(sys);
 
         JSONObject json = new JSONObject();
         json.put("system", systemId);
@@ -178,7 +178,7 @@ public class StarmapController implements DSController, PermissionResolver {
         boolean admin = false;
 
         StarSystem sys = (StarSystem) db.get(StarSystem.class, systemId);
-        validiereSystem(sys);
+        validateSystem(sys);
 
         MapController.MapViewModel jsonData = new MapController.MapViewModel();
 
@@ -210,7 +210,7 @@ public class StarmapController implements DSController, PermissionResolver {
         boolean admin = false;
 
         StarSystem sys = (StarSystem) db.get(StarSystem.class, systemId);
-        validiereSystem(sys);
+        validateSystem(sys);
 
         MapController.MapViewModel jsonData = new MapController.MapViewModel();
 
@@ -274,7 +274,7 @@ public class StarmapController implements DSController, PermissionResolver {
         boolean admin = false;
 
         StarSystem sys = (StarSystem) db.get(StarSystem.class, systemId);
-        validiereSystem(sys);
+        validateSystem(sys);
         int x;
         int y;
         try {
@@ -325,14 +325,14 @@ public class StarmapController implements DSController, PermissionResolver {
 			MapController.SectorViewModel.JumpNodeViewModel jnObj = new MapController.SectorViewModel.JumpNodeViewModel();
 			jnObj.id = jumpNode.id;
 			jnObj.name = jumpNode.name;
-			jnObj.blocked = jumpNode.blocked && Rassen.get().rasse(user.getRace()).isMemberIn(0);
+			jnObj.blocked = jumpNode.blocked && Races.get().race(user.getRace()).isMemberIn(0);
 			jsonData.jumpnodes.add(jnObj);
 		}
 
-		Nebel.Typ nebel = field.getNebel();
+		Nebel.Typ nebel = field.getNebula();
 		if (nebel != null)
 		{
-			jsonData.nebel = new MapController.SectorViewModel.NebelViewModel();
+			jsonData.nebel = new MapController.SectorViewModel.NebulaViewModel();
 			jsonData.nebel.type = nebel.getCode();
 			jsonData.nebel.image = nebel.getImage();
 		}
@@ -400,8 +400,8 @@ public class StarmapController implements DSController, PermissionResolver {
             posObj.fg = sectorImage.getImage();
         }
 
-        posObj.battle = content.isSchlachtImSektor(position);
-        posObj.roterAlarm = content.isRoterAlarmImSektor(position);
+        posObj.battle = content.isBattleInSector(position);
+        posObj.roterAlarm = content.isRedAlertInSector(position);
 
         if (endTag)
         {
@@ -410,13 +410,13 @@ public class StarmapController implements DSController, PermissionResolver {
         return null;
     }
 
-    public void validiereSystem(StarSystem system)
+    public void validateSystem(StarSystem system)
     {
         User user = (User) context.getActiveUser();
 
         if (system == null || !system.isVisibleFor(user))
         {
-            throw new ValidierungException("Sie haben keine entsprechenden Karten");
+            throw new ValidationException("Sie haben keine entsprechenden Karten");
         }
     }
 

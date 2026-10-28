@@ -45,7 +45,7 @@ import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.units.BaseUnitCargo;
 import net.driftingsouls.ds2.server.units.UnitCargo;
 import net.driftingsouls.ds2.server.units.UnitCargoEntry;
-import net.driftingsouls.ds2.server.werften.BaseWerft;
+import net.driftingsouls.ds2.server.shipyards.BaseWerft;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.CallbackException;
 import org.hibernate.Session;
@@ -1001,7 +1001,7 @@ public class Base implements Cloneable, Lifecycle, Locatable, Transfering, Feedi
 	 */
 	public static BaseStatus getStatus( Base base )
 	{
-        Fabrik.ContextVars vars = ContextMap.getContext().get(Fabrik.ContextVars.class);
+        FactoryBuilding.ContextVars vars = ContextMap.getContext().get(FactoryBuilding.ContextVars.class);
         vars.clear();
 
 		Cargo stat = new Cargo();
@@ -1066,7 +1066,7 @@ public class Base implements Cloneable, Lifecycle, Locatable, Transfering, Feedi
 
         // Nahrung nicht mit in constat rein. Dies wird im Tick benutzt, der betrachtet Nahrungsverbrauch aber separat.
 		stat.substractResource( Resources.NAHRUNG, (long)Math.ceil(base.getBewohner()/10.0) );
-		stat.substractResource( Resources.NAHRUNG, base.getUnits().getNahrung() );
+		stat.substractResource( Resources.NAHRUNG, base.getUnits().getFoodConsumption() );
         // RE nicht mit in constat rein. Dies wird im Tick benutzt, der betrachtet RE-Verbrauch aber separat.
 		Context context = ContextMap.getContext();
 
@@ -1627,17 +1627,6 @@ public class Base implements Cloneable, Lifecycle, Locatable, Transfering, Feedi
 
 		if(energy > eps)
 		{
-        /*
-			long overflow = energy - eps;
-			long emptyBatteries = cargo.getResourceCount(Resources.LBATTERIEN);
-			if(emptyBatteries < overflow)
-			{
-				overflow = emptyBatteries;
-			}
-
-			state.getNettoConsumption().addResource(Resources.LBATTERIEN, overflow);
-			state.getNettoProduction().addResource(Resources.BATTERIEN, overflow);
-            */
 			energy = eps;
 		}
 
@@ -1681,7 +1670,7 @@ public class Base implements Cloneable, Lifecycle, Locatable, Transfering, Feedi
 			return true;
 		}
 
-		int hungryPeople = (int)Math.ceil(getUnits().getNahrung());
+		int hungryPeople = (int)Math.ceil(getUnits().getFoodConsumption());
 		int fleeingPeople = feedPeople(hungryPeople, baseCargo);
 
 		if(fleeingPeople > 0)
@@ -1707,7 +1696,7 @@ public class Base implements Cloneable, Lifecycle, Locatable, Transfering, Feedi
 		long re = baseCargo.getResourceCount(Resources.RE);
 
 		if (marinesold > re) {
-			getUnits().getMeuterer(re);
+			getUnits().getMutineers(re);
 			baseCargo.setResource(Resources.RE, 0);
 			return false;
 		} else {
@@ -1860,7 +1849,7 @@ public class Base implements Cloneable, Lifecycle, Locatable, Transfering, Feedi
 	}
 
 	public String getArbeitetNeeded_formated(){
-		return Common.ln(Base.getStatus(this).getArbeiter());
+		return Common.ln(Base.getStatus(this).getWorkers());
 	}
 
 	public String getLivingSpace_formated(){
