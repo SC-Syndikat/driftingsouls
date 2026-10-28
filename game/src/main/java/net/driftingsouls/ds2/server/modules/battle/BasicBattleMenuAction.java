@@ -28,6 +28,9 @@ import org.apache.commons.text.StringEscapeUtils;
  *
  */
 public abstract class BasicBattleMenuAction extends BasicBattleAction {
+	/** Die Hintergrundfarbe der Menueeintraege. */
+	public static final String DEFAULT_COLOR = "#CC3333";
+
 	/**
 	 * Konstruktor.
 	 *
@@ -61,8 +64,17 @@ public abstract class BasicBattleMenuAction extends BasicBattleAction {
 	 * @param params URL-Parameter
 	 */
 	public static void menuEntry(TemplateEngine t, String title, String params ) {
+		menuEntryColored(t, title, params, DEFAULT_COLOR);
+	}
+
+	/**
+	 * Generiert einen Menueeintrag in einer eigenen Farbe, z.B. fuer Eintraege, die sich abheben sollen.
+	 * @param color Die Hintergrundfarbe als CSS-Farbwert
+	 */
+	public static void menuEntryColored(TemplateEngine t, String title, String params, String color ) {
 		t.setVar(	"menu.entry.params",	params,
-					"menu.entry.title",		title );
+					"menu.entry.title",		title,
+					"menu.entry.color",		color );
 		t.parse("menu","menu.entry",true);
 	}
 	

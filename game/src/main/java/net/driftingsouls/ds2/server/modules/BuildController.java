@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.cargo.Cargo;
@@ -88,6 +90,7 @@ public class BuildController extends Controller
 	{
 		validateBase(base);
 		validateBuilding(build);
+		new CampaignActionGuard().check((User) getUser(), base.getSystem(), CampaignAction.BASE_ACTION);
 
 		User user = (User) getUser();
 		TemplateEngine t = templateViewResultFactory.createFor(this);

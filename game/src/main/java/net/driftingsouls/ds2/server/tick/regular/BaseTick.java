@@ -20,7 +20,6 @@ package net.driftingsouls.ds2.server.tick.regular;
 
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.comm.PM;
-import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.WellKnownUserValue;
 import net.driftingsouls.ds2.server.framework.db.batch.UnitOfWork;
@@ -75,10 +74,9 @@ public class BaseTick extends TickController
 				// Get all bases, take everything with them - we need it all.
 				List<Base> bases;
 				if(isCampaignTick()){
-					List<StarSystem> systems = db.createQuery("from StarSystem s where s.id in (:systems)", StarSystem.class).getResultList();
 					bases = getEM().createQuery("from Base b fetch all properties where b.owner=:owner and b.system in (:systems)", Base.class)
 							.setParameter("owner", user)
-							.setParameter("systems", systems)
+							.setParameter("systems", affectedSystems)
 							.getResultList();
 				}
 				else

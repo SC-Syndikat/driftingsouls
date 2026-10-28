@@ -18,7 +18,10 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.WellKnownPermission;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.interaction.CampaignBattleNotes;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
 import net.driftingsouls.ds2.server.cargo.Resources;
@@ -41,6 +44,7 @@ import net.driftingsouls.ds2.server.modules.shipplugins.*;
 import net.driftingsouls.ds2.server.services.TradingPostService;
 import net.driftingsouls.ds2.server.ships.*;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,6 +107,9 @@ public class ShipController extends Controller
 		{
 			throw new ValidationException("Das angegebene Schiff existiert nicht", Common.buildUrl("default", "module", "schiffe"));
 		}
+		new CampaignActionGuard().controlDenial(user, ship.getSystem()).ifPresent(denial -> {
+			throw new ValidationException(denial, Common.buildUrl("default", "module", "schiffe"));
+		});
 
 		if (ship.getBattle() != null)
 		{
@@ -116,6 +123,7 @@ public class ShipController extends Controller
 		Map<String, ShipPlugin> pluginMapper = new LinkedHashMap<>();
 		pluginMapper.put("navigation", context.getBean(NavigationDefault.class, null));
 		pluginMapper.put("cargo", context.getBean(CargoDefault.class, null));
+		pluginMapper.put("campaigndialog", context.getBean(CampaignDialog.class, null));
 
 		if( communicate != null )
 		{
@@ -160,6 +168,7 @@ public class ShipController extends Controller
 	public RedirectViewResult alarmAction(Ship ship, AlertLevel alarm)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		User user = (User)getUser();
 		if (user.isNoob())
@@ -196,6 +205,7 @@ public class ShipController extends Controller
 	public Object consignAction(Ship ship, @UrlParam(name = "newowner") String newownerID, int conf)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		var db = getEM();
 		User user = (User) getUser();
@@ -262,6 +272,7 @@ public class ShipController extends Controller
 	public Object destroyAction(Ship ship, int conf)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		if (ship.isNoSuicide())
 		{
@@ -359,6 +370,11 @@ public class ShipController extends Controller
 	public Object pluginAction(Ship ship, String plugin, Ship communicate) throws ReflectiveOperationException
 	{
 		validateShip(ship);
+		// The campaign dialog checks the campaign rules itself (INTERACT)
+		if (!CampaignDialog.PLUGIN_ID.equals(plugin))
+		{
+			checkCampaign(ship, CampaignAction.SHIP_ACTION);
+		}
 
 		ShipTypeData shiptype = ship.getTypeData();
 		Parameters caller = new Parameters();
@@ -387,7 +403,38 @@ public class ShipController extends Controller
 			return t;
 		}
 
+		if( ship.getBattle() != null )
+		{
+			// A dialog answer started a battle: say what happened and lead there instead of refusing the ship view
+			TemplateEngine t = templateViewResultFactory.createFor(this);
+			t.setVar("ship.message", campaignBattleStart(ship, pluginResult));
+			return t;
+		}
+
 		return new RedirectViewResult("default").withMessage(pluginResult);
+	}
+
+	private String campaignBattleStart(Ship ship, String result)
+	{
+		User user = (User) getUser();
+		StringBuilder html = new StringBuilder("<div class='gfxbox' style='width:600px;font-size:14px;line-height:1.5'>");
+		List<CampaignBattleNotes.Note> notes = new CampaignBattleNotes().find(ship.getBattle().getId(), user.getId());
+		if( !notes.isEmpty() )
+		{
+			CampaignBattleNotes.Note note = notes.get(notes.size() - 1);
+			if( !note.reply.isEmpty() )
+			{
+				html.append("<b>").append(StringEscapeUtils.escapeHtml4(note.speaker)).append("</b>: ").append(Common._text(note.reply)).append("<br /><br />");
+			}
+		}
+		if( result != null && !result.isEmpty() )
+		{
+			html.append(result).append("<br />");
+		}
+		html.append("<a class='forschinfo' style='font-size:16px' href='")
+				.append(Common.buildUrl("default", "module", "angriff", "battle", ship.getBattle().getId(), "ship", ship.getId()))
+				.append("'>Zur Schlacht &raquo;</a></div>");
+		return html.toString();
 	}
 
 	/**
@@ -399,6 +446,7 @@ public class ShipController extends Controller
 	public RedirectViewResult landAction(Ship ship, @UrlParam(name = "shiplist") String shipIdList)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.LAND);
 
 		if (shipIdList.equals(""))
 		{
@@ -432,6 +480,7 @@ public class ShipController extends Controller
 	public RedirectViewResult startAction(Ship ship, @UrlParam(name = "shiplist") String shipIdList)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.LAND);
 
 		if (shipIdList.equals(""))
 		{
@@ -465,6 +514,7 @@ public class ShipController extends Controller
 	public RedirectViewResult aufladenAction(Ship ship, @UrlParam(name = "tar") String shipIdList)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.DOCK);
 
 		User user = (User) getUser();
 
@@ -520,6 +570,7 @@ public class ShipController extends Controller
 	public RedirectViewResult abladenAction(Ship ship, @UrlParam(name = "tar") String shipIdList)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.DOCK);
 
 		if (shipIdList.equals(""))
 		{
@@ -553,6 +604,7 @@ public class ShipController extends Controller
 	public RedirectViewResult joinAction(Ship ship, int join)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -604,6 +656,7 @@ public class ShipController extends Controller
 	public RedirectViewResult shupAction(Ship ship, int shup)
 	{
 		validateShip(ship);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		ShipTypeData shiptype = ship.getTypeData();
 		int shieldfactor = 100;
@@ -652,6 +705,12 @@ public class ShipController extends Controller
 		if (!user.hasFlag(UserFlag.NPC_ISLAND))
 		{
 			return new RedirectViewResult("default");
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, ship.getSystem(), 99, null);
+		if (campaignDenial.isPresent())
+		{
+			return new RedirectViewResult("default").withMessage("<span style=\"color:red\">" + campaignDenial.get() + "</span><br />");
 		}
 
 		ship.setX(10);
@@ -1134,5 +1193,10 @@ public class ShipController extends Controller
 		}
 
 		return t;
+	}
+
+	private void checkCampaign(Ship ship, CampaignAction action)
+	{
+		new CampaignActionGuard().check((User) getUser(), ship, action);
 	}
 }

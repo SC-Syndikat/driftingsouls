@@ -18,6 +18,10 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
+import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.Battle;
@@ -189,6 +193,7 @@ public class BoardController extends Controller
 		User user = (User) this.getUser();
 
 		validateOwnAndTargetShip(eigenesSchiff, zielSchiff);
+		new CampaignActionGuard().check(user, eigenesSchiff, CampaignAction.BOARD);
 
 		t.setVar(
 				"ownship.id", eigenesSchiff.getId(),
@@ -299,6 +304,8 @@ public class BoardController extends Controller
 
 		targetShip.removeFromFleet();
 		targetShip.setOwner(user);
+		// Kampagnen-Interaktionen gibt es nur an NPC-Schiffen
+		new InteractionRepository().deleteForObject(ObjectType.SHIP, targetShip.getId());
 
 		List<Ship> docked = db.createQuery("from Ship where id>0 and docked in (:docked,:landed)", Ship.class)
 				.setParameter("docked", Integer.toString(targetShip.getId()))
@@ -308,6 +315,7 @@ public class BoardController extends Controller
 		{
 			dockShip.removeFromFleet();
 			dockShip.setOwner(user);
+			new InteractionRepository().deleteForObject(ObjectType.SHIP, dockShip.getId());
 
 			for (Offizier offi : dockShip.getOffiziere())
 			{

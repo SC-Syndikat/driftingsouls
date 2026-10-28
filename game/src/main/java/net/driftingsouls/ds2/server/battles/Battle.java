@@ -885,8 +885,9 @@ public boolean hasFrontRow( int side) {
 			}
 		}
 
-		// Hat der Spieler ein Schiff in der Schlacht
-		BattleShip aship = db.createQuery("from BattleShip where id>0 and ship.owner=:user and battle=:battle", BattleShip.class)
+		// Hat der Spieler ein Schiff in der Schlacht; db ist nur nach load() gesetzt, z.B. nicht in der Sensorliste
+		EntityManager em = db != null ? db : ContextMap.getContext().getEM();
+		BattleShip aship = em.createQuery("from BattleShip where id>0 and ship.owner=:user and battle=:battle", BattleShip.class)
 				.setParameter("user", user)
 				.setParameter("battle", this)
 				.setMaxResults(1)

@@ -1,0 +1,50 @@
+<div class="gfxbox" style="width:95%">
+	{campaigndialog.gamemaster}
+	{campaigndialog.requests}
+	{if campaigndialog.active}
+	<table>
+		<tr>
+			<td valign="top">
+				{if campaigndialog.image}<img src="{campaigndialog.image}" alt="" />{/endif}
+			</td>
+			<td valign="top">
+				<b>{campaigndialog.speaker}</b> &ndash; {campaigndialog.label}
+				<br /><br />
+				{campaigndialog.text}
+				<br /><br />
+				<!-- BEGIN campaigndialog.option.listitem -->
+					{if campaigndialog.option.available}
+						<a class="forschinfo" href="./ds?module=schiff&amp;ship={ship.id}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops%5Bop%5D=choose&amp;{global.pluginid}_ops%5Bsession%5D={campaigndialog.session}&amp;{global.pluginid}_ops%5Boption%5D={campaigndialog.option.id}">{campaigndialog.option.text}</a><br />
+					{else}
+						<span style="color:#888888">{campaigndialog.option.text}</span><br />
+					{/endif}
+				<!-- END campaigndialog.option.listitem -->
+				<details style="margin-top:4px">
+					<summary class="forschinfo" style="cursor:pointer">Etwas anderes … (Anfrage an den GameMaster)</summary>
+					<form action="./ds" method="post" style="margin-top:4px">
+						<input type="hidden" name="module" value="schiff" />
+						<input type="hidden" name="action" value="plugin" />
+						<input type="hidden" name="plugin" value="{global.pluginid}" />
+						<input type="hidden" name="ship" value="{ship.id}" />
+						<input type="hidden" name="{global.pluginid}_ops[op]" value="request" />
+						<span class="smallfont">Beschreibe, was du stattdessen tun möchtest. Der GameMaster antwortet hier.</span><br />
+						<textarea name="{global.pluginid}_ops[text]" rows="3" cols="70" maxlength="2000"></textarea><br />
+						<input type="submit" value="An den GameMaster senden" />
+					</form>
+				</details>
+				<br />
+				{if campaigndialog.canquit}
+				<a class="error" href="./ds?module=schiff&amp;ship={ship.id}&amp;action=plugin&amp;plugin={global.pluginid}&amp;{global.pluginid}_ops%5Bop%5D=quit&amp;{global.pluginid}_ops%5Bsession%5D={campaigndialog.session}">Gespräch beenden</a>
+				{else}
+				<span class="smallfont" style="color:orange">Du musst antworten. Deine Schiffe in diesem Sektor sind bis dahin gebunden.</span>
+				{/endif}
+			</td>
+		</tr>
+	</table>
+	{else}
+	{if campaigndialog.offers}
+	Kontakte<br /><br />
+	{campaigndialog.offers}
+	{/endif}
+	{/endif}
+</div>

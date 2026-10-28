@@ -24,6 +24,8 @@ import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.bases.ShipyardBuilding;
 import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeState;
+import net.driftingsouls.ds2.server.campaign.CampaignMapRepository;
 import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.config.StarSystem.Access;
@@ -191,6 +193,9 @@ public class SensorsDefault implements ShipPlugin {
 		List<Integer> fleetlist = null;
 		ShipTypeData shiptype = caller.shiptype;
 		Ship ship = caller.ship;
+
+		// Kampagnen-Interaktionen der Schiffe im Sektor, Key "SHIP:<id>"
+		Map<String, String> campaignContacts = CampaignDialog.contactLinks(user, ship);
 
 		// Cache fuer Jaegerflotten. Key ist die Flotten-ID. Value die Liste der Schiffs-IDs der Flotte
 		Map<ShipFleet,List<Integer>> jaegerFleetCache = new HashMap<>();
@@ -557,6 +562,12 @@ public class SensorsDefault implements ShipPlugin {
 					t.setVar("sships.action.communicate", aShip.getId());
 				}
 
+				// Kontakt im Rahmen einer Kampagne
+				if (campaignContacts.containsKey("SHIP:" + aShip.getId()))
+				{
+					t.setVar("sships.action.campaigncontact", campaignContacts.get("SHIP:" + aShip.getId()));
+				}
+
 				// Springen (Knossosportal)
 				if (!aShip.getJumpTarget().isEmpty())
 				{
@@ -848,9 +859,13 @@ public class SensorsDefault implements ShipPlugin {
 			.setParameter("y", caller.ship.getY())
 			.getResultList();
 
+		// Kampagnen-Interaktionen der Basen im Sektor, Key "BASE:<id>"
+		Map<String, String> campaignContacts = CampaignDialog.contactLinks(user, caller.ship);
+
 		for (Base base: bases)
 		{
 			t.start_record();
+			t.setVar("base.campaigncontact", campaignContacts.getOrDefault("BASE:" + base.getId(), ""));
 			t.setVar("base.id", base.getId(),
 					"base.owner.id", base.getOwner().getId(),
 					"base.name", base.getName(),
@@ -967,8 +982,16 @@ public class SensorsDefault implements ShipPlugin {
 			.setParameter("sys", ship.getSystem())
 			.getResultList();
 
+		Map<Integer, CampaignJumpNodeState> campaignNodes = new CampaignMapRepository().findJumpNodeStates();
+		boolean seesPreparedNodes = user.isNPC() || user.hasFlag(UserFlag.GAMEMASTER);
+
 		for( JumpNode node : nodes )
 		{
+			if( !seesPreparedNodes && campaignNodes.get(node.getId()) == CampaignJumpNodeState.PREPARED )
+			{
+				continue;
+			}
+
 			int blocked = 0;
 			if( node.isGcpColonistBlock() && Races.get().race(user.getRace()).isMemberIn( 0 ) )
 			{

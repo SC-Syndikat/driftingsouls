@@ -19,6 +19,7 @@
 package net.driftingsouls.ds2.server.framework.authentication;
 
 import net.driftingsouls.ds2.server.WellKnownConfigValue;
+import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.*;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
@@ -149,6 +150,8 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
 		JavaSession jsession = context.get(JavaSession.class);
 		jsession.setUser(user);
+		// A fresh login ends a master login still recorded in the session
+		jsession.setAttach(null);
 		jsession.setIP("<"+context.getRequest().getRemoteAddress()+">");
 
 		return user;
@@ -236,6 +239,13 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 			return false;
 		}
 
+		// Sessions from before logins cleared the master login can be attached to their own user
+		BasicUser attach = jsession.getAttach();
+		if( attach != null && attach.getId() == user.getId() )
+		{
+			jsession.setAttach(null);
+		}
+
 		try
 		{
 			checkDisabled(user);
@@ -248,6 +258,9 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 		for( AuthenticateEventListener listener : authListenerList ) {
 			listener.onAuthenticate(user);
 		}
+
+		// Under a master login this is the account taken over, not the admin behind it
+		UserActivityTracker.getInstance().recordActivity(user.getId());
 
 		if( jsession.getAttach() != null )
 		{
@@ -268,10 +281,16 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 			permissions.addAll(jsession.getAttach().getPermissions());
 		}
 
+		boolean gameMaster = GameMasterPermissionResolver.isGameMaster(user)
+				|| GameMasterPermissionResolver.isGameMaster(jsession.getAttach());
+
 		context.setPermissionResolver(
-				new PermissionDelegatePermissionResolver(
-						new AccessLevelPermissionResolver(accessLevel),
-						permissions
+				new GameMasterPermissionResolver(
+						new PermissionDelegatePermissionResolver(
+								new AccessLevelPermissionResolver(accessLevel),
+								permissions
+						),
+						gameMaster
 				)
 		);
 

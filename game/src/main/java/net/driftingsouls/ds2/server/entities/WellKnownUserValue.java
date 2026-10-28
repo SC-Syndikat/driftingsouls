@@ -6,6 +6,11 @@ package net.driftingsouls.ds2.server.entities;
 public class WellKnownUserValue<T>
 {
 	public static final WellKnownUserValue<Boolean> GAMEPLAY_USER_BATTLE_PM = new WellKnownUserValue<>(Boolean.class, "GAMEPLAY/user/battle_pm", "true");
+	/**
+	 * Set when a campaign participant who had finished their round was attacked; shown on the overview
+	 * until they acknowledge it. Empty when there is nothing to show.
+	 */
+	public static final WellKnownUserValue<String> CAMPAIGN_ATTACK_NOTICE = new WellKnownUserValue<>(String.class, "CAMPAIGN/attack_notice", "");
 	public static final WellKnownUserValue<String> TBLORDER_BASEN_ORDER = new WellKnownUserValue<>(String.class, "TBLORDER/basen/order", "name");
 	public static final WellKnownUserValue<Integer> TBLORDER_BASEN_ORDER_MODE = new WellKnownUserValue<>(Integer.class, "TBLORDER/basen/order_mode", "0");
 	public static final WellKnownUserValue<Integer> TBLORDER_BASEN_SHOWCARGO = new WellKnownUserValue<>(Integer.class, "TBLORDER/basen/showcargo", "1");

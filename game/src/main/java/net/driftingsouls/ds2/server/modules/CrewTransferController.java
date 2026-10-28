@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
@@ -288,6 +290,7 @@ public class CrewTransferController extends Controller
 	public RedirectViewResult sendAction(Ship ship, int tar, String mode, int send)
 	{
 		validateShip(ship);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 
 		Target datat = loadCrewTransferTarget(mode, tar, ship);
 
@@ -329,6 +332,7 @@ public class CrewTransferController extends Controller
 	public RedirectViewResult recAction(Ship ship, int tar, String mode, int rec)
 	{
 		validateShip(ship);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRANSFER);
 
 		Target datat = loadCrewTransferTarget(mode, tar, ship);
 
