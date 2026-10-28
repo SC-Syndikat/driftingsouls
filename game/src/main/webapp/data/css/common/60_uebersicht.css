@@ -124,6 +124,18 @@
 	vertical-align: 1px;
 }
 
+/* Webhook-Nachrichten anderer Integrationen: nicht aus dem Spiel */
+.discord-app-marke {
+	margin-left: 5px;
+	padding: 0 3px;
+	border-radius: 3px;
+	background-color: #3a3f4a;
+	color: #A0B4FF;
+	font-size: 10px;
+	font-weight: bold;
+	vertical-align: 1px;
+}
+
 .discord-zeit {
 	margin-left: 6px;
 	font-size: 11px;
@@ -161,6 +173,19 @@
 	padding: 8px 4px;
 }
 
+/* Bevor der Spieler zustimmt, laedt der Chat nichts von Discord */
+.discord-zustimmung {
+	color: #C7C7C7;
+	text-align: center;
+	padding: 24px 12px;
+	font-size: 12px;
+}
+
+.discord-klein {
+	font-size: 11px;
+	color: #808080;
+}
+
 .discord-fehler {
 	color: #FF6060;
 	font-size: 12px;
@@ -193,3 +218,11 @@
 	margin-right: 6px;
 }
 
+.discord-warnung {
+	color: #FEB626;
+}
+
+.discord-datenschutz {
+	font-size: 12px;
+	color: #A0A0A0;
+}

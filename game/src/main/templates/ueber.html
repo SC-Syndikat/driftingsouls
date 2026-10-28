@@ -124,16 +124,33 @@
 						<!-- BEGIN discordchannels.listitem -->
 						<span class="discord-kanal link {discordchannel.aktiv}" data-channel="{discordchannel.id}" data-name="{discordchannel.name}" data-schreiben="{discordchannel.schreiben}">#{discordchannel.name}</span>
 						<!-- END discordchannels.listitem -->
-						<a class="discord-extern" href="https://discord.com/channels/{discord.guild}/{discord.channel}" target="_blank" title="In Discord öffnen">&#8599;</a>
+						<a class="discord-extern" href="https://discord.com/channels/{discord.guild}/{discord.channel}" target="_blank" rel="noopener noreferrer" title="In Discord öffnen">&#8599;</a>
 					</div>
 					<div class="discord-nachrichten">
+						{if discord.inhalte}
 						<div class="discord-hinweis">Lade Nachrichten...</div>
+						{else}
+						<div class="discord-zustimmung">
+							Der Chat zeigt die Nachrichten unseres Discord-Servers. Dein Browser lädt dafür Avatare, Emojis und Bilder
+							direkt von Discord, das dabei deine IP-Adresse erfährt.
+							<br /><br />
+							<input type="button" class="discord-zustimmen" value="Discord-Chat anzeigen" />
+							<br /><br />
+							<span class="discord-klein">Widerrufen kannst du das jederzeit in den Einstellungen.</span>
+						</div>
+						{/endif}
 					</div>
 					{if discord.connected}
+					{if discord.bestaetigen}
+					<div class="discord-eingabe discord-hinweis">
+						<a href="#" class="discord-bestaetigen">Bestätige die Verknüpfung mit Discord erneut</a>, um mitzuschreiben.
+					</div>
+					{else}
 					<form class="discord-eingabe" action="#">
 						<input type="text" name="text" maxlength="{discord.maxlength}" placeholder="Nachricht an #{discord.channel.name}" autocomplete="off" />
 						<input type="submit" value="Senden" />
 					</form>
+					{/endif}
 					{else}
 					<div class="discord-eingabe discord-hinweis">
 						{if discord.login}
@@ -148,7 +165,7 @@
 				<div class="discord-nachrichten">
 					<div class="discord-hinweis">
 						Im Moment ist kein Discord-Kanal verfügbar.
-						{if discord.inviteurl}<br />Besuche uns auf unserem <a href="{discord.inviteurl}" target="_blank">Discord-Server</a>.{/endif}
+						{if discord.inviteurl}<br />Besuche uns auf unserem <a href="{discord.inviteurl}" target="_blank" rel="noopener noreferrer">Discord-Server</a>.{/endif}
 					</div>
 				</div>
 				{/endif}

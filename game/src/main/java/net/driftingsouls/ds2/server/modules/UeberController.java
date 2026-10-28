@@ -35,6 +35,7 @@ import net.driftingsouls.ds2.server.discord.DiscordKanal;
 import net.driftingsouls.ds2.server.discord.DiscordKonfiguration;
 import net.driftingsouls.ds2.server.discord.DiscordNachricht;
 import net.driftingsouls.ds2.server.discord.DiscordService;
+import net.driftingsouls.ds2.server.discord.DiscordUser;
 import net.driftingsouls.ds2.server.entities.IntTutorial;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
@@ -165,6 +166,14 @@ public class UeberController extends Controller
 	public static class DiscordChatViewModel
 	{
 		public boolean connected;
+		/**
+		 * <code>true</code>, falls der Spieler die Verknuepfung bei Discord erneut bestaetigen muss.
+		 */
+		public boolean bestaetigen;
+		/**
+		 * <code>true</code>, falls der Spieler noch nicht zugestimmt hat, dass der Chat Inhalte von Discord laedt.
+		 */
+		public boolean zustimmungFehlt;
 		public boolean schreiben;
 		public String channel;
 		public String error;
@@ -173,7 +182,9 @@ public class UeberController extends Controller
 
 	/**
 	 * Gibt die neuesten Nachrichten eines Discord-Kanals fuer den Chat auf der Uebersicht zurueck.
-	 * Es werden nur Kanaele geliefert, die der Spieler lesen darf.
+	 * Es werden nur Kanaele geliefert, die der Spieler lesen darf und deren Sichtbarkeit in Discord
+	 * noch der Freigabe entspricht. Ohne Zustimmung des Spielers werden keine Nachrichten geliefert,
+	 * deren Avatare und Bilder sein Browser von Discord laden wuerde.
 	 *
 	 * @param channel Die ID des Kanals. Ist sie unbekannt oder nicht erlaubt, wird der zuletzt gewaehlte bzw. der Standardkanal verwendet.
 	 */
@@ -185,7 +196,13 @@ public class UeberController extends Controller
 		List<DiscordKanal> kanaele = DiscordKanal.lesbare(getEM(), konfiguration, user);
 
 		DiscordChatViewModel result = new DiscordChatViewModel();
-		result.connected = konfiguration.isLoginEingerichtet() && !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty();
+		result.connected = isDiscordVerbunden(konfiguration, user);
+		result.bestaetigen = result.connected && !DiscordUser.isVerknuepfungAktuell(user.getUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM));
+		if (!user.getUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT))
+		{
+			result.zustimmungFehlt = true;
+			return result;
+		}
 
 		DiscordKanal selected = waehleDiscordKanal(user, kanaele, channel);
 		if (selected == null)
@@ -195,7 +212,7 @@ public class UeberController extends Controller
 		}
 
 		result.channel = selected.getChannelId();
-		result.schreiben = result.connected && selected.darfSchreiben(user);
+		result.schreiben = result.connected && !result.bestaetigen && selected.darfSchreiben(user);
 		if (!selected.getChannelId().equals(user.getUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL)))
 		{
 			user.setUserValue(WellKnownUserValue.TBLORDER_UEBERSICHT_DISCORD_CHANNEL, selected.getChannelId());
@@ -203,8 +220,8 @@ public class UeberController extends Controller
 
 		try
 		{
-			result.messages = discordService.getMessages(konfiguration, selected.getChannelId(), discordKanalNamen(kanaele));
-			faerbeIngameNachrichten(konfiguration, result.messages);
+			pruefeFreigabe(konfiguration, selected);
+			result.messages = markiereIngameNachrichten(konfiguration, discordService.getMessages(konfiguration, selected.getChannelId(), discordKanalNamen(kanaele)));
 		}
 		catch (DiscordException e)
 		{
@@ -214,28 +231,68 @@ public class UeberController extends Controller
 	}
 
 	/**
-	 * Nachrichten aus dem Spiel kommen per Webhook und verraten ihren Verfasser nicht.
-	 * Fuer die beim Senden vermerkten Verfasser wird hier die Rollenfarbe nachgetragen.
+	 * Vermerkt die Zustimmung des Spielers, dass der Chat Inhalte von Discord laedt, und gibt
+	 * danach die neuesten Nachrichten zurueck. Widerrufen laesst sie sich in den Einstellungen.
+	 *
+	 * @param channel Die ID des Kanals
 	 */
-	private void faerbeIngameNachrichten(DiscordKonfiguration konfiguration, List<DiscordChatMessage> nachrichten)
+	@Action(ActionType.AJAX)
+	public DiscordChatViewModel discordZustimmungAction(String channel)
 	{
-		List<String> ohneFarbe = new ArrayList<>();
+		if (!isAusDemChat())
+		{
+			DiscordChatViewModel result = new DiscordChatViewModel();
+			result.zustimmungFehlt = true;
+			result.error = "Ungültige Anfrage.";
+			return result;
+		}
+		User user = (User)getUser();
+		user.setUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT, true);
+		return discordChatAction(channel);
+	}
+
+	/**
+	 * Prueft, ob der Kanal in Discord noch so sichtbar ist wie bei seiner Freigabe. Falls nicht,
+	 * wird das vermerkt - damit ist der Kanal fuer alle gesperrt, bis ein Admin ihn neu freigibt.
+	 */
+	private void pruefeFreigabe(DiscordKonfiguration konfiguration, DiscordKanal kanal)
+	{
+		String signatur = discordService.getRechteSignatur(konfiguration, kanal.getChannelId());
+		if (!signatur.equals(kanal.getFreigabeSignatur()))
+		{
+			kanal.setDiscordSignatur(signatur);
+			throw new DiscordException("Wer diesen Kanal in Discord sehen darf, hat sich geändert. Bis ein Admin ihn erneut freigibt, ist er gesperrt.");
+		}
+	}
+
+	/**
+	 * Webhook-Nachrichten verraten nicht, ob sie aus dem Spiel kommen oder von einer anderen
+	 * Integration. Als aus dem Spiel gesendet gelten nur die beim Senden vermerkten, fuer
+	 * deren Verfasser wird auch die Rollenfarbe nachgetragen.
+	 */
+	private List<DiscordChatMessage> markiereIngameNachrichten(DiscordKonfiguration konfiguration, List<DiscordChatMessage> nachrichten)
+	{
+		List<String> webhookNachrichten = new ArrayList<>();
 		for (DiscordChatMessage nachricht : nachrichten)
 		{
-			if (nachricht.ingame && nachricht.farbe == null)
+			if (nachricht.webhook)
 			{
-				ohneFarbe.add(nachricht.id);
+				webhookNachrichten.add(nachricht.id);
 			}
 		}
-		Map<String, String> verfasser = DiscordNachricht.verfasser(getEM(), ohneFarbe);
+		Map<String, String> verfasser = DiscordNachricht.verfasser(getEM(), webhookNachrichten);
+		if (verfasser.isEmpty())
+		{
+			return nachrichten;
+		}
+		Map<String, String> farben = discordService.getRollenFarben(konfiguration, verfasser.values());
+		List<DiscordChatMessage> result = new ArrayList<>(nachrichten.size());
 		for (DiscordChatMessage nachricht : nachrichten)
 		{
 			String discordUserId = verfasser.get(nachricht.id);
-			if (discordUserId != null)
-			{
-				nachricht.farbe = discordService.getRollenFarbe(konfiguration, discordUserId);
-			}
+			result.add(discordUserId != null ? nachricht.alsIngame(farben.get(discordUserId)) : nachricht);
 		}
+		return result;
 	}
 
 	/**
@@ -247,16 +304,27 @@ public class UeberController extends Controller
 	@Action(ActionType.AJAX)
 	public DiscordChatViewModel discordSendAction(String channel, String text)
 	{
+		DiscordChatViewModel result = new DiscordChatViewModel();
+		result.channel = channel;
+		if (!isAusDemChat())
+		{
+			result.error = "Ungültige Anfrage.";
+			return result;
+		}
+
 		User user = (User)getUser();
 		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
 		String discordUserId = user.getUserValue(WellKnownUserValue.DISCORD_USER_ID);
-
-		DiscordChatViewModel result = new DiscordChatViewModel();
-		result.connected = konfiguration.isLoginEingerichtet() && !discordUserId.isEmpty();
-		result.channel = channel;
+		result.connected = isDiscordVerbunden(konfiguration, user);
 		if (!result.connected)
 		{
 			result.error = "Verbinde deinen Account zuerst in den Einstellungen mit Discord.";
+			return result;
+		}
+		if (!DiscordUser.isVerknuepfungAktuell(user.getUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM)))
+		{
+			result.bestaetigen = true;
+			result.error = "Bitte bestätige die Verknüpfung mit Discord erneut - das ist alle " + DiscordUser.VERKNUEPFUNG_GUELTIG_TAGE + " Tage nötig.";
 			return result;
 		}
 
@@ -272,13 +340,14 @@ public class UeberController extends Controller
 
 		try
 		{
+			pruefeFreigabe(konfiguration, kanal);
 			String messageId = discordService.sendMessage(
 					konfiguration,
 					kanal.getChannelId(),
-					user.getId(),
 					discordUserId,
 					text);
 			getEM().persist(new DiscordNachricht(messageId, discordUserId, user.getId()));
+			DiscordNachricht.loeschenAbgelaufene(getEM());
 		}
 		catch (DiscordException e)
 		{
@@ -288,6 +357,20 @@ public class UeberController extends Controller
 		}
 
 		return discordChatAction(kanal.getChannelId());
+	}
+
+	/**
+	 * Aktionen mit Seiteneffekten nimmt der Chat nur per POST aus dem eigenen Skript an.
+	 * Eine Bild-URL, etwa per <code>[img]</code> in einer PM, kann sie so nicht ausloesen.
+	 */
+	private boolean isAusDemChat()
+	{
+		return getRequest().isPost() && "XMLHttpRequest".equals(getRequest().getHeader("X-Requested-With"));
+	}
+
+	private static boolean isDiscordVerbunden(DiscordKonfiguration konfiguration, User user)
+	{
+		return konfiguration.isLoginEingerichtet() && !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty();
 	}
 
 	private DiscordKanal waehleDiscordKanal(User user, List<DiscordKanal> kanaele, String gewuenscht)
@@ -487,16 +570,20 @@ public class UeberController extends Controller
 		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
 		List<DiscordKanal> kanaele = DiscordKanal.lesbare(getEM(), konfiguration, user);
 		DiscordKanal selected = waehleDiscordKanal(user, kanaele, null);
-		boolean connected = konfiguration.isLoginEingerichtet() && !user.getUserValue(WellKnownUserValue.DISCORD_USER_ID).isEmpty();
+		boolean connected = isDiscordVerbunden(konfiguration, user);
+		boolean bestaetigen = connected && !DiscordUser.isVerknuepfungAktuell(user.getUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM));
+		String inviteUrl = konfiguration.getSichereInviteUrl();
 
 		t.setVar("discord.chat", selected != null,
 				"discord.connected", connected,
+				"discord.bestaetigen", bestaetigen,
+				"discord.inhalte", user.getUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT),
 				"discord.login", konfiguration.isLoginEingerichtet(),
 				"discord.guild", konfiguration.getGuildId(),
 				"discord.channel", selected != null ? selected.getChannelId() : "",
 				"discord.channel.name", selected != null ? Common.escapeHTML(selected.getName()) : "",
 				"discord.maxlength", DiscordService.MAX_MESSAGE_LENGTH,
-				"discord.inviteurl", konfiguration.getInviteUrl() != null ? Common.escapeHTML(konfiguration.getInviteUrl()) : "");
+				"discord.inviteurl", inviteUrl != null ? Common.escapeHTML(inviteUrl) : "");
 
 		t.setBlock("_UEBER", "discordchannels.listitem", "discordchannels.list");
 		t.setVar("discordchannels.list", "");
@@ -505,7 +592,7 @@ public class UeberController extends Controller
 			t.setVar("discordchannel.id", kanal.getChannelId(),
 					"discordchannel.name", Common.escapeHTML(kanal.getName()),
 					"discordchannel.aktiv", kanal == selected ? "aktiv" : "",
-					"discordchannel.schreiben", connected && kanal.darfSchreiben(user) ? "1" : "0");
+					"discordchannel.schreiben", connected && !bestaetigen && kanal.darfSchreiben(user) ? "1" : "0");
 			t.parse("discordchannels.list", "discordchannels.listitem", true);
 		}
 	}

@@ -48,7 +48,12 @@ public class DiscordChatMessage
 	 */
 	public final String timestamp;
 	/**
-	 * <code>true</code>, falls die Nachricht aus dem Spiel heraus gesendet wurde.
+	 * <code>true</code>, falls die Nachricht ueber einen Webhook kam - aus dem Spiel oder von einer anderen Integration.
+	 */
+	public final boolean webhook;
+	/**
+	 * <code>true</code>, falls die Nachricht nachweislich aus dem Spiel heraus gesendet wurde
+	 * (siehe {@link DiscordNachricht}). Das setzt erst der Controller.
 	 */
 	public final boolean ingame;
 	public final List<Attachment> attachments;
@@ -56,16 +61,34 @@ public class DiscordChatMessage
 	 * Die Rollenfarbe des Verfassers als <code>#rrggbb</code> oder <code>null</code>. Bei Nachrichten
 	 * aus dem Spiel setzt sie erst der Controller, der den Verfasser kennt.
 	 */
-	public volatile String farbe;
+	public final String farbe;
 
-	public DiscordChatMessage(String id, String author, String avatarUrl, String text, String timestamp, boolean ingame, List<Attachment> attachments)
+	public DiscordChatMessage(String id, String author, String avatarUrl, String text, String timestamp, boolean webhook, List<Attachment> attachments, String farbe)
+	{
+		this(id, author, avatarUrl, text, timestamp, webhook, false, attachments, farbe);
+	}
+
+	private DiscordChatMessage(String id, String author, String avatarUrl, String text, String timestamp, boolean webhook, boolean ingame, List<Attachment> attachments, String farbe)
 	{
 		this.id = id;
 		this.author = author;
 		this.avatarUrl = avatarUrl;
 		this.text = text;
 		this.timestamp = timestamp;
+		this.webhook = webhook;
 		this.ingame = ingame;
 		this.attachments = attachments;
+		this.farbe = farbe;
+	}
+
+	/**
+	 * Gibt eine Kopie dieser Nachricht zurueck, die als aus dem Spiel gesendet markiert ist.
+	 * Die zwischengespeicherte Nachricht selbst bleibt unveraendert.
+	 * @param farbe Die Rollenfarbe des Verfassers oder <code>null</code>
+	 * @return Die Kopie
+	 */
+	public DiscordChatMessage alsIngame(String farbe)
+	{
+		return new DiscordChatMessage(id, author, avatarUrl, text, timestamp, webhook, true, attachments, farbe);
 	}
 }

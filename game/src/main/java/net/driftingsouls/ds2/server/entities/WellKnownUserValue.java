@@ -40,6 +40,14 @@ public class WellKnownUserValue<T>
 	public static final WellKnownUserValue<String> DISCORD_USERNAME = new WellKnownUserValue<>(String.class, "DISCORD/username", "");
 	public static final WellKnownUserValue<String> DISCORD_AVATAR = new WellKnownUserValue<>(String.class, "DISCORD/avatar", "");
 	public static final WellKnownUserValue<String> DISCORD_OAUTH_STATE = new WellKnownUserValue<>(String.class, "DISCORD/oauth_state", "");
+	/**
+	 * Wann der Spieler die Verknuepfung zuletzt bei Discord bestaetigt hat (Millisekunden).
+	 */
+	public static final WellKnownUserValue<Long> DISCORD_VERKNUEPFT_AM = new WellKnownUserValue<>(Long.class, "DISCORD/verknuepft_am", "0");
+	/**
+	 * Ob der Spieler zugestimmt hat, dass der Chat Inhalte (Avatare, Bilder) direkt von Discord laedt.
+	 */
+	public static final WellKnownUserValue<Boolean> DISCORD_INHALTE_ERLAUBT = new WellKnownUserValue<>(Boolean.class, "DISCORD/inhalte_erlaubt", "false");
 	public static final WellKnownUserValue<String> TBLORDER_UEBERSICHT_DISCORD_CHANNEL = new WellKnownUserValue<>(String.class, "TBLORDER/uebersicht/discord_channel", "");
 
 	private final Class<T> type;

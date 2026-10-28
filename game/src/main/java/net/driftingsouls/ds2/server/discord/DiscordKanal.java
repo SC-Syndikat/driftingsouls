@@ -17,6 +17,10 @@ import java.util.stream.Collectors;
 /**
  * Ein mit dem Discord-Server synchronisierter Kanal und wer ihn im Ingame-Chat nutzen darf.
  * Neu synchronisierte Kanaele sind gesperrt, bis ein Admin sie freigibt.
+ * <p>
+ * Die Freigabe gilt fuer die Sichtbarkeit, die der Kanal in Discord beim Freigeben hatte
+ * (siehe {@link DiscordService#rechteSignatur}). Aendert sie sich dort, etwa weil der Kanal
+ * privat wird, ist er im Spiel gesperrt, bis ein Admin die Rechte erneut speichert.
  */
 @Entity
 @Table(name = "discord_kanal")
@@ -44,6 +48,12 @@ public class DiscordKanal
 	private boolean standard;
 	@Column(name = "bot_hinweis")
 	private String botHinweis;
+	@Column(nullable = false)
+	private boolean oeffentlich;
+	@Column(name = "discord_signatur")
+	private String discordSignatur;
+	@Column(name = "freigabe_signatur")
+	private String freigabeSignatur;
 	@Version
 	private int version;
 
@@ -73,7 +83,8 @@ public class DiscordKanal
 
 	/**
 	 * Gibt die Kanaele zurueck, die der Spieler im Ingame-Chat lesen darf. Ist der Chat nicht
-	 * eingerichtet, ist die Liste leer. Alle Zugriffe auf Kanaele muessen hierueber laufen.
+	 * eingerichtet, ist die Liste leer. Kanaele, deren Sichtbarkeit in Discord sich seit der
+	 * Freigabe geaendert hat, fehlen. Alle Zugriffe auf Kanaele muessen hierueber laufen.
 	 * @param em Der EntityManager
 	 * @param konfiguration Die Bot-Einstellungen
 	 * @param user Der Spieler
@@ -86,8 +97,26 @@ public class DiscordKanal
 			return List.of();
 		}
 		return alle(em, konfiguration.getGuildId()).stream()
+				.filter(DiscordKanal::isFreigabeAktuell)
 				.filter(kanal -> kanal.darfLesen(user))
 				.collect(Collectors.toList());
+	}
+
+	/**
+	 * Gibt zurueck, ob die Freigabe fuer die Sichtbarkeit gilt, die der Kanal beim letzten Synchronisieren in Discord hatte.
+	 * @return <code>true</code>, falls dem so ist
+	 */
+	public boolean isFreigabeAktuell()
+	{
+		return freigabeSignatur != null && freigabeSignatur.equals(discordSignatur);
+	}
+
+	/**
+	 * Gibt die Freigabe fuer die aktuelle Sichtbarkeit in Discord, z.B. wenn ein Admin die Kanalrechte speichert.
+	 */
+	public void freigeben()
+	{
+		freigabeSignatur = discordSignatur;
 	}
 
 	public boolean darfLesen(User user)
@@ -192,5 +221,42 @@ public class DiscordKanal
 	public void setBotHinweis(String botHinweis)
 	{
 		this.botHinweis = botHinweis;
+	}
+
+	/**
+	 * Gibt zurueck, ob @everyone den Kanal in Discord sehen darf.
+	 * @return <code>true</code>, falls dem so ist
+	 */
+	public boolean isOeffentlich()
+	{
+		return oeffentlich;
+	}
+
+	public void setOeffentlich(boolean oeffentlich)
+	{
+		this.oeffentlich = oeffentlich;
+	}
+
+	/**
+	 * Gibt die Signatur der Sichtbarkeit beim letzten Synchronisieren zurueck.
+	 * @return Die Signatur oder <code>null</code>
+	 */
+	public String getDiscordSignatur()
+	{
+		return discordSignatur;
+	}
+
+	public void setDiscordSignatur(String discordSignatur)
+	{
+		this.discordSignatur = discordSignatur;
+	}
+
+	/**
+	 * Gibt die Signatur der Sichtbarkeit zurueck, fuer die die Kanalrechte freigegeben wurden.
+	 * @return Die Signatur oder <code>null</code>, falls nie freigegeben
+	 */
+	public String getFreigabeSignatur()
+	{
+		return freigabeSignatur;
 	}
 }

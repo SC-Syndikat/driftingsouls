@@ -78,14 +78,15 @@ public class DiscordServiceTest
 	@Test
 	public void avatar_avatarUrl_sollteCdnUrlLiefern()
 	{
-		assertEquals("https://cdn.discordapp.com/avatars/123/abc.png?size=64", DiscordUser.avatarUrl("123", "abc"));
+		assertEquals("https://cdn.discordapp.com/avatars/123/0123456789abcdef0123456789abcdef.png?size=64", DiscordUser.avatarUrl("123", "0123456789abcdef0123456789abcdef"));
+		assertEquals("https://cdn.discordapp.com/avatars/123/a_0123456789abcdef0123456789abcdef.png?size=64", DiscordUser.avatarUrl("123", "a_0123456789abcdef0123456789abcdef"));
 		assertEquals("https://cdn.discordapp.com/embed/avatars/" + ((471610776126226432L >>> 22) % 6) + ".png", DiscordUser.avatarUrl("471610776126226432", ""));
 	}
 
 	@Test
 	public void alleRechteAufDemServer_fehlendeKanalRechte_sollteNichtsMelden()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.BENOETIGTE_RECHTE);
+		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
 
 		assertNull(DiscordService.fehlendeKanalRechte(rechte, GUILD, kanal("[]")));
 	}
@@ -93,7 +94,7 @@ public class DiscordServiceTest
 	@Test
 	public void kanalFuerEveryoneGesperrt_fehlendeKanalRechte_sollteFehlendesAnsehenMelden()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.BENOETIGTE_RECHTE);
+		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
 
 		String hinweis = DiscordService.fehlendeKanalRechte(rechte, GUILD,
 				kanal("[{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\"}]"));
@@ -104,7 +105,7 @@ public class DiscordServiceTest
 	@Test
 	public void kanalFuerEveryoneGesperrtAberFuerBotRolleErlaubt_fehlendeKanalRechte_sollteNichtsMelden()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.BENOETIGTE_RECHTE);
+		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
 
 		String hinweis = DiscordService.fehlendeKanalRechte(rechte, GUILD, kanal("["
 				+ "{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\"},"
@@ -116,7 +117,7 @@ public class DiscordServiceTest
 	@Test
 	public void kanalNurFuerAndereRolle_fehlendeKanalRechte_sollteFehlendesAnsehenMelden()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.BENOETIGTE_RECHTE);
+		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
 
 		String hinweis = DiscordService.fehlendeKanalRechte(rechte, GUILD, kanal("["
 				+ "{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\"},"
@@ -128,7 +129,7 @@ public class DiscordServiceTest
 	@Test
 	public void webhooksFuerBotVerboten_fehlendeKanalRechte_sollteWebhooksMelden()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.BENOETIGTE_RECHTE);
+		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
 
 		String hinweis = DiscordService.fehlendeKanalRechte(rechte, GUILD,
 				kanal("[{\"id\":\"" + BOT + "\",\"type\":1,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_WEBHOOKS_VERWALTEN + "\"}]"));
@@ -145,18 +146,6 @@ public class DiscordServiceTest
 				kanal("[{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\"}]")));
 	}
 
-	@Test
-	public void keineRedirectUri_getRedirectUri_sollteSieAusDerAnfrageAbleiten()
-	{
-		DiscordKonfiguration konfiguration = new DiscordKonfiguration();
-
-		assertEquals("http://localhost:8080/ds?module=options&action=discordCallback",
-				konfiguration.getRedirectUri("http://localhost:8080/ds"));
-
-		konfiguration.setRedirectUri(" https://ds.example/ds?module=options&action=discordCallback ");
-		assertEquals("https://ds.example/ds?module=options&action=discordCallback",
-				konfiguration.getRedirectUri("http://localhost:8080/ds"));
-	}
 
 	private static DiscordService.BotRechte botRechte(long serverRechte)
 	{

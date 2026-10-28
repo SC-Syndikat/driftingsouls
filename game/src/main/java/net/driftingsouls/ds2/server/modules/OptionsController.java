@@ -24,6 +24,7 @@ import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.discord.DiscordException;
 import net.driftingsouls.ds2.server.discord.DiscordKonfiguration;
+import net.driftingsouls.ds2.server.discord.DiscordNachricht;
 import net.driftingsouls.ds2.server.discord.DiscordService;
 import net.driftingsouls.ds2.server.discord.DiscordUser;
 import net.driftingsouls.ds2.server.entities.User;
@@ -446,6 +447,10 @@ public class OptionsController extends Controller
 		String discordUserId = user.getUserValue(WellKnownUserValue.DISCORD_USER_ID);
 		t.setVar("discord.configured", discordKonfiguration.isLoginEingerichtet(),
 				"discord.connected", !discordUserId.isEmpty(),
+				"discord.bestaetigen", !discordUserId.isEmpty() && !DiscordUser.isVerknuepfungAktuell(user.getUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM)),
+				"discord.gueltigtage", DiscordUser.VERKNUEPFUNG_GUELTIG_TAGE,
+				"discord.aufbewahrungtage", DiscordNachricht.AUFBEWAHRUNG_TAGE,
+				"discord.inhalte", user.getUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT),
 				"discord.username", Common.escapeHTML(user.getUserValue(WellKnownUserValue.DISCORD_USERNAME)),
 				"discord.avatar", DiscordUser.avatarUrl(discordUserId, user.getUserValue(WellKnownUserValue.DISCORD_AVATAR)),
 				"discord.inviteurl", discordInviteUrl(discordKonfiguration));
@@ -496,13 +501,16 @@ public class OptionsController extends Controller
 
 		String state = new BigInteger(130, random).toString(32);
 		user.setUserValue(WellKnownUserValue.DISCORD_OAUTH_STATE, state);
-		String url = discordService.getAuthorizeUrl(konfiguration, konfiguration.getRedirectUri(getRequest().getRequestURL()), state);
+		String url = discordService.getAuthorizeUrl(konfiguration, konfiguration.getRedirectUri(), state);
 		return response -> response.redirectTo(url);
 	}
 
 	/**
 	 * Empfaengt die Antwort von Discord und verknuepft den Discord-Account mit dem Spieler.
 	 * Ist der Account noch kein Mitglied des Discord-Servers, wird er hinzugefuegt.
+	 * Mit der Verknuepfung stimmt der Spieler auch zu, dass der Chat Inhalte von Discord laedt.
+	 * <p>
+	 * Discord ruft diese Aktion per GET auf. Gegen untergeschobene Aufrufe schuetzt der <code>state</code>.
 	 *
 	 * @param code Der Code zum Abholen des Access-Tokens
 	 * @param state Der beim Weiterleiten erzeugte Zufallswert
@@ -532,18 +540,20 @@ public class OptionsController extends Controller
 
 		try
 		{
-			String accessToken = discordService.exchangeCode(konfiguration, konfiguration.getRedirectUri(getRequest().getRequestURL()), code);
+			String accessToken = discordService.exchangeCode(konfiguration, konfiguration.getRedirectUri(), code);
 			DiscordUser discordUser = discordService.fetchUser(accessToken);
 			boolean member = discordService.joinGuild(konfiguration, discordUser, accessToken);
 
 			user.setUserValue(WellKnownUserValue.DISCORD_USER_ID, discordUser.id);
 			user.setUserValue(WellKnownUserValue.DISCORD_USERNAME, discordUser.displayName);
 			user.setUserValue(WellKnownUserValue.DISCORD_AVATAR, discordUser.avatar != null ? discordUser.avatar : "");
+			user.setUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM, System.currentTimeMillis());
+			user.setUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT, true);
 
 			String message = "Dein Account ist jetzt mit dem Discord-Account <b>" + Common.escapeHTML(discordUser.displayName) + "</b> verknüpft.";
 			if (!member)
 			{
-				message += "<br />Tritt noch unserem <a href=\"" + discordInviteUrl(konfiguration) + "\" target=\"_blank\">Discord-Server</a> bei, um im Chat schreiben zu können.";
+				message += "<br />Tritt noch unserem <a href=\"" + discordInviteUrl(konfiguration) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Discord-Server</a> bei, um im Chat schreiben zu können.";
 			}
 			return discordPopup(true, message);
 		}
@@ -554,23 +564,47 @@ public class OptionsController extends Controller
 	}
 
 	/**
-	 * Hebt die Verknuepfung mit dem Discord-Account auf.
+	 * Hebt die Verknuepfung mit dem Discord-Account auf und loescht die Zuordnung der aus dem
+	 * Spiel gesendeten Nachrichten. Nur per POST, damit sie sich nicht per Bild-URL ausloesen laesst.
 	 */
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult discordDisconnectAction()
 	{
+		if (!getRequest().isPost())
+		{
+			return new RedirectViewResult("xtra");
+		}
 		User user = (User) getUser();
 		discordService.forgetMember(user.getUserValue(WellKnownUserValue.DISCORD_USER_ID));
 		user.setUserValue(WellKnownUserValue.DISCORD_USER_ID, "");
 		user.setUserValue(WellKnownUserValue.DISCORD_USERNAME, "");
 		user.setUserValue(WellKnownUserValue.DISCORD_AVATAR, "");
+		user.setUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM, 0L);
+		DiscordNachricht.loeschenFuer(getEM(), user.getId());
 
 		return new RedirectViewResult("xtra").withMessage("Die Verknüpfung mit Discord wurde aufgehoben.<br />\n");
 	}
 
+	/**
+	 * Widerruft die Zustimmung, dass der Chat auf der Uebersicht Inhalte von Discord laedt. Nur per POST.
+	 */
+	@Action(ActionType.DEFAULT)
+	public RedirectViewResult discordInhalteWiderrufenAction()
+	{
+		if (!getRequest().isPost())
+		{
+			return new RedirectViewResult("xtra");
+		}
+		User user = (User) getUser();
+		user.setUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT, false);
+
+		return new RedirectViewResult("xtra").withMessage("Der Discord-Chat lädt keine Inhalte mehr von Discord.<br />\n");
+	}
+
 	private static String discordInviteUrl(DiscordKonfiguration konfiguration)
 	{
-		return konfiguration.getInviteUrl() != null ? Common.escapeHTML(konfiguration.getInviteUrl()) : "https://discord.com";
+		String url = konfiguration.getSichereInviteUrl();
+		return url != null ? Common.escapeHTML(url) : "https://discord.com";
 	}
 
 	/**

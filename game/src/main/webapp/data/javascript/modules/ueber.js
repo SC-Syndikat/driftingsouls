@@ -19,7 +19,12 @@ var UeberBox = {
 */
 var DiscordChat = {
 	INTERVALL : 5000,
+	/**
+	 * Avatare, Bilder und Videos werden nur vom CDN von Discord geladen (das prueft auch der Server).
+	 */
+	CDN : /^https:\/\/(cdn\.discordapp\.com|[a-z0-9-]+\.discordapp\.net)\//,
 	__timer : null,
+	__zustimmung : false,
 	__signatur : null,
 	__laedt : false,
 	__folgeEnde : true,
@@ -40,14 +45,54 @@ var DiscordChat = {
 			event.preventDefault();
 			DiscordChat.senden();
 		});
+		chat.find('.discord-zustimmen').on('click', function() {
+			DiscordChat.zustimmen();
+		});
+		chat.find('.discord-bestaetigen').on('click', function(event) {
+			event.preventDefault();
+			window.open('./ds?module=options&action=discordConnect', 'dsDiscord', 'width=520,height=800');
+		});
 		$(document).on('visibilitychange', function() {
-			if( !document.hidden ) {
+			if( !document.hidden && DiscordChat.__zustimmung ) {
 				DiscordChat.laden();
 			}
 		});
 
 		this.__aktualisiereEingabe();
-		this.laden();
+		// Ohne Zustimmung des Spielers wird nichts von Discord geladen
+		this.__zustimmung = chat.find('.discord-zustimmung').length === 0;
+		if( this.__zustimmung ) {
+			this.laden();
+		}
+	},
+
+	/**
+	 * Vermerkt die Zustimmung, dass der Chat Inhalte von Discord laedt, und zeigt danach die Nachrichten.
+	 */
+	zustimmen : function() {
+		var kanal = this.__kanal();
+		$('#discord-chat .discord-zustimmen').prop('disabled', true);
+		jQuery.ajax({
+			url: DS.getUrl(),
+			type: 'POST',
+			data: {module:'ueber', action:'discordZustimmung', channel:kanal, FORMAT:'JSON'},
+			dataType: 'json',
+			success: function(result) {
+				if( result.zustimmungFehlt ) {
+					$('#discord-chat .discord-zustimmen').prop('disabled', false);
+					DiscordChat.__zeigeFehler(result.error || 'Die Zustimmung konnte nicht gespeichert werden.');
+					return;
+				}
+				DiscordChat.__zustimmung = true;
+				$('#discord-chat .discord-nachrichten').empty();
+				DiscordChat.__zeigeErgebnis(result, true);
+				DiscordChat.__planeNaechstesLaden();
+			},
+			error: function() {
+				$('#discord-chat .discord-zustimmen').prop('disabled', false);
+				DiscordChat.__zeigeFehler('Die Zustimmung konnte nicht gespeichert werden.');
+			}
+		});
 	},
 
 	/**
@@ -60,9 +105,11 @@ var DiscordChat = {
 		var darfSchreiben = kanal.attr('data-schreiben') === '1';
 		var form = chat.find('form.discord-eingabe');
 		form.find('input').prop('disabled', !darfSchreiben);
-		form.find('input[name=text]').attr('placeholder', darfSchreiben ?
-			'Nachricht an #' + kanal.attr('data-name') :
-			'In #' + kanal.attr('data-name') + ' darfst du nur mitlesen');
+		var hinweis = 'In #' + kanal.attr('data-name') + ' darfst du nur mitlesen';
+		if( chat.attr('data-bestaetigen') === '1' ) {
+			hinweis = 'Bestätige die Verknüpfung in den Einstellungen erneut';
+		}
+		form.find('input[name=text]').attr('placeholder', darfSchreiben ? 'Nachricht an #' + kanal.attr('data-name') : hinweis);
 	},
 
 	__kanal : function() {
@@ -90,7 +137,7 @@ var DiscordChat = {
 	__planeNaechstesLaden : function() {
 		clearTimeout(this.__timer);
 		this.__timer = setTimeout(function() {
-			if( document.hidden ) {
+			if( document.hidden || !DiscordChat.__zustimmung ) {
 				// Erst beim Zurueckkehren auf die Seite wieder laden (visibilitychange)
 				return;
 			}
@@ -175,8 +222,16 @@ var DiscordChat = {
 			return;
 		}
 
+		if( result.zustimmungFehlt ) {
+			// Zustimmung wurde in einem anderen Fenster widerrufen
+			this.__zustimmung = false;
+			this.__zeigeFehler('Der Chat lädt keine Inhalte mehr von Discord. Lade die Seite neu, um wieder zuzustimmen.');
+			return;
+		}
+
 		if( result.channel === this.__kanal() ) {
 			// Rechte koennen sich geaendert haben, seit die Seite geladen wurde
+			chat.attr('data-bestaetigen', result.bestaetigen ? '1' : '0');
 			chat.find('.discord-kanal.aktiv').attr('data-schreiben', result.schreiben ? '1' : '0');
 			this.__aktualisiereEingabe();
 		}
@@ -221,7 +276,9 @@ var DiscordChat = {
 			element.addClass('discord-ingame');
 		}
 
-		$('<img class="discord-avatar" alt="" />').attr('src', nachricht.avatarUrl).appendTo(element);
+		if( this.CDN.test(nachricht.avatarUrl || '') ) {
+			$('<img class="discord-avatar" alt="" />').attr('src', nachricht.avatarUrl).appendTo(element);
+		}
 
 		var kopf = $('<div class="discord-kopf"></div>').appendTo(element);
 		var autor = $('<span class="discord-autor"></span>').text(nachricht.author).appendTo(kopf);
@@ -231,13 +288,16 @@ var DiscordChat = {
 		if( nachricht.ingame ) {
 			$('<span class="discord-ingame-marke" title="Aus Drifting Souls gesendet">DS</span>').appendTo(kopf);
 		}
+		else if( nachricht.webhook ) {
+			$('<span class="discord-app-marke" title="Von einer Discord-Integration gesendet, nicht aus Drifting Souls">APP</span>').appendTo(kopf);
+		}
 		$('<span class="discord-zeit"></span>').text(this.__formatiereZeit(nachricht.timestamp)).appendTo(kopf);
 
 		var text = $('<div class="discord-text"></div>').appendTo(element);
 		this.__fuegeTextMitLinksEin(text, nachricht.text);
 
 		$.each(nachricht.attachments || [], function(index, anhang) {
-			if( !/^https:\/\//.test(anhang.url) ) {
+			if( !DiscordChat.CDN.test(anhang.url || '') ) {
 				return;
 			}
 			var link = $('<a class="discord-anhang" target="_blank" rel="noopener noreferrer"></a>').attr('href', anhang.url);

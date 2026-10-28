@@ -24,6 +24,9 @@ import java.util.Objects;
 /**
  * Einstellungen des Discord-Bots fuer den Ingame-Chat: Zugangsdaten, Server und
  * die Rechte je Kanal.
+ * <p>
+ * Aenderungen werden nur per POST angenommen, damit sie sich nicht ueber eine Bild-URL
+ * (z.B. <code>[img]</code> in einer PM an einen Admin) ausloesen lassen.
  */
 @AdminMenuEntry(category = "Sonstiges", name = "Discord-Bot", permission = WellKnownAdminPermission.DISCORD)
 public class DiscordAdmin implements AdminPlugin
@@ -43,9 +46,15 @@ public class DiscordAdmin implements AdminPlugin
 		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(em);
 
 		DiscordPruefung pruefung = null;
+		String aktion = request.getParameterString("aktion");
+		if (!aktion.isEmpty() && !request.isPost())
+		{
+			fehler.add("Änderungen sind nur über die Formulare dieser Seite möglich.");
+			aktion = "";
+		}
 		try
 		{
-			switch (request.getParameterString("aktion"))
+			switch (aktion)
 			{
 				case "speichern":
 					einstellungenSpeichern(em, request, konfiguration);
@@ -85,7 +94,7 @@ public class DiscordAdmin implements AdminPlugin
 		konfiguration.setAktiv("1".equals(request.getParameterString("aktiv")));
 
 		String guildId = request.getParameterString("guild_id").trim();
-		if (!guildId.isEmpty() && !guildId.matches("\\d+"))
+		if (!guildId.isEmpty() && !guildId.matches("\\d{1,25}"))
 		{
 			fehler.add("Die Server-ID muss eine Zahl sein.");
 		}
@@ -95,7 +104,7 @@ public class DiscordAdmin implements AdminPlugin
 		}
 
 		String clientId = request.getParameterString("client_id").trim();
-		if (!clientId.isEmpty() && !clientId.matches("\\d+"))
+		if (!clientId.isEmpty() && !clientId.matches("\\d{1,25}"))
 		{
 			fehler.add("Die Client-ID muss eine Zahl sein.");
 		}
@@ -124,8 +133,25 @@ public class DiscordAdmin implements AdminPlugin
 			konfiguration.setClientSecret(null);
 		}
 
-		konfiguration.setRedirectUri(leerZuNull(request.getParameterString("redirect_uri").trim()));
-		konfiguration.setInviteUrl(leerZuNull(request.getParameterString("invite_url").trim()));
+		String redirectUri = request.getParameterString("redirect_uri").trim();
+		if (!redirectUri.isEmpty() && !redirectUri.matches("https?://[^\\s\"'<>]+"))
+		{
+			fehler.add("Die Redirect-URI muss mit http:// oder https:// beginnen.");
+		}
+		else
+		{
+			konfiguration.setRedirectUri(leerZuNull(redirectUri));
+		}
+
+		String inviteUrl = request.getParameterString("invite_url").trim();
+		if (!inviteUrl.isEmpty() && !DiscordKonfiguration.isGueltigeEinladung(inviteUrl))
+		{
+			fehler.add("Der Einladungslink muss eine Discord-Einladung sein (https://discord.gg/... oder https://discord.com/invite/...).");
+		}
+		else
+		{
+			konfiguration.setInviteUrl(leerZuNull(inviteUrl));
+		}
 
 		if (!em.contains(konfiguration))
 		{
@@ -154,6 +180,7 @@ public class DiscordAdmin implements AdminPlugin
 		}
 
 		int neu = 0;
+		int geaendert = 0;
 		for (DiscordGuildKanal discordKanal : discordKanaele)
 		{
 			DiscordKanal kanal = vorhandene.remove(discordKanal.id);
@@ -163,10 +190,11 @@ public class DiscordAdmin implements AdminPlugin
 				kanal = new DiscordKanal(konfiguration.getGuildId(), discordKanal.id);
 				neu++;
 			}
-			kanal.setName(discordKanal.name);
-			kanal.setKategorie(discordKanal.kategorie);
-			kanal.setPosition(discordKanal.position);
-			kanal.setBotHinweis(discordKanal.hinweis);
+			uebernehme(kanal, discordKanal);
+			if (!istNeu && kanal.getFreigabeSignatur() != null && !kanal.isFreigabeAktuell())
+			{
+				geaendert++;
+			}
 			if (istNeu)
 			{
 				em.persist(kanal);
@@ -179,22 +207,63 @@ public class DiscordAdmin implements AdminPlugin
 
 		meldungen.add(discordKanaele.size() + " Kanäle synchronisiert, davon " + neu + " neu (gesperrt), "
 				+ vorhandene.size() + " nicht mehr vorhandene entfernt.");
+		if (geaendert > 0)
+		{
+			fehler.add("Bei " + geaendert + " Kanälen hat sich in Discord geändert, wer sie sehen darf. Sie sind im Spiel gesperrt, bis du die Kanalrechte erneut speicherst.");
+		}
 	}
 
+	private static void uebernehme(DiscordKanal kanal, DiscordGuildKanal discordKanal)
+	{
+		kanal.setName(discordKanal.name);
+		kanal.setKategorie(discordKanal.kategorie);
+		kanal.setPosition(discordKanal.position);
+		kanal.setBotHinweis(discordKanal.hinweis);
+		kanal.setOeffentlich(discordKanal.oeffentlich);
+		kanal.setDiscordSignatur(discordKanal.signatur);
+	}
+
+	/**
+	 * Speichert die Kanalrechte. Vorher wird der aktuelle Stand von Discord geladen: Die Freigabe
+	 * gilt fuer genau die Sichtbarkeit, die die Kanaele jetzt in Discord haben.
+	 */
 	private void kanaeleSpeichern(EntityManager em, Request request, DiscordKonfiguration konfiguration)
 	{
+		if (!DiscordKonfiguration.isSetzt(konfiguration.getBotToken()) || !DiscordKonfiguration.isSetzt(konfiguration.getGuildId()))
+		{
+			fehler.add("Zum Freigeben müssen Bot-Token und Server-ID gesetzt sein.");
+			return;
+		}
+		Map<String, DiscordGuildKanal> discordKanaele = new HashMap<>();
+		for (DiscordGuildKanal discordKanal : discordService.ladeKanaele(konfiguration))
+		{
+			discordKanaele.put(discordKanal.id, discordKanal);
+		}
+
 		String standard = request.getParameterString("standard");
 		for (DiscordKanal kanal : DiscordKanal.alle(em, konfiguration.getGuildId()))
 		{
+			DiscordGuildKanal discordKanal = discordKanaele.get(kanal.getChannelId());
+			if (discordKanal == null)
+			{
+				fehler.add("Den Kanal #" + kanal.getName() + " gibt es in Discord nicht mehr. Synchronisiere die Kanäle.");
+				continue;
+			}
+			uebernehme(kanal, discordKanal);
 			kanal.setLesen(zugriff(request.getParameterString("lesen_" + kanal.getId()), kanal.getLesen()));
 			kanal.setSchreiben(zugriff(request.getParameterString("schreiben_" + kanal.getId()), kanal.getSchreiben()));
 			kanal.setStandard(String.valueOf(kanal.getId()).equals(standard));
+			kanal.freigeben();
 			if (kanal.isStandard() && kanal.getLesen() != DiscordZugriff.ALLE)
 			{
 				fehler.add("Der Standardkanal #" + kanal.getName() + " ist nicht für alle Spieler lesbar. Wer ihn nicht lesen darf, bekommt den ersten für ihn lesbaren Kanal angezeigt.");
 			}
+			if (kanal.getLesen() == DiscordZugriff.ALLE && !kanal.isOeffentlich())
+			{
+				fehler.add("Hinweis: #" + kanal.getName() + " ist in Discord nicht für @everyone sichtbar, im Spiel aber für alle Spieler lesbar.");
+			}
 		}
-		meldungen.add("Kanalrechte gespeichert.");
+		meldungen.add("Kanalrechte gespeichert und für die aktuelle Sichtbarkeit in Discord freigegeben.");
 	}
 
 	private static DiscordZugriff zugriff(String wert, DiscordZugriff bisher)
@@ -203,7 +272,7 @@ public class DiscordAdmin implements AdminPlugin
 		{
 			return DiscordZugriff.valueOf(wert);
 		}
-		catch (IllegalArgumentException e)
+		catch (IllegalArgumentException | NullPointerException e)
 		{
 			return bisher;
 		}
@@ -227,7 +296,7 @@ public class DiscordAdmin implements AdminPlugin
 
 	private void ausgabeEinstellungen(StringBuilder echo, Request request, DiscordKonfiguration konfiguration)
 	{
-		String redirectUri = konfiguration.getRedirectUri(request.getRequestURL());
+		String vorschlag = DiscordKonfiguration.vorschlagRedirectUri(request.getRequestURL());
 
 		echo.append("<h2>Einstellungen</h2>");
 		formularAnfang(echo, "speichern");
@@ -235,20 +304,24 @@ public class DiscordAdmin implements AdminPlugin
 		echo.append("<tr><td width='200'>Chat aktiv</td><td><input type='checkbox' name='aktiv' value='1'")
 				.append(konfiguration.isAktiv() ? " checked='checked'" : "").append(" /></td></tr>");
 		textzeile(echo, "Server-ID (Guild)", "guild_id", konfiguration.getGuildId(), "z.B. 471610776126226432 - zum Testen einfach einen anderen Server eintragen");
-		textzeile(echo, "Einladungslink", "invite_url", konfiguration.getInviteUrl(), "wird Spielern angezeigt, die noch nicht auf dem Server sind");
-		geheimzeile(echo, "Bot-Token", "bot_token", konfiguration.getBotToken());
+		textzeile(echo, "Einladungslink", "invite_url", konfiguration.getInviteUrl(), "wird Spielern angezeigt, die noch nicht auf dem Server sind - nur https://discord.gg/... oder https://discord.com/invite/...");
+		geheimzeile(echo, "Bot-Token", "bot_token", konfiguration.isBotTokenGespeichert(), konfiguration.isBotTokenAusUmgebung(), DiscordKonfiguration.ENV_BOT_TOKEN);
 		textzeile(echo, "Client-ID", "client_id", konfiguration.getClientId(), "Developer Portal → OAuth2");
-		geheimzeile(echo, "Client-Secret", "client_secret", konfiguration.getClientSecret());
-		textzeile(echo, "Redirect-URI", "redirect_uri", konfiguration.getRedirectUri(), "leer = " + redirectUri);
+		geheimzeile(echo, "Client-Secret", "client_secret", konfiguration.isClientSecretGespeichert(), konfiguration.isClientSecretAusUmgebung(), DiscordKonfiguration.ENV_CLIENT_SECRET);
+		textzeile(echo, "Redirect-URI", "redirect_uri", konfiguration.getRedirectUri(), "Pflichtfeld für die Verknüpfung, z.B. " + vorschlag);
 		echo.append("<tr><td></td><td><input type='submit' value='Speichern' /></td></tr>");
 		echo.append("</table></form>");
 
-		echo.append("<p>Im Developer Portal unter OAuth2 → Redirects eintragen: <code>").append(Common.escapeHTML(redirectUri)).append("</code><br />");
+		echo.append("<p>Die Redirect-URI genau so im Developer Portal unter OAuth2 → Redirects eintragen. ")
+				.append("Bot-Token und Client-Secret lassen sich statt hier auch in den Umgebungsvariablen <code>")
+				.append(DiscordKonfiguration.ENV_BOT_TOKEN).append("</code> und <code>").append(DiscordKonfiguration.ENV_CLIENT_SECRET)
+				.append("</code> hinterlegen, dann stehen sie in keinem Datenbank-Dump.<br />");
 		if (DiscordKonfiguration.isSetzt(konfiguration.getClientId()))
 		{
 			String einladung = "https://discord.com/oauth2/authorize?client_id=" + konfiguration.getClientId().trim()
 					+ "&scope=bot&permissions=" + DiscordService.BENOETIGTE_RECHTE;
-			echo.append("Bot auf den Server einladen: <a href='").append(Common.escapeHTML(einladung)).append("' target='_blank'>Einladungslink des Bots</a>");
+			echo.append("Bot auf den Server einladen: <a href='").append(Common.escapeHTML(einladung)).append("' target='_blank' rel='noopener noreferrer'>Einladungslink des Bots</a>. ")
+					.append("<i>Webhooks verwalten</i> erlaubst du ihm danach nur in den Kanälen, die der Chat nutzen soll.");
 		}
 		else
 		{
@@ -280,7 +353,10 @@ public class DiscordAdmin implements AdminPlugin
 		echo.append("<h2>Kanäle</h2>");
 		echo.append("<p>Lesen und Schreiben lassen sich getrennt freigeben. Schreiben setzt das Leserecht voraus. ")
 				.append("Admins dürfen jeden nicht gesperrten Kanal nutzen. Neue Kanäle sind gesperrt, bis sie hier freigegeben werden. ")
-				.append("Spieler bekommen nur Kanäle zu sehen, die sie lesen dürfen; Anfragen an andere Kanäle lehnt der Server ab.</p>");
+				.append("Spieler bekommen nur Kanäle zu sehen, die sie lesen dürfen; Anfragen an andere Kanäle lehnt der Server ab.</p>")
+				.append("<p>Die Freigabe gilt für die Sichtbarkeit, die ein Kanal beim Speichern in Discord hat. Ändert sich dort, ")
+				.append("wer ihn sehen darf, ist er im Spiel gesperrt, bis du die Kanalrechte erneut speicherst. ")
+				.append("Beim Schreiben prüft das Spiel zusätzlich die Discord-Rechte des Accounts, Timeouts und den Slowmode.</p>");
 
 		formularAnfang(echo, "synchronisieren");
 		echo.append("<input type='submit' value='Kanäle von Discord synchronisieren' /></form><br />");
@@ -306,15 +382,30 @@ public class DiscordAdmin implements AdminPlugin
 						.append(kategorie != null ? Common.escapeHTML(kategorie) : "Ohne Kategorie").append("</td></tr>");
 				ersteZeile = false;
 			}
-			echo.append("<tr><td>#").append(Common.escapeHTML(kanal.getName())).append("</td>");
-			echo.append("<td>");
+			echo.append("<tr><td>#").append(Common.escapeHTML(kanal.getName()));
+			if (!kanal.isOeffentlich())
+			{
+				echo.append(" <span style='color:#a0a0a0;font-size:11px' title='In Discord nicht für @everyone sichtbar'>(privat)</span>");
+			}
+			echo.append("</td><td>");
 			zugriffAuswahl(echo, "lesen_" + kanal.getId(), kanal.getLesen());
 			echo.append("</td><td>");
 			zugriffAuswahl(echo, "schreiben_" + kanal.getId(), kanal.getSchreiben());
 			echo.append("</td><td align='center'><input type='radio' name='standard' value='").append(kanal.getId()).append("'")
 					.append(kanal.isStandard() ? " checked='checked'" : "").append(" /></td>");
-			echo.append("<td style='color:#ff6060;font-size:12px'>")
-					.append(kanal.getBotHinweis() != null ? Common.escapeHTML(kanal.getBotHinweis()) : "").append("</td></tr>");
+			echo.append("<td style='color:#ff6060;font-size:12px'>");
+			List<String> hinweise = new ArrayList<>();
+			if (kanal.getBotHinweis() != null)
+			{
+				hinweise.add(kanal.getBotHinweis());
+			}
+			if (kanal.getLesen() != DiscordZugriff.GESPERRT && !kanal.isFreigabeAktuell())
+			{
+				hinweise.add(kanal.getFreigabeSignatur() == null
+						? "Noch nicht freigegeben - zum Freigeben speichern"
+						: "Sichtbarkeit in Discord geändert - gesperrt, bis die Kanalrechte erneut gespeichert werden");
+			}
+			echo.append(Common.escapeHTML(String.join(". ", hinweise))).append("</td></tr>");
 		}
 		echo.append("<tr><td colspan='5'><br /><input type='submit' value='Kanalrechte speichern' /></td></tr>");
 		echo.append("</table></form>");
@@ -335,14 +426,22 @@ public class DiscordAdmin implements AdminPlugin
 		echo.append("<br /><span style='font-size:11px;color:#a0a0a0'>").append(Common.escapeHTML(hinweis)).append("</span></td></tr>");
 	}
 
-	private static void geheimzeile(StringBuilder echo, String label, String name, String wert)
+	private static void geheimzeile(StringBuilder echo, String label, String name, boolean gespeichert, boolean ausUmgebung, String umgebungsvariable)
 	{
-		boolean gesetzt = DiscordKonfiguration.isSetzt(wert);
-		echo.append("<tr><td>").append(label).append("</td><td><input type='password' size='60' autocomplete='new-password' name='").append(name)
-				.append("' placeholder='").append(gesetzt ? "gesetzt - leer lassen, um ihn zu behalten" : "nicht gesetzt").append("' />");
-		if (gesetzt)
+		echo.append("<tr><td>").append(label).append("</td><td>");
+		if (ausUmgebung)
 		{
-			echo.append(" <label><input type='checkbox' name='").append(name).append("_loeschen' value='1' /> löschen</label>");
+			echo.append("<span style='color:#4ec94e'>aus der Umgebungsvariable <code>").append(umgebungsvariable).append("</code></span>");
+		}
+		else
+		{
+			echo.append("<input type='password' size='60' autocomplete='new-password' name='").append(name)
+					.append("' placeholder='").append(gespeichert ? "gesetzt - leer lassen, um ihn zu behalten" : "nicht gesetzt").append("' />");
+		}
+		if (gespeichert)
+		{
+			echo.append(" <label><input type='checkbox' name='").append(name).append("_loeschen' value='1' /> ")
+					.append(ausUmgebung ? "zusätzlich in der Datenbank gespeicherten Wert löschen" : "löschen").append("</label>");
 		}
 		echo.append("</td></tr>");
 	}
