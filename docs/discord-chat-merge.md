@@ -26,9 +26,12 @@ is the checklist around it.
    - V042 was rewritten on the branch (`9ac830544`). A local database that applied an earlier version
      of it fails Flyway's checksum validation: set it up fresh, or drop the three `discord_*` tables
      and the V042 row from `flyway_schema_history`.
-2. **Merge.** `develop` has not moved since the branch was cut, so this is a fast-forward. A test merge
-   with `feature/campaign` goes through without conflicts (both touch `UeberController`, `ueber.html`,
-   `WellKnownUserValue` and `WellKnownAdminPermission`, in different places).
+2. **Merge.** The branch already contains `develop` up to the English renames (`2a16673e1`), so it
+   merges without conflicts. The overview controller and template are now `OverviewController` and
+   `overview.html`. A test merge with `feature/campaign` (which also contains that `develop`) goes
+   through without conflicts too: both touch `OverviewController`, `overview.html`, `WellKnownUserValue`
+   and `WellKnownAdminPermission`, but in different places. If `develop` moves on, merge it into the
+   branch again first.
 3. **New dependency.** `com.vdurmont:emoji-java:5.1.1` (emoji short codes like `:thumbsup:`).
 4. **Tests.** `mvnw -pl game -am test` needs Docker (Testcontainers MySQL for Flyway and jOOQ). On a
    JDK newer than 11 the Spring integration tests need
