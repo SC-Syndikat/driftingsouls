@@ -18,8 +18,8 @@ import java.util.regex.Pattern;
  * haben Vorrang, so landen die Geheimnisse nicht in Datenbank-Dumps.
  */
 @Entity
-@Table(name = "discord_konfiguration")
-public class DiscordKonfiguration
+@Table(name = "discord_configuration")
+public class DiscordConfiguration
 {
 	private static final int ID = 1;
 	public static final String ENV_BOT_TOKEN = "DS_DISCORD_BOT_TOKEN";
@@ -27,17 +27,17 @@ public class DiscordKonfiguration
 	/**
 	 * Nur echte Einladungen auf Discord, damit der Link weder auf fremde Seiten noch auf <code>javascript:</code> zeigt.
 	 */
-	private static final Pattern EINLADUNG = Pattern.compile("https://(discord\\.gg|discord\\.com/invite|discordapp\\.com/invite)/[A-Za-z0-9-]{2,32}");
+	private static final Pattern INVITE = Pattern.compile("https://(discord\\.gg|discord\\.com/invite|discordapp\\.com/invite)/[A-Za-z0-9-]{2,32}");
 
 	/**
 	 * Zum Ersetzen in Tests.
 	 */
-	static Function<String, String> umgebung = System::getenv;
+	static Function<String, String> environment = System::getenv;
 
 	@Id
 	private int id = ID;
 	@Column(nullable = false)
-	private boolean aktiv;
+	private boolean active;
 	@Column(name = "bot_token")
 	private String botToken;
 	@Column(name = "client_id")
@@ -58,28 +58,28 @@ public class DiscordKonfiguration
 	 * @param em Der EntityManager
 	 * @return Die Einstellungen
 	 */
-	public static DiscordKonfiguration laden(EntityManager em)
+	public static DiscordConfiguration load(EntityManager em)
 	{
-		DiscordKonfiguration konfiguration = em.find(DiscordKonfiguration.class, ID);
-		return konfiguration != null ? konfiguration : new DiscordKonfiguration();
+		DiscordConfiguration configuration = em.find(DiscordConfiguration.class, ID);
+		return configuration != null ? configuration : new DiscordConfiguration();
 	}
 
 	/**
 	 * Gibt zurueck, ob der Chat benutzt werden kann (aktiv, Bot-Token und Server gesetzt).
 	 * @return <code>true</code>, falls dem so ist
 	 */
-	public boolean isChatEingerichtet()
+	public boolean isChatConfigured()
 	{
-		return aktiv && isSetzt(getBotToken()) && isSetzt(guildId);
+		return active && isSet(getBotToken()) && isSet(guildId);
 	}
 
 	/**
 	 * Gibt zurueck, ob Spieler ihren Account per OAuth2 verknuepfen koennen.
 	 * @return <code>true</code>, falls zusaetzlich Client-ID, Client-Secret und Redirect-URI gesetzt sind
 	 */
-	public boolean isLoginEingerichtet()
+	public boolean isLoginConfigured()
 	{
-		return isChatEingerichtet() && isSetzt(clientId) && isSetzt(getClientSecret()) && isSetzt(redirectUri);
+		return isChatConfigured() && isSet(clientId) && isSet(getClientSecret()) && isSet(redirectUri);
 	}
 
 	/**
@@ -88,15 +88,15 @@ public class DiscordKonfiguration
 	 * @param requestUrl Die URL der aktuellen Anfrage (z.B. <code>http://localhost:8080/ds</code>)
 	 * @return Der Vorschlag
 	 */
-	public static String vorschlagRedirectUri(String requestUrl)
+	public static String suggestRedirectUri(String requestUrl)
 	{
-		String basis = requestUrl;
-		int query = basis.indexOf('?');
+		String base = requestUrl;
+		int query = base.indexOf('?');
 		if (query != -1)
 		{
-			basis = basis.substring(0, query);
+			base = base.substring(0, query);
 		}
-		return basis.substring(0, basis.lastIndexOf('/') + 1) + "ds?module=options&action=discordCallback";
+		return base.substring(0, base.lastIndexOf('/') + 1) + "ds?module=options&action=discordCallback";
 	}
 
 	/**
@@ -104,24 +104,24 @@ public class DiscordKonfiguration
 	 * @param url Der Link
 	 * @return <code>true</code>, falls dem so ist
 	 */
-	public static boolean isGueltigeEinladung(String url)
+	public static boolean isValidInvite(String url)
 	{
-		return url != null && EINLADUNG.matcher(url).matches();
+		return url != null && INVITE.matcher(url).matches();
 	}
 
-	public static boolean isSetzt(String value)
+	public static boolean isSet(String value)
 	{
 		return value != null && !value.trim().isEmpty();
 	}
 
-	public boolean isAktiv()
+	public boolean isActive()
 	{
-		return aktiv;
+		return active;
 	}
 
-	public void setAktiv(boolean aktiv)
+	public void setActive(boolean active)
 	{
-		this.aktiv = aktiv;
+		this.active = active;
 	}
 
 	/**
@@ -130,21 +130,21 @@ public class DiscordKonfiguration
 	 */
 	public String getBotToken()
 	{
-		return isBotTokenAusUmgebung() ? umgebung.apply(ENV_BOT_TOKEN).trim() : botToken;
+		return isBotTokenFromEnvironment() ? environment.apply(ENV_BOT_TOKEN).trim() : botToken;
 	}
 
-	public boolean isBotTokenAusUmgebung()
+	public boolean isBotTokenFromEnvironment()
 	{
-		return isSetzt(umgebung.apply(ENV_BOT_TOKEN));
+		return isSet(environment.apply(ENV_BOT_TOKEN));
 	}
 
 	/**
 	 * Gibt zurueck, ob in der Datenbank ein Bot-Token steht, auch wenn die Umgebungsvariable Vorrang hat.
 	 * @return <code>true</code>, falls dem so ist
 	 */
-	public boolean isBotTokenGespeichert()
+	public boolean isBotTokenStored()
 	{
-		return isSetzt(botToken);
+		return isSet(botToken);
 	}
 
 	public void setBotToken(String botToken)
@@ -168,21 +168,21 @@ public class DiscordKonfiguration
 	 */
 	public String getClientSecret()
 	{
-		return isClientSecretAusUmgebung() ? umgebung.apply(ENV_CLIENT_SECRET).trim() : clientSecret;
+		return isClientSecretFromEnvironment() ? environment.apply(ENV_CLIENT_SECRET).trim() : clientSecret;
 	}
 
-	public boolean isClientSecretAusUmgebung()
+	public boolean isClientSecretFromEnvironment()
 	{
-		return isSetzt(umgebung.apply(ENV_CLIENT_SECRET));
+		return isSet(environment.apply(ENV_CLIENT_SECRET));
 	}
 
 	/**
 	 * Gibt zurueck, ob in der Datenbank ein Client-Secret steht, auch wenn die Umgebungsvariable Vorrang hat.
 	 * @return <code>true</code>, falls dem so ist
 	 */
-	public boolean isClientSecretGespeichert()
+	public boolean isClientSecretStored()
 	{
-		return isSetzt(clientSecret);
+		return isSet(clientSecret);
 	}
 
 	public void setClientSecret(String clientSecret)
@@ -224,9 +224,9 @@ public class DiscordKonfiguration
 	 * Fuer jede Ausgabe an Spieler.
 	 * @return Der Link oder <code>null</code>
 	 */
-	public String getSichereInviteUrl()
+	public String getSafeInviteUrl()
 	{
-		return isGueltigeEinladung(inviteUrl) ? inviteUrl : null;
+		return isValidInvite(inviteUrl) ? inviteUrl : null;
 	}
 
 	public void setInviteUrl(String inviteUrl)

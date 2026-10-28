@@ -23,7 +23,7 @@ import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.Building;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.comm.PM;
-import net.driftingsouls.ds2.server.discord.DiscordNachricht;
+import net.driftingsouls.ds2.server.discord.DiscordSentMessage;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.ally.Ally;
 import net.driftingsouls.ds2.server.framework.Common;
@@ -203,7 +203,7 @@ public class PlayerDelete implements AdminPlugin
 					.executeUpdate();
 
 			log.info(userId + ": Deleting discord message authors");
-			DiscordNachricht.loeschenFuer(db, user.getId());
+			DiscordSentMessage.deleteFor(db, user.getId());
 
 			log.info(userId + ": Deleting user values");
 			db.createQuery("delete from UserValue where user=:user")

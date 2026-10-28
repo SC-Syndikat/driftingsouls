@@ -19,14 +19,14 @@ import java.util.concurrent.TimeUnit;
  * der Chat auch, welche Webhook-Nachrichten wirklich aus dem Spiel kommen.
  * <p>
  * Der Chat zeigt nur die neuesten Nachrichten eines Kanals, die Eintraege werden daher nach
- * {@link #AUFBEWAHRUNG_TAGE} Tagen geloescht, ebenso beim Trennen der Verknuepfung und beim
+ * {@link #RETENTION_DAYS} Tagen geloescht, ebenso beim Trennen der Verknuepfung und beim
  * Loeschen des Spielers.
  */
 @Entity
-@Table(name = "discord_nachricht")
-public class DiscordNachricht
+@Table(name = "discord_sent_message")
+public class DiscordSentMessage
 {
-	public static final int AUFBEWAHRUNG_TAGE = 30;
+	public static final int RETENTION_DAYS = 30;
 
 	@Id
 	@Column(name = "message_id")
@@ -36,20 +36,20 @@ public class DiscordNachricht
 	@Column(name = "user_id", nullable = false)
 	private int userId;
 	@Temporal(TemporalType.TIMESTAMP)
-	@Column(nullable = false)
-	private Date gesendet;
+	@Column(name = "sent_at", nullable = false)
+	private Date sentAt;
 
-	protected DiscordNachricht()
+	protected DiscordSentMessage()
 	{
 		// JPA
 	}
 
-	public DiscordNachricht(String messageId, String discordUserId, int userId)
+	public DiscordSentMessage(String messageId, String discordUserId, int userId)
 	{
 		this.messageId = messageId;
 		this.discordUserId = discordUserId;
 		this.userId = userId;
-		this.gesendet = new Date();
+		this.sentAt = new Date();
 	}
 
 	/**
@@ -58,18 +58,18 @@ public class DiscordNachricht
 	 * @param messageIds Die IDs der Nachrichten
 	 * @return Nachrichten-ID -&gt; Discord-Account-ID
 	 */
-	public static Map<String, String> verfasser(EntityManager em, Collection<String> messageIds)
+	public static Map<String, String> authors(EntityManager em, Collection<String> messageIds)
 	{
 		Map<String, String> result = new HashMap<>();
 		if (messageIds.isEmpty())
 		{
 			return result;
 		}
-		for (DiscordNachricht nachricht : em.createQuery("from DiscordNachricht where messageId in (:ids)", DiscordNachricht.class)
+		for (DiscordSentMessage message : em.createQuery("from DiscordSentMessage where messageId in (:ids)", DiscordSentMessage.class)
 				.setParameter("ids", messageIds)
 				.getResultList())
 		{
-			result.put(nachricht.messageId, nachricht.discordUserId);
+			result.put(message.messageId, message.discordUserId);
 		}
 		return result;
 	}
@@ -79,21 +79,21 @@ public class DiscordNachricht
 	 * @param em Der EntityManager
 	 * @param userId Die ID des Spielers in DS
 	 */
-	public static void loeschenFuer(EntityManager em, int userId)
+	public static void deleteFor(EntityManager em, int userId)
 	{
-		em.createQuery("delete from DiscordNachricht where userId=:user")
+		em.createQuery("delete from DiscordSentMessage where userId=:user")
 				.setParameter("user", userId)
 				.executeUpdate();
 	}
 
 	/**
-	 * Loescht die Eintraege, die aelter als {@link #AUFBEWAHRUNG_TAGE} Tage sind.
+	 * Loescht die Eintraege, die aelter als {@link #RETENTION_DAYS} Tage sind.
 	 * @param em Der EntityManager
 	 */
-	public static void loeschenAbgelaufene(EntityManager em)
+	public static void deleteExpired(EntityManager em)
 	{
-		em.createQuery("delete from DiscordNachricht where gesendet<:grenze")
-				.setParameter("grenze", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(AUFBEWAHRUNG_TAGE)))
+		em.createQuery("delete from DiscordSentMessage where sentAt<:limit")
+				.setParameter("limit", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(RETENTION_DAYS)))
 				.executeUpdate();
 	}
 }

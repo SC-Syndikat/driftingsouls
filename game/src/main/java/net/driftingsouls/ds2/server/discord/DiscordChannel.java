@@ -19,12 +19,12 @@ import java.util.stream.Collectors;
  * Neu synchronisierte Kanaele sind gesperrt, bis ein Admin sie freigibt.
  * <p>
  * Die Freigabe gilt fuer die Sichtbarkeit, die der Kanal in Discord beim Freigeben hatte
- * (siehe {@link DiscordService#rechteSignatur}). Aendert sie sich dort, etwa weil der Kanal
+ * (siehe {@link DiscordService#permissionSignature}). Aendert sie sich dort, etwa weil der Kanal
  * privat wird, ist er im Spiel gesperrt, bis ein Admin die Rechte erneut speichert.
  */
 @Entity
-@Table(name = "discord_kanal")
-public class DiscordKanal
+@Table(name = "discord_channel")
+public class DiscordChannel
 {
 	@Id
 	@GeneratedValue
@@ -35,34 +35,34 @@ public class DiscordKanal
 	private String channelId;
 	@Column(nullable = false)
 	private String name;
-	private String kategorie;
+	private String category;
 	@Column(nullable = false)
 	private int position;
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private DiscordZugriff lesen = DiscordZugriff.GESPERRT;
+	@Column(name = "read_access", nullable = false)
+	private DiscordAccess readAccess = DiscordAccess.BLOCKED;
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private DiscordZugriff schreiben = DiscordZugriff.GESPERRT;
-	@Column(nullable = false)
-	private boolean standard;
-	@Column(name = "bot_hinweis")
-	private String botHinweis;
-	@Column(nullable = false)
-	private boolean oeffentlich;
-	@Column(name = "discord_signatur")
-	private String discordSignatur;
-	@Column(name = "freigabe_signatur")
-	private String freigabeSignatur;
+	@Column(name = "write_access", nullable = false)
+	private DiscordAccess writeAccess = DiscordAccess.BLOCKED;
+	@Column(name = "default_channel", nullable = false)
+	private boolean defaultChannel;
+	@Column(name = "bot_notice")
+	private String botNotice;
+	@Column(name = "visible_to_everyone", nullable = false)
+	private boolean visibleToEveryone;
+	@Column(name = "discord_signature")
+	private String discordSignature;
+	@Column(name = "approved_signature")
+	private String approvedSignature;
 	@Version
 	private int version;
 
-	protected DiscordKanal()
+	protected DiscordChannel()
 	{
 		// JPA
 	}
 
-	public DiscordKanal(String guildId, String channelId)
+	public DiscordChannel(String guildId, String channelId)
 	{
 		this.guildId = guildId;
 		this.channelId = channelId;
@@ -74,9 +74,9 @@ public class DiscordKanal
 	 * @param guildId Die ID des Discord-Servers
 	 * @return Die Kanaele
 	 */
-	public static List<DiscordKanal> alle(EntityManager em, String guildId)
+	public static List<DiscordChannel> all(EntityManager em, String guildId)
 	{
-		return em.createQuery("from DiscordKanal where guildId=:guild order by position, name", DiscordKanal.class)
+		return em.createQuery("from DiscordChannel where guildId=:guild order by position, name", DiscordChannel.class)
 				.setParameter("guild", guildId != null ? guildId : "")
 				.getResultList();
 	}
@@ -86,19 +86,19 @@ public class DiscordKanal
 	 * eingerichtet, ist die Liste leer. Kanaele, deren Sichtbarkeit in Discord sich seit der
 	 * Freigabe geaendert hat, fehlen. Alle Zugriffe auf Kanaele muessen hierueber laufen.
 	 * @param em Der EntityManager
-	 * @param konfiguration Die Bot-Einstellungen
+	 * @param configuration Die Bot-Einstellungen
 	 * @param user Der Spieler
 	 * @return Die lesbaren Kanaele
 	 */
-	public static List<DiscordKanal> lesbare(EntityManager em, DiscordKonfiguration konfiguration, User user)
+	public static List<DiscordChannel> readable(EntityManager em, DiscordConfiguration configuration, User user)
 	{
-		if (!konfiguration.isChatEingerichtet())
+		if (!configuration.isChatConfigured())
 		{
 			return List.of();
 		}
-		return alle(em, konfiguration.getGuildId()).stream()
-				.filter(DiscordKanal::isFreigabeAktuell)
-				.filter(kanal -> kanal.darfLesen(user))
+		return all(em, configuration.getGuildId()).stream()
+				.filter(DiscordChannel::isApprovalCurrent)
+				.filter(channel -> channel.mayRead(user))
 				.collect(Collectors.toList());
 	}
 
@@ -106,22 +106,22 @@ public class DiscordKanal
 	 * Gibt zurueck, ob die Freigabe fuer die Sichtbarkeit gilt, die der Kanal beim letzten Synchronisieren in Discord hatte.
 	 * @return <code>true</code>, falls dem so ist
 	 */
-	public boolean isFreigabeAktuell()
+	public boolean isApprovalCurrent()
 	{
-		return freigabeSignatur != null && freigabeSignatur.equals(discordSignatur);
+		return approvedSignature != null && approvedSignature.equals(discordSignature);
 	}
 
 	/**
 	 * Gibt die Freigabe fuer die aktuelle Sichtbarkeit in Discord, z.B. wenn ein Admin die Kanalrechte speichert.
 	 */
-	public void freigeben()
+	public void approve()
 	{
-		freigabeSignatur = discordSignatur;
+		approvedSignature = discordSignature;
 	}
 
-	public boolean darfLesen(User user)
+	public boolean mayRead(User user)
 	{
-		return lesen.erlaubt(user);
+		return readAccess.allowed(user);
 	}
 
 	/**
@@ -129,9 +129,9 @@ public class DiscordKanal
 	 * @param user Der Spieler
 	 * @return <code>true</code>, falls der Spieler in diesen Kanal schreiben darf
 	 */
-	public boolean darfSchreiben(User user)
+	public boolean mayWrite(User user)
 	{
-		return darfLesen(user) && schreiben.erlaubt(user);
+		return mayRead(user) && writeAccess.allowed(user);
 	}
 
 	public int getId()
@@ -159,14 +159,14 @@ public class DiscordKanal
 		this.name = name;
 	}
 
-	public String getKategorie()
+	public String getCategory()
 	{
-		return kategorie;
+		return category;
 	}
 
-	public void setKategorie(String kategorie)
+	public void setCategory(String category)
 	{
-		this.kategorie = kategorie;
+		this.category = category;
 	}
 
 	public int getPosition()
@@ -179,84 +179,84 @@ public class DiscordKanal
 		this.position = position;
 	}
 
-	public DiscordZugriff getLesen()
+	public DiscordAccess getReadAccess()
 	{
-		return lesen;
+		return readAccess;
 	}
 
-	public void setLesen(DiscordZugriff lesen)
+	public void setReadAccess(DiscordAccess readAccess)
 	{
-		this.lesen = lesen;
+		this.readAccess = readAccess;
 	}
 
-	public DiscordZugriff getSchreiben()
+	public DiscordAccess getWriteAccess()
 	{
-		return schreiben;
+		return writeAccess;
 	}
 
-	public void setSchreiben(DiscordZugriff schreiben)
+	public void setWriteAccess(DiscordAccess writeAccess)
 	{
-		this.schreiben = schreiben;
+		this.writeAccess = writeAccess;
 	}
 
-	public boolean isStandard()
+	public boolean isDefaultChannel()
 	{
-		return standard;
+		return defaultChannel;
 	}
 
-	public void setStandard(boolean standard)
+	public void setDefaultChannel(boolean defaultChannel)
 	{
-		this.standard = standard;
+		this.defaultChannel = defaultChannel;
 	}
 
 	/**
 	 * Gibt die beim letzten Synchronisieren festgestellten fehlenden Rechte des Bots zurueck.
 	 * @return Der Hinweis oder <code>null</code>, falls alles passt
 	 */
-	public String getBotHinweis()
+	public String getBotNotice()
 	{
-		return botHinweis;
+		return botNotice;
 	}
 
-	public void setBotHinweis(String botHinweis)
+	public void setBotNotice(String botNotice)
 	{
-		this.botHinweis = botHinweis;
+		this.botNotice = botNotice;
 	}
 
 	/**
 	 * Gibt zurueck, ob @everyone den Kanal in Discord sehen darf.
 	 * @return <code>true</code>, falls dem so ist
 	 */
-	public boolean isOeffentlich()
+	public boolean isVisibleToEveryone()
 	{
-		return oeffentlich;
+		return visibleToEveryone;
 	}
 
-	public void setOeffentlich(boolean oeffentlich)
+	public void setVisibleToEveryone(boolean visibleToEveryone)
 	{
-		this.oeffentlich = oeffentlich;
+		this.visibleToEveryone = visibleToEveryone;
 	}
 
 	/**
 	 * Gibt die Signatur der Sichtbarkeit beim letzten Synchronisieren zurueck.
 	 * @return Die Signatur oder <code>null</code>
 	 */
-	public String getDiscordSignatur()
+	public String getDiscordSignature()
 	{
-		return discordSignatur;
+		return discordSignature;
 	}
 
-	public void setDiscordSignatur(String discordSignatur)
+	public void setDiscordSignature(String discordSignature)
 	{
-		this.discordSignatur = discordSignatur;
+		this.discordSignature = discordSignature;
 	}
 
 	/**
 	 * Gibt die Signatur der Sichtbarkeit zurueck, fuer die die Kanalrechte freigegeben wurden.
 	 * @return Die Signatur oder <code>null</code>, falls nie freigegeben
 	 */
-	public String getFreigabeSignatur()
+	public String getApprovedSignature()
 	{
-		return freigabeSignatur;
+		return approvedSignature;
 	}
 }

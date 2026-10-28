@@ -14,11 +14,11 @@ public class DiscordServiceTest
 {
 	private static final String GUILD = "100";
 	private static final String BOT = "200";
-	private static final String BOT_ROLLE = "300";
-	private static final String ANDERE_ROLLE = "400";
+	private static final String BOT_ROLE = "300";
+	private static final String OTHER_ROLE = "400";
 
 	@Test
-	public void discordMarkup_formatContent_sollteLesbarenTextLiefern()
+	public void givenDiscordMarkup_formatContent_shouldReturnReadableText()
 	{
 		// setup
 		Map<String, String> users = Collections.singletonMap("42", "Bob");
@@ -32,7 +32,7 @@ public class DiscordServiceTest
 	}
 
 	@Test
-	public void kurzformen_formatContent_sollteSieInEmojisUmwandeln()
+	public void givenShortcodes_formatContent_shouldTurnThemIntoEmojis()
 	{
 		String text = DiscordService.formatContent("Super :thumbsup: :heart: :gibtsnicht: um 10:30:45", Collections.emptyMap(), Collections.emptyMap());
 
@@ -40,7 +40,7 @@ public class DiscordServiceTest
 	}
 
 	@Test
-	public void serverEmojiMitUnicodeNamen_formatContent_sollteEsNichtZerstoeren()
+	public void givenServerEmojiWithUnicodeName_formatContent_shouldNotBreakIt()
 	{
 		String text = DiscordService.formatContent("<:heart:123> <a:smile:456>", Collections.emptyMap(), Collections.emptyMap());
 
@@ -48,17 +48,17 @@ public class DiscordServiceTest
 	}
 
 	@Test
-	public void kurzformenBeimSenden_ersetzeKurzformen_sollteServerEmojisBevorzugen()
+	public void givenShortcodesWhenSending_replaceShortcodes_shouldPreferServerEmojis()
 	{
 		Map<String, String> serverEmojis = Collections.singletonMap("heart", "<:heart:999>");
 
-		String text = DiscordService.ersetzeKurzformen(":heart: :thumbsup: :small_green_triangle:", serverEmojis);
+		String text = DiscordService.replaceShortcodes(":heart: :thumbsup: :small_green_triangle:", serverEmojis);
 
 		assertEquals("<:heart:999> 👍 :small_green_triangle:", text);
 	}
 
 	@Test
-	public void sonderzeichenImText_formatContent_sollteSieUnveraendertLassen()
+	public void givenSpecialCharactersInText_formatContent_shouldLeaveThemUnchanged()
 	{
 		String text = DiscordService.formatContent("Preis: 5$ \\o/ <b>", Collections.emptyMap(), Collections.emptyMap());
 
@@ -66,7 +66,7 @@ public class DiscordServiceTest
 	}
 
 	@Test
-	public void spielername_webhookUsername_sollteVerboteneTeileEntfernen()
+	public void givenPlayerName_webhookUsername_shouldRemoveForbiddenParts()
 	{
 		assertEquals("Max", DiscordService.webhookUsername("Max@Discord"));
 		assertEquals("Spieler", DiscordService.webhookUsername("clyde"));
@@ -76,7 +76,7 @@ public class DiscordServiceTest
 	}
 
 	@Test
-	public void avatar_avatarUrl_sollteCdnUrlLiefern()
+	public void givenAvatar_avatarUrl_shouldReturnCdnUrl()
 	{
 		assertEquals("https://cdn.discordapp.com/avatars/123/0123456789abcdef0123456789abcdef.png?size=64", DiscordUser.avatarUrl("123", "0123456789abcdef0123456789abcdef"));
 		assertEquals("https://cdn.discordapp.com/avatars/123/a_0123456789abcdef0123456789abcdef.png?size=64", DiscordUser.avatarUrl("123", "a_0123456789abcdef0123456789abcdef"));
@@ -84,79 +84,79 @@ public class DiscordServiceTest
 	}
 
 	@Test
-	public void alleRechteAufDemServer_fehlendeKanalRechte_sollteNichtsMelden()
+	public void givenAllPermissionsOnTheServer_missingChannelPermissions_shouldReportNothing()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
+		DiscordService.BotPermissions permissions = botPermissions(DiscordService.CHANNEL_PERMISSIONS);
 
-		assertNull(DiscordService.fehlendeKanalRechte(rechte, GUILD, kanal("[]")));
+		assertNull(DiscordService.missingChannelPermissions(permissions, GUILD, channel("[]")));
 	}
 
 	@Test
-	public void kanalFuerEveryoneGesperrt_fehlendeKanalRechte_sollteFehlendesAnsehenMelden()
+	public void givenChannelBlockedForEveryone_missingChannelPermissions_shouldReportMissingView()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
+		DiscordService.BotPermissions permissions = botPermissions(DiscordService.CHANNEL_PERMISSIONS);
 
-		String hinweis = DiscordService.fehlendeKanalRechte(rechte, GUILD,
-				kanal("[{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\"}]"));
+		String notice = DiscordService.missingChannelPermissions(permissions, GUILD,
+				channel("[{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.PERMISSION_VIEW_CHANNEL + "\"}]"));
 
-		assertEquals("Bot fehlt: Kanäle ansehen", hinweis);
+		assertEquals("Bot fehlt: Kanäle ansehen", notice);
 	}
 
 	@Test
-	public void kanalFuerEveryoneGesperrtAberFuerBotRolleErlaubt_fehlendeKanalRechte_sollteNichtsMelden()
+	public void givenChannelBlockedForEveryoneButAllowedForBotRole_missingChannelPermissions_shouldReportNothing()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
+		DiscordService.BotPermissions permissions = botPermissions(DiscordService.CHANNEL_PERMISSIONS);
 
-		String hinweis = DiscordService.fehlendeKanalRechte(rechte, GUILD, kanal("["
-				+ "{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\"},"
-				+ "{\"id\":\"" + BOT_ROLLE + "\",\"type\":0,\"allow\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\",\"deny\":\"0\"}]"));
+		String notice = DiscordService.missingChannelPermissions(permissions, GUILD, channel("["
+				+ "{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.PERMISSION_VIEW_CHANNEL + "\"},"
+				+ "{\"id\":\"" + BOT_ROLE + "\",\"type\":0,\"allow\":\"" + DiscordService.PERMISSION_VIEW_CHANNEL + "\",\"deny\":\"0\"}]"));
 
-		assertNull(hinweis);
+		assertNull(notice);
 	}
 
 	@Test
-	public void kanalNurFuerAndereRolle_fehlendeKanalRechte_sollteFehlendesAnsehenMelden()
+	public void givenChannelOnlyForOtherRole_missingChannelPermissions_shouldReportMissingView()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
+		DiscordService.BotPermissions permissions = botPermissions(DiscordService.CHANNEL_PERMISSIONS);
 
-		String hinweis = DiscordService.fehlendeKanalRechte(rechte, GUILD, kanal("["
-				+ "{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\"},"
-				+ "{\"id\":\"" + ANDERE_ROLLE + "\",\"type\":0,\"allow\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\",\"deny\":\"0\"}]"));
+		String notice = DiscordService.missingChannelPermissions(permissions, GUILD, channel("["
+				+ "{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.PERMISSION_VIEW_CHANNEL + "\"},"
+				+ "{\"id\":\"" + OTHER_ROLE + "\",\"type\":0,\"allow\":\"" + DiscordService.PERMISSION_VIEW_CHANNEL + "\",\"deny\":\"0\"}]"));
 
-		assertEquals("Bot fehlt: Kanäle ansehen", hinweis);
+		assertEquals("Bot fehlt: Kanäle ansehen", notice);
 	}
 
 	@Test
-	public void webhooksFuerBotVerboten_fehlendeKanalRechte_sollteWebhooksMelden()
+	public void givenWebhooksDeniedForBot_missingChannelPermissions_shouldReportWebhooks()
 	{
-		DiscordService.BotRechte rechte = botRechte(DiscordService.KANAL_RECHTE);
+		DiscordService.BotPermissions permissions = botPermissions(DiscordService.CHANNEL_PERMISSIONS);
 
-		String hinweis = DiscordService.fehlendeKanalRechte(rechte, GUILD,
-				kanal("[{\"id\":\"" + BOT + "\",\"type\":1,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_WEBHOOKS_VERWALTEN + "\"}]"));
+		String notice = DiscordService.missingChannelPermissions(permissions, GUILD,
+				channel("[{\"id\":\"" + BOT + "\",\"type\":1,\"allow\":\"0\",\"deny\":\"" + DiscordService.PERMISSION_MANAGE_WEBHOOKS + "\"}]"));
 
-		assertEquals("Bot fehlt: Webhooks verwalten", hinweis);
+		assertEquals("Bot fehlt: Webhooks verwalten", notice);
 	}
 
 	@Test
-	public void botIstAdministrator_fehlendeKanalRechte_sollteOverwritesIgnorieren()
+	public void givenBotIsAdministrator_missingChannelPermissions_shouldIgnoreOverwrites()
 	{
-		DiscordService.BotRechte rechte = botRechte(-1L);
+		DiscordService.BotPermissions permissions = botPermissions(-1L);
 
-		assertNull(DiscordService.fehlendeKanalRechte(rechte, GUILD,
-				kanal("[{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.RECHT_KANAL_ANSEHEN + "\"}]")));
+		assertNull(DiscordService.missingChannelPermissions(permissions, GUILD,
+				channel("[{\"id\":\"" + GUILD + "\",\"type\":0,\"allow\":\"0\",\"deny\":\"" + DiscordService.PERMISSION_VIEW_CHANNEL + "\"}]")));
 	}
 
 
-	private static DiscordService.BotRechte botRechte(long serverRechte)
+	private static DiscordService.BotPermissions botPermissions(long serverPermissions)
 	{
-		DiscordService.BotRechte rechte = new DiscordService.BotRechte();
-		rechte.botId = BOT;
-		rechte.rollen.add(BOT_ROLLE);
-		rechte.serverRechte = serverRechte;
-		return rechte;
+		DiscordService.BotPermissions permissions = new DiscordService.BotPermissions();
+		permissions.botId = BOT;
+		permissions.roles.add(BOT_ROLE);
+		permissions.serverPermissions = serverPermissions;
+		return permissions;
 	}
 
-	private static JsonObject kanal(String overwrites)
+	private static JsonObject channel(String overwrites)
 	{
 		return JsonParser.parseString("{\"id\":\"1\",\"type\":0,\"permission_overwrites\":" + overwrites + "}").getAsJsonObject();
 	}

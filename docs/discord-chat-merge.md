@@ -90,10 +90,10 @@ nothing for players.
 
 ## Running it
 
-- **Re-confirmation:** links expire after 30 days (`DiscordUser.VERKNUEPFUNG_GUELTIG_TAGE`). Players
+- **Re-confirmation:** links expire after 30 days (`DiscordUser.LINK_VALID_DAYS`). Players
   then confirm them again at Discord, usually one click. Without stored tokens, this is how a revoked
   authorization is noticed.
-- **Retention:** rows in `discord_nachricht` older than 30 days are deleted on every send, and rows of
+- **Retention:** rows in `discord_sent_message` older than 30 days are deleted on every send, and rows of
   a player are deleted when they unlink or are deleted.
 - **Rate limits:** each Discord account may send one message every 2 seconds and 10 per minute, each
   channel 25 per minute. Message lists are cached for 3 seconds per channel.

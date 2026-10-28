@@ -14,7 +14,7 @@ public class DiscordUser
 	 * So lange gilt eine Verknuepfung, danach muss der Spieler sie bei Discord erneut bestaetigen.
 	 * DS speichert keine Tokens und merkt sonst nicht, wenn jemand der Anwendung in Discord die Berechtigung entzieht.
 	 */
-	public static final int VERKNUEPFUNG_GUELTIG_TAGE = 30;
+	public static final int LINK_VALID_DAYS = 30;
 
 	public final String id;
 	public final String displayName;
@@ -53,13 +53,13 @@ public class DiscordUser
 	}
 
 	/**
-	 * Gibt zurueck, ob eine Verknuepfung noch gilt (siehe {@link #VERKNUEPFUNG_GUELTIG_TAGE}).
-	 * @param verknuepftAm Wann sie zuletzt bei Discord bestaetigt wurde (Millisekunden) oder <code>null</code>
+	 * Gibt zurueck, ob eine Verknuepfung noch gilt (siehe {@link #LINK_VALID_DAYS}).
+	 * @param linkedAt Wann sie zuletzt bei Discord bestaetigt wurde (Millisekunden) oder <code>null</code>
 	 * @return <code>true</code>, falls sie noch gilt
 	 */
-	public static boolean isVerknuepfungAktuell(Long verknuepftAm)
+	public static boolean isLinkCurrent(Long linkedAt)
 	{
-		return verknuepftAm != null && System.currentTimeMillis() - verknuepftAm < TimeUnit.DAYS.toMillis(VERKNUEPFUNG_GUELTIG_TAGE);
+		return linkedAt != null && System.currentTimeMillis() - linkedAt < TimeUnit.DAYS.toMillis(LINK_VALID_DAYS);
 	}
 
 	/**

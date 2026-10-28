@@ -75,10 +75,10 @@ var DiscordChat = {
 		jQuery.ajax({
 			url: DS.getUrl(),
 			type: 'POST',
-			data: {module:'ueber', action:'discordZustimmung', channel:kanal, FORMAT:'JSON'},
+			data: {module:'ueber', action:'discordConsent', channel:kanal, FORMAT:'JSON'},
 			dataType: 'json',
 			success: function(result) {
-				if( result.zustimmungFehlt ) {
+				if( result.consentMissing ) {
 					$('#discord-chat .discord-zustimmen').prop('disabled', false);
 					DiscordChat.__zeigeFehler(result.error || 'Die Zustimmung konnte nicht gespeichert werden.');
 					return;
@@ -222,7 +222,7 @@ var DiscordChat = {
 			return;
 		}
 
-		if( result.zustimmungFehlt ) {
+		if( result.consentMissing ) {
 			// Zustimmung wurde in einem anderen Fenster widerrufen
 			this.__zustimmung = false;
 			this.__zeigeFehler('Der Chat lädt keine Inhalte mehr von Discord. Lade die Seite neu, um wieder zuzustimmen.');
@@ -231,8 +231,8 @@ var DiscordChat = {
 
 		if( result.channel === this.__kanal() ) {
 			// Rechte koennen sich geaendert haben, seit die Seite geladen wurde
-			chat.attr('data-bestaetigen', result.bestaetigen ? '1' : '0');
-			chat.find('.discord-kanal.aktiv').attr('data-schreiben', result.schreiben ? '1' : '0');
+			chat.attr('data-bestaetigen', result.confirmLink ? '1' : '0');
+			chat.find('.discord-kanal.aktiv').attr('data-schreiben', result.writeAccess ? '1' : '0');
 			this.__aktualisiereEingabe();
 		}
 
@@ -282,8 +282,8 @@ var DiscordChat = {
 
 		var kopf = $('<div class="discord-kopf"></div>').appendTo(element);
 		var autor = $('<span class="discord-autor"></span>').text(nachricht.author).appendTo(kopf);
-		if( /^#[0-9a-f]{6}$/.test(nachricht.farbe || '') ) {
-			autor.css('color', nachricht.farbe);
+		if( /^#[0-9a-f]{6}$/.test(nachricht.color || '') ) {
+			autor.css('color', nachricht.color);
 		}
 		if( nachricht.ingame ) {
 			$('<span class="discord-ingame-marke" title="Aus Drifting Souls gesendet">DS</span>').appendTo(kopf);
@@ -301,8 +301,8 @@ var DiscordChat = {
 				return;
 			}
 			var link = $('<a class="discord-anhang" target="_blank" rel="noopener noreferrer"></a>').attr('href', anhang.url);
-			if( anhang.art === 'bild' || anhang.art === 'video' ) {
-				var medium = anhang.art === 'bild' ?
+			if( anhang.type === 'image' || anhang.type === 'video' ) {
+				var medium = anhang.type === 'image' ?
 					$('<img class="discord-medium" alt="" />').attr('alt', anhang.name || '') :
 					$('<video class="discord-medium" autoplay loop muted playsinline></video>');
 				DiscordChat.__setzeGroesse(medium, anhang);
@@ -328,12 +328,12 @@ var DiscordChat = {
 	MAX_HOEHE : 220,
 
 	__setzeGroesse : function(medium, anhang) {
-		if( !anhang.breite || !anhang.hoehe ) {
+		if( !anhang.width || !anhang.height ) {
 			return;
 		}
-		var faktor = Math.min(1, this.MAX_BREITE / anhang.breite, this.MAX_HOEHE / anhang.hoehe);
-		medium.attr('width', Math.round(anhang.breite * faktor));
-		medium.attr('height', Math.round(anhang.hoehe * faktor));
+		var faktor = Math.min(1, this.MAX_BREITE / anhang.width, this.MAX_HOEHE / anhang.height);
+		medium.attr('width', Math.round(anhang.width * faktor));
+		medium.attr('height', Math.round(anhang.height * faktor));
 	},
 
 	/**

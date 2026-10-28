@@ -2,12 +2,12 @@ package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.discord.DiscordException;
-import net.driftingsouls.ds2.server.discord.DiscordGuildKanal;
-import net.driftingsouls.ds2.server.discord.DiscordKanal;
-import net.driftingsouls.ds2.server.discord.DiscordKonfiguration;
-import net.driftingsouls.ds2.server.discord.DiscordPruefung;
+import net.driftingsouls.ds2.server.discord.DiscordGuildChannel;
+import net.driftingsouls.ds2.server.discord.DiscordChannel;
+import net.driftingsouls.ds2.server.discord.DiscordConfiguration;
+import net.driftingsouls.ds2.server.discord.DiscordCheck;
 import net.driftingsouls.ds2.server.discord.DiscordService;
-import net.driftingsouls.ds2.server.discord.DiscordZugriff;
+import net.driftingsouls.ds2.server.discord.DiscordAccess;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
@@ -34,8 +34,8 @@ public class DiscordAdmin implements AdminPlugin
 	@Autowired
 	private DiscordService discordService;
 
-	private final List<String> meldungen = new ArrayList<>();
-	private final List<String> fehler = new ArrayList<>();
+	private final List<String> messages = new ArrayList<>();
+	private final List<String> errors = new ArrayList<>();
 
 	@Override
 	public void output(StringBuilder echo)
@@ -43,30 +43,30 @@ public class DiscordAdmin implements AdminPlugin
 		Context context = ContextMap.getContext();
 		Request request = context.getRequest();
 		EntityManager em = context.getEM();
-		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(em);
+		DiscordConfiguration configuration = DiscordConfiguration.load(em);
 
-		DiscordPruefung pruefung = null;
-		String aktion = request.getParameterString("aktion");
-		if (!aktion.isEmpty() && !request.isPost())
+		DiscordCheck check = null;
+		String action = request.getParameterString("aktion");
+		if (!action.isEmpty() && !request.isPost())
 		{
-			fehler.add("Änderungen sind nur über die Formulare dieser Seite möglich.");
-			aktion = "";
+			errors.add("Änderungen sind nur über die Formulare dieser Seite möglich.");
+			action = "";
 		}
 		try
 		{
-			switch (aktion)
+			switch (action)
 			{
 				case "speichern":
-					einstellungenSpeichern(em, request, konfiguration);
+					saveSettings(em, request, configuration);
 					break;
 				case "pruefen":
-					pruefung = discordService.pruefen(konfiguration);
+					check = discordService.check(configuration);
 					break;
 				case "synchronisieren":
-					synchronisieren(em, konfiguration);
+					synchronize(em, configuration);
 					break;
 				case "kanaele":
-					kanaeleSpeichern(em, request, konfiguration);
+					saveChannels(em, request, configuration);
 					break;
 				default:
 					break;
@@ -74,253 +74,253 @@ public class DiscordAdmin implements AdminPlugin
 		}
 		catch (DiscordException e)
 		{
-			fehler.add(e.getMessage());
+			errors.add(e.getMessage());
 		}
 
 		echo.append("<div class='gfxbox' style='width:900px'>");
 		echo.append("<h1>Discord-Bot</h1>");
-		ausgabeMeldungen(echo);
-		ausgabeEinstellungen(echo, request, konfiguration);
-		ausgabePruefung(echo, pruefung);
-		ausgabeKanaele(echo, em, konfiguration);
+		printMessages(echo);
+		printSettings(echo, request, configuration);
+		printCheck(echo, check);
+		printChannels(echo, em, configuration);
 		echo.append("</div>");
 	}
 
-	private void einstellungenSpeichern(EntityManager em, Request request, DiscordKonfiguration konfiguration)
+	private void saveSettings(EntityManager em, Request request, DiscordConfiguration configuration)
 	{
-		String alteGuildId = konfiguration.getGuildId();
-		String altesToken = konfiguration.getBotToken();
+		String oldGuildId = configuration.getGuildId();
+		String oldToken = configuration.getBotToken();
 
-		konfiguration.setAktiv("1".equals(request.getParameterString("aktiv")));
+		configuration.setActive("1".equals(request.getParameterString("aktiv")));
 
 		String guildId = request.getParameterString("guild_id").trim();
 		if (!guildId.isEmpty() && !guildId.matches("\\d{1,25}"))
 		{
-			fehler.add("Die Server-ID muss eine Zahl sein.");
+			errors.add("Die Server-ID muss eine Zahl sein.");
 		}
 		else
 		{
-			konfiguration.setGuildId(leerZuNull(guildId));
+			configuration.setGuildId(emptyToNull(guildId));
 		}
 
 		String clientId = request.getParameterString("client_id").trim();
 		if (!clientId.isEmpty() && !clientId.matches("\\d{1,25}"))
 		{
-			fehler.add("Die Client-ID muss eine Zahl sein.");
+			errors.add("Die Client-ID muss eine Zahl sein.");
 		}
 		else
 		{
-			konfiguration.setClientId(leerZuNull(clientId));
+			configuration.setClientId(emptyToNull(clientId));
 		}
 
 		// Geheimnisse werden nie ausgegeben: ein leeres Feld laesst den bisherigen Wert stehen
 		String botToken = request.getParameterString("bot_token").trim();
 		if (!botToken.isEmpty())
 		{
-			konfiguration.setBotToken(botToken);
+			configuration.setBotToken(botToken);
 		}
 		if ("1".equals(request.getParameterString("bot_token_loeschen")))
 		{
-			konfiguration.setBotToken(null);
+			configuration.setBotToken(null);
 		}
 		String clientSecret = request.getParameterString("client_secret").trim();
 		if (!clientSecret.isEmpty())
 		{
-			konfiguration.setClientSecret(clientSecret);
+			configuration.setClientSecret(clientSecret);
 		}
 		if ("1".equals(request.getParameterString("client_secret_loeschen")))
 		{
-			konfiguration.setClientSecret(null);
+			configuration.setClientSecret(null);
 		}
 
 		String redirectUri = request.getParameterString("redirect_uri").trim();
 		if (!redirectUri.isEmpty() && !redirectUri.matches("https?://[^\\s\"'<>]+"))
 		{
-			fehler.add("Die Redirect-URI muss mit http:// oder https:// beginnen.");
+			errors.add("Die Redirect-URI muss mit http:// oder https:// beginnen.");
 		}
 		else
 		{
-			konfiguration.setRedirectUri(leerZuNull(redirectUri));
+			configuration.setRedirectUri(emptyToNull(redirectUri));
 		}
 
 		String inviteUrl = request.getParameterString("invite_url").trim();
-		if (!inviteUrl.isEmpty() && !DiscordKonfiguration.isGueltigeEinladung(inviteUrl))
+		if (!inviteUrl.isEmpty() && !DiscordConfiguration.isValidInvite(inviteUrl))
 		{
-			fehler.add("Der Einladungslink muss eine Discord-Einladung sein (https://discord.gg/... oder https://discord.com/invite/...).");
+			errors.add("Der Einladungslink muss eine Discord-Einladung sein (https://discord.gg/... oder https://discord.com/invite/...).");
 		}
 		else
 		{
-			konfiguration.setInviteUrl(leerZuNull(inviteUrl));
+			configuration.setInviteUrl(emptyToNull(inviteUrl));
 		}
 
-		if (!em.contains(konfiguration))
+		if (!em.contains(configuration))
 		{
-			em.persist(konfiguration);
+			em.persist(configuration);
 		}
-		if (!Objects.equals(alteGuildId, konfiguration.getGuildId()) || !Objects.equals(altesToken, konfiguration.getBotToken()))
+		if (!Objects.equals(oldGuildId, configuration.getGuildId()) || !Objects.equals(oldToken, configuration.getBotToken()))
 		{
-			discordService.zuruecksetzen();
+			discordService.reset();
 		}
-		meldungen.add("Einstellungen gespeichert.");
+		messages.add("Einstellungen gespeichert.");
 	}
 
-	private void synchronisieren(EntityManager em, DiscordKonfiguration konfiguration)
+	private void synchronize(EntityManager em, DiscordConfiguration configuration)
 	{
-		if (!DiscordKonfiguration.isSetzt(konfiguration.getBotToken()) || !DiscordKonfiguration.isSetzt(konfiguration.getGuildId()))
+		if (!DiscordConfiguration.isSet(configuration.getBotToken()) || !DiscordConfiguration.isSet(configuration.getGuildId()))
 		{
-			fehler.add("Zum Synchronisieren müssen Bot-Token und Server-ID gesetzt sein.");
+			errors.add("Zum Synchronisieren müssen Bot-Token und Server-ID gesetzt sein.");
 			return;
 		}
 
-		List<DiscordGuildKanal> discordKanaele = discordService.ladeKanaele(konfiguration);
-		Map<String, DiscordKanal> vorhandene = new HashMap<>();
-		for (DiscordKanal kanal : DiscordKanal.alle(em, konfiguration.getGuildId()))
+		List<DiscordGuildChannel> guildChannels = discordService.loadChannels(configuration);
+		Map<String, DiscordChannel> existingChannels = new HashMap<>();
+		for (DiscordChannel channel : DiscordChannel.all(em, configuration.getGuildId()))
 		{
-			vorhandene.put(kanal.getChannelId(), kanal);
+			existingChannels.put(channel.getChannelId(), channel);
 		}
 
-		int neu = 0;
-		int geaendert = 0;
-		for (DiscordGuildKanal discordKanal : discordKanaele)
+		int newCount = 0;
+		int changed = 0;
+		for (DiscordGuildChannel guildChannel : guildChannels)
 		{
-			DiscordKanal kanal = vorhandene.remove(discordKanal.id);
-			boolean istNeu = kanal == null;
-			if (istNeu)
+			DiscordChannel channel = existingChannels.remove(guildChannel.id);
+			boolean isNew = channel == null;
+			if (isNew)
 			{
-				kanal = new DiscordKanal(konfiguration.getGuildId(), discordKanal.id);
-				neu++;
+				channel = new DiscordChannel(configuration.getGuildId(), guildChannel.id);
+				newCount++;
 			}
-			uebernehme(kanal, discordKanal);
-			if (!istNeu && kanal.getFreigabeSignatur() != null && !kanal.isFreigabeAktuell())
+			apply(channel, guildChannel);
+			if (!isNew && channel.getApprovedSignature() != null && !channel.isApprovalCurrent())
 			{
-				geaendert++;
+				changed++;
 			}
-			if (istNeu)
+			if (isNew)
 			{
-				em.persist(kanal);
+				em.persist(channel);
 			}
 		}
-		for (DiscordKanal entfernt : vorhandene.values())
+		for (DiscordChannel removed : existingChannels.values())
 		{
-			em.remove(entfernt);
+			em.remove(removed);
 		}
 
-		meldungen.add(discordKanaele.size() + " Kanäle synchronisiert, davon " + neu + " neu (gesperrt), "
-				+ vorhandene.size() + " nicht mehr vorhandene entfernt.");
-		if (geaendert > 0)
+		messages.add(guildChannels.size() + " Kanäle synchronisiert, davon " + newCount + " neu (gesperrt), "
+				+ existingChannels.size() + " nicht mehr vorhandene entfernt.");
+		if (changed > 0)
 		{
-			fehler.add("Bei " + geaendert + " Kanälen hat sich in Discord geändert, wer sie sehen darf. Sie sind im Spiel gesperrt, bis du die Kanalrechte erneut speicherst.");
+			errors.add("Bei " + changed + " Kanälen hat sich in Discord geändert, wer sie sehen darf. Sie sind im Spiel gesperrt, bis du die Kanalrechte erneut speicherst.");
 		}
 	}
 
-	private static void uebernehme(DiscordKanal kanal, DiscordGuildKanal discordKanal)
+	private static void apply(DiscordChannel channel, DiscordGuildChannel guildChannel)
 	{
-		kanal.setName(discordKanal.name);
-		kanal.setKategorie(discordKanal.kategorie);
-		kanal.setPosition(discordKanal.position);
-		kanal.setBotHinweis(discordKanal.hinweis);
-		kanal.setOeffentlich(discordKanal.oeffentlich);
-		kanal.setDiscordSignatur(discordKanal.signatur);
+		channel.setName(guildChannel.name);
+		channel.setCategory(guildChannel.category);
+		channel.setPosition(guildChannel.position);
+		channel.setBotNotice(guildChannel.notice);
+		channel.setVisibleToEveryone(guildChannel.visibleToEveryone);
+		channel.setDiscordSignature(guildChannel.signature);
 	}
 
 	/**
 	 * Speichert die Kanalrechte. Vorher wird der aktuelle Stand von Discord geladen: Die Freigabe
 	 * gilt fuer genau die Sichtbarkeit, die die Kanaele jetzt in Discord haben.
 	 */
-	private void kanaeleSpeichern(EntityManager em, Request request, DiscordKonfiguration konfiguration)
+	private void saveChannels(EntityManager em, Request request, DiscordConfiguration configuration)
 	{
-		if (!DiscordKonfiguration.isSetzt(konfiguration.getBotToken()) || !DiscordKonfiguration.isSetzt(konfiguration.getGuildId()))
+		if (!DiscordConfiguration.isSet(configuration.getBotToken()) || !DiscordConfiguration.isSet(configuration.getGuildId()))
 		{
-			fehler.add("Zum Freigeben müssen Bot-Token und Server-ID gesetzt sein.");
+			errors.add("Zum Freigeben müssen Bot-Token und Server-ID gesetzt sein.");
 			return;
 		}
-		Map<String, DiscordGuildKanal> discordKanaele = new HashMap<>();
-		for (DiscordGuildKanal discordKanal : discordService.ladeKanaele(konfiguration))
+		Map<String, DiscordGuildChannel> guildChannels = new HashMap<>();
+		for (DiscordGuildChannel guildChannel : discordService.loadChannels(configuration))
 		{
-			discordKanaele.put(discordKanal.id, discordKanal);
+			guildChannels.put(guildChannel.id, guildChannel);
 		}
 
-		String standard = request.getParameterString("standard");
-		for (DiscordKanal kanal : DiscordKanal.alle(em, konfiguration.getGuildId()))
+		String defaultChannel = request.getParameterString("standard");
+		for (DiscordChannel channel : DiscordChannel.all(em, configuration.getGuildId()))
 		{
-			DiscordGuildKanal discordKanal = discordKanaele.get(kanal.getChannelId());
-			if (discordKanal == null)
+			DiscordGuildChannel guildChannel = guildChannels.get(channel.getChannelId());
+			if (guildChannel == null)
 			{
-				fehler.add("Den Kanal #" + kanal.getName() + " gibt es in Discord nicht mehr. Synchronisiere die Kanäle.");
+				errors.add("Den Kanal #" + channel.getName() + " gibt es in Discord nicht mehr. Synchronisiere die Kanäle.");
 				continue;
 			}
-			uebernehme(kanal, discordKanal);
-			kanal.setLesen(zugriff(request.getParameterString("lesen_" + kanal.getId()), kanal.getLesen()));
-			kanal.setSchreiben(zugriff(request.getParameterString("schreiben_" + kanal.getId()), kanal.getSchreiben()));
-			kanal.setStandard(String.valueOf(kanal.getId()).equals(standard));
-			kanal.freigeben();
-			if (kanal.isStandard() && kanal.getLesen() != DiscordZugriff.ALLE)
+			apply(channel, guildChannel);
+			channel.setReadAccess(access(request.getParameterString("lesen_" + channel.getId()), channel.getReadAccess()));
+			channel.setWriteAccess(access(request.getParameterString("schreiben_" + channel.getId()), channel.getWriteAccess()));
+			channel.setDefaultChannel(String.valueOf(channel.getId()).equals(defaultChannel));
+			channel.approve();
+			if (channel.isDefaultChannel() && channel.getReadAccess() != DiscordAccess.ALL)
 			{
-				fehler.add("Der Standardkanal #" + kanal.getName() + " ist nicht für alle Spieler lesbar. Wer ihn nicht lesen darf, bekommt den ersten für ihn lesbaren Kanal angezeigt.");
+				errors.add("Der Standardkanal #" + channel.getName() + " ist nicht für alle Spieler lesbar. Wer ihn nicht lesen darf, bekommt den ersten für ihn lesbaren Kanal angezeigt.");
 			}
-			if (kanal.getLesen() == DiscordZugriff.ALLE && !kanal.isOeffentlich())
+			if (channel.getReadAccess() == DiscordAccess.ALL && !channel.isVisibleToEveryone())
 			{
-				fehler.add("Hinweis: #" + kanal.getName() + " ist in Discord nicht für @everyone sichtbar, im Spiel aber für alle Spieler lesbar.");
+				errors.add("Hinweis: #" + channel.getName() + " ist in Discord nicht für @everyone sichtbar, im Spiel aber für alle Spieler lesbar.");
 			}
 		}
-		meldungen.add("Kanalrechte gespeichert und für die aktuelle Sichtbarkeit in Discord freigegeben.");
+		messages.add("Kanalrechte gespeichert und für die aktuelle Sichtbarkeit in Discord freigegeben.");
 	}
 
-	private static DiscordZugriff zugriff(String wert, DiscordZugriff bisher)
+	private static DiscordAccess access(String value, DiscordAccess previous)
 	{
 		try
 		{
-			return DiscordZugriff.valueOf(wert);
+			return DiscordAccess.valueOf(value);
 		}
 		catch (IllegalArgumentException | NullPointerException e)
 		{
-			return bisher;
+			return previous;
 		}
 	}
 
-	private void ausgabeMeldungen(StringBuilder echo)
+	private void printMessages(StringBuilder echo)
 	{
-		for (String meldung : meldungen)
+		for (String message : messages)
 		{
-			echo.append("<div style='color:#4ec94e'>").append(Common.escapeHTML(meldung)).append("</div>");
+			echo.append("<div style='color:#4ec94e'>").append(Common.escapeHTML(message)).append("</div>");
 		}
-		for (String meldung : fehler)
+		for (String message : errors)
 		{
-			echo.append("<div style='color:#ff6060'>").append(Common.escapeHTML(meldung)).append("</div>");
+			echo.append("<div style='color:#ff6060'>").append(Common.escapeHTML(message)).append("</div>");
 		}
-		if (!meldungen.isEmpty() || !fehler.isEmpty())
+		if (!messages.isEmpty() || !errors.isEmpty())
 		{
 			echo.append("<br />");
 		}
 	}
 
-	private void ausgabeEinstellungen(StringBuilder echo, Request request, DiscordKonfiguration konfiguration)
+	private void printSettings(StringBuilder echo, Request request, DiscordConfiguration configuration)
 	{
-		String vorschlag = DiscordKonfiguration.vorschlagRedirectUri(request.getRequestURL());
+		String suggestion = DiscordConfiguration.suggestRedirectUri(request.getRequestURL());
 
 		echo.append("<h2>Einstellungen</h2>");
-		formularAnfang(echo, "speichern");
+		beginForm(echo, "speichern");
 		echo.append("<table width='100%'>");
 		echo.append("<tr><td width='200'>Chat aktiv</td><td><input type='checkbox' name='aktiv' value='1'")
-				.append(konfiguration.isAktiv() ? " checked='checked'" : "").append(" /></td></tr>");
-		textzeile(echo, "Server-ID (Guild)", "guild_id", konfiguration.getGuildId(), "z.B. 471610776126226432 - zum Testen einfach einen anderen Server eintragen");
-		textzeile(echo, "Einladungslink", "invite_url", konfiguration.getInviteUrl(), "wird Spielern angezeigt, die noch nicht auf dem Server sind - nur https://discord.gg/... oder https://discord.com/invite/...");
-		geheimzeile(echo, "Bot-Token", "bot_token", konfiguration.isBotTokenGespeichert(), konfiguration.isBotTokenAusUmgebung(), DiscordKonfiguration.ENV_BOT_TOKEN);
-		textzeile(echo, "Client-ID", "client_id", konfiguration.getClientId(), "Developer Portal → OAuth2");
-		geheimzeile(echo, "Client-Secret", "client_secret", konfiguration.isClientSecretGespeichert(), konfiguration.isClientSecretAusUmgebung(), DiscordKonfiguration.ENV_CLIENT_SECRET);
-		textzeile(echo, "Redirect-URI", "redirect_uri", konfiguration.getRedirectUri(), "Pflichtfeld für die Verknüpfung, z.B. " + vorschlag);
+				.append(configuration.isActive() ? " checked='checked'" : "").append(" /></td></tr>");
+		textRow(echo, "Server-ID (Guild)", "guild_id", configuration.getGuildId(), "z.B. 471610776126226432 - zum Testen einfach einen anderen Server eintragen");
+		textRow(echo, "Einladungslink", "invite_url", configuration.getInviteUrl(), "wird Spielern angezeigt, die noch nicht auf dem Server sind - nur https://discord.gg/... oder https://discord.com/invite/...");
+		secretRow(echo, "Bot-Token", "bot_token", configuration.isBotTokenStored(), configuration.isBotTokenFromEnvironment(), DiscordConfiguration.ENV_BOT_TOKEN);
+		textRow(echo, "Client-ID", "client_id", configuration.getClientId(), "Developer Portal → OAuth2");
+		secretRow(echo, "Client-Secret", "client_secret", configuration.isClientSecretStored(), configuration.isClientSecretFromEnvironment(), DiscordConfiguration.ENV_CLIENT_SECRET);
+		textRow(echo, "Redirect-URI", "redirect_uri", configuration.getRedirectUri(), "Pflichtfeld für die Verknüpfung, z.B. " + suggestion);
 		echo.append("<tr><td></td><td><input type='submit' value='Speichern' /></td></tr>");
 		echo.append("</table></form>");
 
 		echo.append("<p>Die Redirect-URI genau so im Developer Portal unter OAuth2 → Redirects eintragen. ")
 				.append("Bot-Token und Client-Secret lassen sich statt hier auch in den Umgebungsvariablen <code>")
-				.append(DiscordKonfiguration.ENV_BOT_TOKEN).append("</code> und <code>").append(DiscordKonfiguration.ENV_CLIENT_SECRET)
+				.append(DiscordConfiguration.ENV_BOT_TOKEN).append("</code> und <code>").append(DiscordConfiguration.ENV_CLIENT_SECRET)
 				.append("</code> hinterlegen, dann stehen sie in keinem Datenbank-Dump.<br />");
-		if (DiscordKonfiguration.isSetzt(konfiguration.getClientId()))
+		if (DiscordConfiguration.isSet(configuration.getClientId()))
 		{
-			String einladung = "https://discord.com/oauth2/authorize?client_id=" + konfiguration.getClientId().trim()
-					+ "&scope=bot&permissions=" + DiscordService.BENOETIGTE_RECHTE;
-			echo.append("Bot auf den Server einladen: <a href='").append(Common.escapeHTML(einladung)).append("' target='_blank' rel='noopener noreferrer'>Einladungslink des Bots</a>. ")
+			String invite = "https://discord.com/oauth2/authorize?client_id=" + configuration.getClientId().trim()
+					+ "&scope=bot&permissions=" + DiscordService.REQUIRED_PERMISSIONS;
+			echo.append("Bot auf den Server einladen: <a href='").append(Common.escapeHTML(invite)).append("' target='_blank' rel='noopener noreferrer'>Einladungslink des Bots</a>. ")
 					.append("<i>Webhooks verwalten</i> erlaubst du ihm danach nur in den Kanälen, die der Chat nutzen soll.");
 		}
 		else
@@ -330,25 +330,25 @@ public class DiscordAdmin implements AdminPlugin
 		echo.append("</p>");
 	}
 
-	private void ausgabePruefung(StringBuilder echo, DiscordPruefung pruefung)
+	private void printCheck(StringBuilder echo, DiscordCheck check)
 	{
 		echo.append("<h2>Verbindung</h2>");
-		if (pruefung != null)
+		if (check != null)
 		{
 			echo.append("<ul>");
-			for (DiscordPruefung.Punkt punkt : pruefung.punkte)
+			for (DiscordCheck.Item item : check.items)
 			{
-				echo.append("<li style='color:").append(punkt.ok ? "#4ec94e" : "#ff6060").append("'>")
-						.append(punkt.ok ? "&#10004; " : "&#10008; ")
-						.append(Common.escapeHTML(punkt.text)).append("</li>");
+				echo.append("<li style='color:").append(item.ok ? "#4ec94e" : "#ff6060").append("'>")
+						.append(item.ok ? "&#10004; " : "&#10008; ")
+						.append(Common.escapeHTML(item.text)).append("</li>");
 			}
 			echo.append("</ul>");
 		}
-		formularAnfang(echo, "pruefen");
+		beginForm(echo, "pruefen");
 		echo.append("<input type='submit' value='Verbindung prüfen' /></form>");
 	}
 
-	private void ausgabeKanaele(StringBuilder echo, EntityManager em, DiscordKonfiguration konfiguration)
+	private void printChannels(StringBuilder echo, EntityManager em, DiscordConfiguration configuration)
 	{
 		echo.append("<h2>Kanäle</h2>");
 		echo.append("<p>Lesen und Schreiben lassen sich getrennt freigeben. Schreiben setzt das Leserecht voraus. ")
@@ -358,108 +358,108 @@ public class DiscordAdmin implements AdminPlugin
 				.append("wer ihn sehen darf, ist er im Spiel gesperrt, bis du die Kanalrechte erneut speicherst. ")
 				.append("Beim Schreiben prüft das Spiel zusätzlich die Discord-Rechte des Accounts, Timeouts und den Slowmode.</p>");
 
-		formularAnfang(echo, "synchronisieren");
+		beginForm(echo, "synchronisieren");
 		echo.append("<input type='submit' value='Kanäle von Discord synchronisieren' /></form><br />");
 
-		List<DiscordKanal> kanaele = DiscordKanal.alle(em, konfiguration.getGuildId());
-		if (kanaele.isEmpty())
+		List<DiscordChannel> channels = DiscordChannel.all(em, configuration.getGuildId());
+		if (channels.isEmpty())
 		{
 			echo.append("<p>Für diesen Server sind noch keine Kanäle synchronisiert.</p>");
 			return;
 		}
 
-		formularAnfang(echo, "kanaele");
+		beginForm(echo, "kanaele");
 		echo.append("<table width='100%'>");
 		echo.append("<tr><th align='left'>Kanal</th><th align='left'>Lesen</th><th align='left'>Schreiben</th><th>Standard</th><th align='left'>Hinweis</th></tr>");
-		String kategorie = null;
-		boolean ersteZeile = true;
-		for (DiscordKanal kanal : kanaele)
+		String category = null;
+		boolean firstRow = true;
+		for (DiscordChannel channel : channels)
 		{
-			if (ersteZeile || !Objects.equals(kategorie, kanal.getKategorie()))
+			if (firstRow || !Objects.equals(category, channel.getCategory()))
 			{
-				kategorie = kanal.getKategorie();
+				category = channel.getCategory();
 				echo.append("<tr><td colspan='5' style='padding-top:8px;font-weight:bold;color:#FEB626'>")
-						.append(kategorie != null ? Common.escapeHTML(kategorie) : "Ohne Kategorie").append("</td></tr>");
-				ersteZeile = false;
+						.append(category != null ? Common.escapeHTML(category) : "Ohne Kategorie").append("</td></tr>");
+				firstRow = false;
 			}
-			echo.append("<tr><td>#").append(Common.escapeHTML(kanal.getName()));
-			if (!kanal.isOeffentlich())
+			echo.append("<tr><td>#").append(Common.escapeHTML(channel.getName()));
+			if (!channel.isVisibleToEveryone())
 			{
 				echo.append(" <span style='color:#a0a0a0;font-size:11px' title='In Discord nicht für @everyone sichtbar'>(privat)</span>");
 			}
 			echo.append("</td><td>");
-			zugriffAuswahl(echo, "lesen_" + kanal.getId(), kanal.getLesen());
+			accessSelect(echo, "lesen_" + channel.getId(), channel.getReadAccess());
 			echo.append("</td><td>");
-			zugriffAuswahl(echo, "schreiben_" + kanal.getId(), kanal.getSchreiben());
-			echo.append("</td><td align='center'><input type='radio' name='standard' value='").append(kanal.getId()).append("'")
-					.append(kanal.isStandard() ? " checked='checked'" : "").append(" /></td>");
+			accessSelect(echo, "schreiben_" + channel.getId(), channel.getWriteAccess());
+			echo.append("</td><td align='center'><input type='radio' name='standard' value='").append(channel.getId()).append("'")
+					.append(channel.isDefaultChannel() ? " checked='checked'" : "").append(" /></td>");
 			echo.append("<td style='color:#ff6060;font-size:12px'>");
-			List<String> hinweise = new ArrayList<>();
-			if (kanal.getBotHinweis() != null)
+			List<String> notices = new ArrayList<>();
+			if (channel.getBotNotice() != null)
 			{
-				hinweise.add(kanal.getBotHinweis());
+				notices.add(channel.getBotNotice());
 			}
-			if (kanal.getLesen() != DiscordZugriff.GESPERRT && !kanal.isFreigabeAktuell())
+			if (channel.getReadAccess() != DiscordAccess.BLOCKED && !channel.isApprovalCurrent())
 			{
-				hinweise.add(kanal.getFreigabeSignatur() == null
+				notices.add(channel.getApprovedSignature() == null
 						? "Noch nicht freigegeben - zum Freigeben speichern"
 						: "Sichtbarkeit in Discord geändert - gesperrt, bis die Kanalrechte erneut gespeichert werden");
 			}
-			echo.append(Common.escapeHTML(String.join(". ", hinweise))).append("</td></tr>");
+			echo.append(Common.escapeHTML(String.join(". ", notices))).append("</td></tr>");
 		}
 		echo.append("<tr><td colspan='5'><br /><input type='submit' value='Kanalrechte speichern' /></td></tr>");
 		echo.append("</table></form>");
 	}
 
-	private void formularAnfang(StringBuilder echo, String aktion)
+	private void beginForm(StringBuilder echo, String action)
 	{
 		echo.append("<form action='./ds' method='post'>");
 		echo.append("<input type='hidden' name='module' value='admin' />");
 		echo.append("<input type='hidden' name='namedplugin' value='").append(getClass().getName()).append("' />");
-		echo.append("<input type='hidden' name='aktion' value='").append(aktion).append("' />");
+		echo.append("<input type='hidden' name='aktion' value='").append(action).append("' />");
 	}
 
-	private static void textzeile(StringBuilder echo, String label, String name, String wert, String hinweis)
+	private static void textRow(StringBuilder echo, String label, String name, String value, String notice)
 	{
 		echo.append("<tr><td>").append(label).append("</td><td><input type='text' size='60' name='").append(name)
-				.append("' value='").append(wert != null ? Common.escapeHTML(wert) : "").append("' />");
-		echo.append("<br /><span style='font-size:11px;color:#a0a0a0'>").append(Common.escapeHTML(hinweis)).append("</span></td></tr>");
+				.append("' value='").append(value != null ? Common.escapeHTML(value) : "").append("' />");
+		echo.append("<br /><span style='font-size:11px;color:#a0a0a0'>").append(Common.escapeHTML(notice)).append("</span></td></tr>");
 	}
 
-	private static void geheimzeile(StringBuilder echo, String label, String name, boolean gespeichert, boolean ausUmgebung, String umgebungsvariable)
+	private static void secretRow(StringBuilder echo, String label, String name, boolean stored, boolean fromEnvironment, String environmentVariable)
 	{
 		echo.append("<tr><td>").append(label).append("</td><td>");
-		if (ausUmgebung)
+		if (fromEnvironment)
 		{
-			echo.append("<span style='color:#4ec94e'>aus der Umgebungsvariable <code>").append(umgebungsvariable).append("</code></span>");
+			echo.append("<span style='color:#4ec94e'>aus der Umgebungsvariable <code>").append(environmentVariable).append("</code></span>");
 		}
 		else
 		{
 			echo.append("<input type='password' size='60' autocomplete='new-password' name='").append(name)
-					.append("' placeholder='").append(gespeichert ? "gesetzt - leer lassen, um ihn zu behalten" : "nicht gesetzt").append("' />");
+					.append("' placeholder='").append(stored ? "gesetzt - leer lassen, um ihn zu behalten" : "nicht gesetzt").append("' />");
 		}
-		if (gespeichert)
+		if (stored)
 		{
 			echo.append(" <label><input type='checkbox' name='").append(name).append("_loeschen' value='1' /> ")
-					.append(ausUmgebung ? "zusätzlich in der Datenbank gespeicherten Wert löschen" : "löschen").append("</label>");
+					.append(fromEnvironment ? "zusätzlich in der Datenbank gespeicherten Wert löschen" : "löschen").append("</label>");
 		}
 		echo.append("</td></tr>");
 	}
 
-	private static void zugriffAuswahl(StringBuilder echo, String name, DiscordZugriff aktuell)
+	private static void accessSelect(StringBuilder echo, String name, DiscordAccess current)
 	{
 		echo.append("<select name='").append(name).append("'>");
-		for (DiscordZugriff zugriff : DiscordZugriff.values())
+		for (DiscordAccess access : DiscordAccess.values())
 		{
-			echo.append("<option value='").append(zugriff.name()).append("'")
-					.append(zugriff == aktuell ? " selected='selected'" : "").append(">")
-					.append(zugriff.getLabel()).append("</option>");
+			echo.append("<option value='").append(access.name()).append("'")
+					.append(access == current ? " selected='selected'" : "").append(">")
+					.append(access.getLabel()).append("</option>");
 		}
 		echo.append("</select>");
 	}
 
-	private static String leerZuNull(String wert)
+	private static String emptyToNull(String value)
 	{
-		return wert.isEmpty() ? null : wert;
+		return value.isEmpty() ? null : value;
 	}
 }

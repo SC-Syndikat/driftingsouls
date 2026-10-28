@@ -23,8 +23,8 @@ import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.discord.DiscordException;
-import net.driftingsouls.ds2.server.discord.DiscordKonfiguration;
-import net.driftingsouls.ds2.server.discord.DiscordNachricht;
+import net.driftingsouls.ds2.server.discord.DiscordConfiguration;
+import net.driftingsouls.ds2.server.discord.DiscordSentMessage;
 import net.driftingsouls.ds2.server.discord.DiscordService;
 import net.driftingsouls.ds2.server.discord.DiscordUser;
 import net.driftingsouls.ds2.server.entities.User;
@@ -443,17 +443,17 @@ public class OptionsController extends Controller
 				"user.soundsvolume", user.getUserValue(WellKnownUserValue.GAMEPLAY_USER_SOUNDS_VOLUME),
 				"user.handelspostenpm", user.getUserValue(WellKnownUserValue.GAMEPLAY_USER_HANDELSPOSTEN_PM));
 
-		DiscordKonfiguration discordKonfiguration = DiscordKonfiguration.laden(getEM());
+		DiscordConfiguration discordConfiguration = DiscordConfiguration.load(getEM());
 		String discordUserId = user.getUserValue(WellKnownUserValue.DISCORD_USER_ID);
-		t.setVar("discord.configured", discordKonfiguration.isLoginEingerichtet(),
+		t.setVar("discord.configured", discordConfiguration.isLoginConfigured(),
 				"discord.connected", !discordUserId.isEmpty(),
-				"discord.bestaetigen", !discordUserId.isEmpty() && !DiscordUser.isVerknuepfungAktuell(user.getUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM)),
-				"discord.gueltigtage", DiscordUser.VERKNUEPFUNG_GUELTIG_TAGE,
-				"discord.aufbewahrungtage", DiscordNachricht.AUFBEWAHRUNG_TAGE,
-				"discord.inhalte", user.getUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT),
+				"discord.bestaetigen", !discordUserId.isEmpty() && !DiscordUser.isLinkCurrent(user.getUserValue(WellKnownUserValue.DISCORD_LINKED_AT)),
+				"discord.gueltigtage", DiscordUser.LINK_VALID_DAYS,
+				"discord.aufbewahrungtage", DiscordSentMessage.RETENTION_DAYS,
+				"discord.inhalte", user.getUserValue(WellKnownUserValue.DISCORD_CONTENT_ALLOWED),
 				"discord.username", Common.escapeHTML(user.getUserValue(WellKnownUserValue.DISCORD_USERNAME)),
 				"discord.avatar", DiscordUser.avatarUrl(discordUserId, user.getUserValue(WellKnownUserValue.DISCORD_AVATAR)),
-				"discord.inviteurl", discordInviteUrl(discordKonfiguration));
+				"discord.inviteurl", discordInviteUrl(discordConfiguration));
 
 		t.setBlock("_OPTIONS", "personenNamenGenerator.listitem", "personenNamenGenerator.list");
 		for (PersonNameGenerator png : PersonNameGenerator.values())
@@ -493,15 +493,15 @@ public class OptionsController extends Controller
 	public ViewResult discordConnectAction()
 	{
 		User user = (User) getUser();
-		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
-		if (!konfiguration.isLoginEingerichtet())
+		DiscordConfiguration configuration = DiscordConfiguration.load(getEM());
+		if (!configuration.isLoginConfigured())
 		{
 			return discordPopup(false, "Die Discord-Anbindung ist auf diesem Server nicht eingerichtet.");
 		}
 
 		String state = new BigInteger(130, random).toString(32);
 		user.setUserValue(WellKnownUserValue.DISCORD_OAUTH_STATE, state);
-		String url = discordService.getAuthorizeUrl(konfiguration, konfiguration.getRedirectUri(), state);
+		String url = discordService.getAuthorizeUrl(configuration, configuration.getRedirectUri(), state);
 		return response -> response.redirectTo(url);
 	}
 
@@ -532,28 +532,28 @@ public class OptionsController extends Controller
 			return discordPopup(false, "Die Anfrage ist ungültig oder abgelaufen. Bitte starte die Verknüpfung erneut.");
 		}
 
-		DiscordKonfiguration konfiguration = DiscordKonfiguration.laden(getEM());
-		if (!konfiguration.isLoginEingerichtet())
+		DiscordConfiguration configuration = DiscordConfiguration.load(getEM());
+		if (!configuration.isLoginConfigured())
 		{
 			return discordPopup(false, "Die Discord-Anbindung ist auf diesem Server nicht eingerichtet.");
 		}
 
 		try
 		{
-			String accessToken = discordService.exchangeCode(konfiguration, konfiguration.getRedirectUri(), code);
+			String accessToken = discordService.exchangeCode(configuration, configuration.getRedirectUri(), code);
 			DiscordUser discordUser = discordService.fetchUser(accessToken);
-			boolean member = discordService.joinGuild(konfiguration, discordUser, accessToken);
+			boolean member = discordService.joinGuild(configuration, discordUser, accessToken);
 
 			user.setUserValue(WellKnownUserValue.DISCORD_USER_ID, discordUser.id);
 			user.setUserValue(WellKnownUserValue.DISCORD_USERNAME, discordUser.displayName);
 			user.setUserValue(WellKnownUserValue.DISCORD_AVATAR, discordUser.avatar != null ? discordUser.avatar : "");
-			user.setUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM, System.currentTimeMillis());
-			user.setUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT, true);
+			user.setUserValue(WellKnownUserValue.DISCORD_LINKED_AT, System.currentTimeMillis());
+			user.setUserValue(WellKnownUserValue.DISCORD_CONTENT_ALLOWED, true);
 
 			String message = "Dein Account ist jetzt mit dem Discord-Account <b>" + Common.escapeHTML(discordUser.displayName) + "</b> verknüpft.";
 			if (!member)
 			{
-				message += "<br />Tritt noch unserem <a href=\"" + discordInviteUrl(konfiguration) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Discord-Server</a> bei, um im Chat schreiben zu können.";
+				message += "<br />Tritt noch unserem <a href=\"" + discordInviteUrl(configuration) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Discord-Server</a> bei, um im Chat schreiben zu können.";
 			}
 			return discordPopup(true, message);
 		}
@@ -579,8 +579,8 @@ public class OptionsController extends Controller
 		user.setUserValue(WellKnownUserValue.DISCORD_USER_ID, "");
 		user.setUserValue(WellKnownUserValue.DISCORD_USERNAME, "");
 		user.setUserValue(WellKnownUserValue.DISCORD_AVATAR, "");
-		user.setUserValue(WellKnownUserValue.DISCORD_VERKNUEPFT_AM, 0L);
-		DiscordNachricht.loeschenFuer(getEM(), user.getId());
+		user.setUserValue(WellKnownUserValue.DISCORD_LINKED_AT, 0L);
+		DiscordSentMessage.deleteFor(getEM(), user.getId());
 
 		return new RedirectViewResult("xtra").withMessage("Die Verknüpfung mit Discord wurde aufgehoben.<br />\n");
 	}
@@ -589,21 +589,21 @@ public class OptionsController extends Controller
 	 * Widerruft die Zustimmung, dass der Chat auf der Uebersicht Inhalte von Discord laedt. Nur per POST.
 	 */
 	@Action(ActionType.DEFAULT)
-	public RedirectViewResult discordInhalteWiderrufenAction()
+	public RedirectViewResult discordRevokeContentAction()
 	{
 		if (!getRequest().isPost())
 		{
 			return new RedirectViewResult("xtra");
 		}
 		User user = (User) getUser();
-		user.setUserValue(WellKnownUserValue.DISCORD_INHALTE_ERLAUBT, false);
+		user.setUserValue(WellKnownUserValue.DISCORD_CONTENT_ALLOWED, false);
 
 		return new RedirectViewResult("xtra").withMessage("Der Discord-Chat lädt keine Inhalte mehr von Discord.<br />\n");
 	}
 
-	private static String discordInviteUrl(DiscordKonfiguration konfiguration)
+	private static String discordInviteUrl(DiscordConfiguration configuration)
 	{
-		String url = konfiguration.getSichereInviteUrl();
+		String url = configuration.getSafeInviteUrl();
 		return url != null ? Common.escapeHTML(url) : "https://discord.com";
 	}
 

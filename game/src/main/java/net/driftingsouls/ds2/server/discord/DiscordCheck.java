@@ -6,29 +6,29 @@ import java.util.List;
 /**
  * Ergebnis der Verbindungspruefung des Discord-Bots fuer den Adminbereich.
  */
-public class DiscordPruefung
+public class DiscordCheck
 {
-	public static class Punkt
+	public static class Item
 	{
 		public final boolean ok;
 		public final String text;
 
-		Punkt(boolean ok, String text)
+		Item(boolean ok, String text)
 		{
 			this.ok = ok;
 			this.text = text;
 		}
 	}
 
-	public final List<Punkt> punkte = new ArrayList<>();
+	public final List<Item> items = new ArrayList<>();
 
 	void ok(String text)
 	{
-		punkte.add(new Punkt(true, text));
+		items.add(new Item(true, text));
 	}
 
-	void fehler(String text)
+	void error(String text)
 	{
-		punkte.add(new Punkt(false, text));
+		items.add(new Item(false, text));
 	}
 }

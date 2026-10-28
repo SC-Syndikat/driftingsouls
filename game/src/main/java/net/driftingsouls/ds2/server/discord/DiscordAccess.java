@@ -5,19 +5,19 @@ import net.driftingsouls.ds2.server.entities.UserFlag;
 
 /**
  * Wer einen Discord-Kanal im Ingame-Chat lesen bzw. darin schreiben darf.
- * Admins duerfen alles ausser {@link #GESPERRT}.
+ * Admins duerfen alles ausser {@link #BLOCKED}.
  */
-public enum DiscordZugriff
+public enum DiscordAccess
 {
-	GESPERRT("gesperrt"),
-	ALLE("alle Spieler"),
+	BLOCKED("gesperrt"),
+	ALL("alle Spieler"),
 	NPC("NPCs"),
 	GAMEMASTER("Gamemaster"),
 	ADMIN("Admins");
 
 	private final String label;
 
-	DiscordZugriff(String label)
+	DiscordAccess(String label)
 	{
 		this.label = label;
 	}
@@ -32,11 +32,11 @@ public enum DiscordZugriff
 	 * @param user Der Spieler
 	 * @return <code>true</code>, falls er Zugriff hat
 	 */
-	public boolean erlaubt(User user)
+	public boolean allowed(User user)
 	{
 		switch (this)
 		{
-			case ALLE:
+			case ALL:
 				return true;
 			case NPC:
 				return user.isNPC() || user.isAdmin();
