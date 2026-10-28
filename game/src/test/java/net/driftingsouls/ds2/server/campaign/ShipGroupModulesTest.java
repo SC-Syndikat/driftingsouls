@@ -10,7 +10,7 @@ import static org.junit.Assert.*;
 public class ShipGroupModulesTest
 {
 	@Test
-	public void gegebenEinModulString_parse_sollteSlotUndItemLiefern()
+	public void givenAModuleString_parse_shouldReturnSlotAndItem()
 	{
 		assertEquals(Map.of(1, 442, 3, 17), ShipGroupModules.parse(" 1:442 | 3:17 "));
 		assertTrue(ShipGroupModules.parse("").isEmpty());
@@ -18,7 +18,7 @@ public class ShipGroupModulesTest
 	}
 
 	@Test
-	public void gegebenUngueltigeAngaben_parse_sollteAbgelehntWerden()
+	public void givenInvalidInput_parse_shouldBeRejected()
 	{
 		assertThrows(CampaignException.class, () -> ShipGroupModules.parse("1"));
 		assertThrows(CampaignException.class, () -> ShipGroupModules.parse("x:3"));
@@ -27,7 +27,7 @@ public class ShipGroupModulesTest
 	}
 
 	@Test
-	public void gegebenModule_format_sollteNachSlotSortiertSpeichern()
+	public void givenModules_format_shouldStoreThemSortedBySlot()
 	{
 		Map<Integer, Integer> modules = new LinkedHashMap<>();
 		modules.put(3, 17);
@@ -37,7 +37,7 @@ public class ShipGroupModulesTest
 	}
 
 	@Test
-	public void gegebenDieSlotsEinesSchiffstyps_slots_sollteNummerUndTypLiefern()
+	public void givenTheSlotsOfAShipType_slots_shouldReturnNumberAndType()
 	{
 		Map<Integer, String> slots = ShipGroupModules.slots("1:waffe;2:antrieb:12,13;5:waffe");
 

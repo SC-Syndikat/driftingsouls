@@ -76,7 +76,7 @@ final class GameMasterOptions
 	/**
 	 * @return The asteroid configurations of campaign star systems
 	 */
-	static Map<Long, ConfigFelsbrockenSystem> felsbrockenSystems(GameMasterRestriction restriction)
+	static Map<Long, ConfigFelsbrockenSystem> boulderSystems(GameMasterRestriction restriction)
 	{
 		Map<Long, ConfigFelsbrockenSystem> options = new LinkedHashMap<>();
 		for (ConfigFelsbrockenSystem config : em().createQuery("from ConfigFelsbrockenSystem order by id", ConfigFelsbrockenSystem.class).getResultList())

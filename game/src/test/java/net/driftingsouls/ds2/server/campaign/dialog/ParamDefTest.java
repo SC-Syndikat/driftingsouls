@@ -7,7 +7,7 @@ import static org.junit.Assert.*;
 public class ParamDefTest
 {
 	@Test
-	public void gegebenEinVerweis_validate_sollteEineIdVerlangen()
+	public void givenAReference_validate_shouldRequireAnId()
 	{
 		ParamDef template = ParamDef.reference(ParamDef.Type.SHIP_GROUP, "template", "Vorlage");
 
@@ -17,7 +17,7 @@ public class ParamDefTest
 	}
 
 	@Test
-	public void gegebenEinOptionalerVerweis_validate_sollteLeerErlauben()
+	public void givenAnOptionalReference_validate_shouldAllowEmpty()
 	{
 		ParamDef owner = ParamDef.optionalReference(ParamDef.Type.CAMPAIGN_NPC, "owner", "Besitzer", "der sprechende NPC");
 
@@ -27,7 +27,7 @@ public class ParamDefTest
 	}
 
 	@Test
-	public void gegebenSchiffstypen_validate_sollteEineIdListeVerlangen()
+	public void givenShipTypes_validate_shouldRequireAnIdList()
 	{
 		ParamDef types = ParamDef.list(ParamDef.Type.SHIP_TYPES, "types", "Schiffstypen", false);
 
@@ -38,7 +38,7 @@ public class ParamDefTest
 	}
 
 	@Test
-	public void gegebenSchiffsklassen_validate_sollteBekannteKlassenVerlangen()
+	public void givenShipClasses_validate_shouldRequireKnownClasses()
 	{
 		ParamDef classes = ParamDef.list(ParamDef.Type.SHIP_CLASSES, "classes", "Schiffsklassen", true);
 
@@ -50,7 +50,7 @@ public class ParamDefTest
 	}
 
 	@Test
-	public void gegebenEinOrt_validate_sollteSystemUndKoordinatenVerlangen()
+	public void givenALocation_validate_shouldRequireSystemAndCoordinates()
 	{
 		ParamDef location = ParamDef.location("location", "Ort", false);
 

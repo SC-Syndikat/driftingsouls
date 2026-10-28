@@ -42,7 +42,7 @@ public class CampaignBattleNotifierTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinFertigerTeilnehmerImKampagnensystem_onAttacked_sollteDieRundeFortsetzen()
+	public void givenAFinishedParticipantInTheCampaignSystem_onAttacked_shouldResumeTheRound()
 	{
 		Set<User> resumed = notifier.onAttacked(List.of(defender), campaignSystem.getID());
 
@@ -52,7 +52,7 @@ public class CampaignBattleNotifierTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinAngriffAusserhalbDerKampagne_onAttacked_sollteNichtsAendern()
+	public void givenAnAttackOutsideTheCampaign_onAttacked_shouldChangeNothing()
 	{
 		Set<User> resumed = notifier.onAttacked(List.of(defender), normalSystem.getID());
 

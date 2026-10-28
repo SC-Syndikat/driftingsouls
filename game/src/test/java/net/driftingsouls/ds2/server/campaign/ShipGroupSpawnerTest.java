@@ -22,7 +22,7 @@ import static org.junit.Assert.*;
 public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 {
 	@Test
-	public void gegebenEineVorlage_spawn_sollteAlleSchiffeAlsFlotteAmOrtErstellen()
+	public void givenATemplate_spawn_shouldCreateAllShipsAsAFleetAtTheLocation()
 	{
 		User owner = new User("npc", "***", 0, "", new Cargo(), "npc@localhost");
 		StarSystem system = persist(new StarSystem());
@@ -51,7 +51,7 @@ public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinOffizier_spawn_sollteFaehigkeitenRangUndSpezialfaehigkeitSetzen()
+	public void givenAnOfficer_spawn_shouldSetAbilitiesRankAndSpecialAbility()
 	{
 		User owner = new User("npc", "***", 0, "", new Cargo(), "npc@localhost");
 		StarSystem system = persist(new StarSystem());
@@ -75,7 +75,7 @@ public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinKleinesSchiff_spawn_sollteKeinenOffizierAnlegen()
+	public void givenASmallShip_spawn_shouldCreateNoOfficer()
 	{
 		User owner = new User("npc", "***", 0, "", new Cargo(), "npc@localhost");
 		StarSystem system = persist(new StarSystem());
@@ -94,7 +94,7 @@ public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinModul_spawn_sollteEsEinbauenUndDieWerteDesSchiffsAnpassen()
+	public void givenAModule_spawn_shouldFitItAndAdjustTheShipsValues()
 	{
 		User owner = new User("npc", "***", 0, "", new Cargo(), "npc@localhost");
 		StarSystem system = persist(new StarSystem());
@@ -127,7 +127,7 @@ public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 	}
 
 	@Test(expected = CampaignException.class)
-	public void gegebenEinUnpassendesModul_spawn_sollteAbgelehntWerden()
+	public void givenAnUnsuitableModule_spawn_shouldBeRejected()
 	{
 		User owner = new User("npc", "***", 0, "", new Cargo(), "npc@localhost");
 		StarSystem system = persist(new StarSystem());
@@ -147,7 +147,7 @@ public class ShipGroupSpawnerTest extends DBSingleTransactionTest
 	}
 
 	@Test(expected = CampaignException.class)
-	public void gegebenEinUnbekannterSchiffstyp_spawn_sollteAbgelehntWerden()
+	public void givenAnUnknownShipType_spawn_shouldBeRejected()
 	{
 		User owner = new User("npc", "***", 0, "", new Cargo(), "npc@localhost");
 		ShipGroupTemplate template = new ShipGroupTemplate(1, "Kaputt", "", false, List.of(

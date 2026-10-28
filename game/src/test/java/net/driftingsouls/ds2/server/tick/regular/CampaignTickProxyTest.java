@@ -16,7 +16,7 @@ import static org.junit.Assert.assertTrue;
 public class CampaignTickProxyTest extends DBTest
 {
 	@Test
-	public void gegebenDieSpringBean_setAffectedSystems_sollteDenTickAlsKampagnentickMarkieren()
+	public void givenTheSpringBean_setAffectedSystems_shouldMarkTheTickAsCampaignTick()
 	{
 		TickController tick = getContext().getBean(CampaignTick.class, null);
 

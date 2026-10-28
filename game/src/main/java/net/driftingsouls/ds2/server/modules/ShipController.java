@@ -168,7 +168,7 @@ public class ShipController extends Controller
 	public RedirectViewResult alarmAction(Ship ship, AlertLevel alarm)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		User user = (User)getUser();
 		if (user.isNoob())
@@ -205,7 +205,7 @@ public class ShipController extends Controller
 	public Object consignAction(Ship ship, @UrlParam(name = "newowner") String newownerID, int conf)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		var db = getEM();
 		User user = (User) getUser();
@@ -272,7 +272,7 @@ public class ShipController extends Controller
 	public Object destroyAction(Ship ship, int conf)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		if (ship.isNoSuicide())
 		{
@@ -373,7 +373,7 @@ public class ShipController extends Controller
 		// The campaign dialog checks the campaign rules itself (INTERACT)
 		if (!CampaignDialog.PLUGIN_ID.equals(plugin))
 		{
-			pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
+			checkCampaign(ship, CampaignAction.SHIP_ACTION);
 		}
 
 		ShipTypeData shiptype = ship.getTypeData();
@@ -414,7 +414,7 @@ public class ShipController extends Controller
 		return new RedirectViewResult("default").withMessage(pluginResult);
 	}
 
-	private String campaignBattleStart(Ship ship, String ergebnis)
+	private String campaignBattleStart(Ship ship, String result)
 	{
 		User user = (User) getUser();
 		StringBuilder html = new StringBuilder("<div class='gfxbox' style='width:600px;font-size:14px;line-height:1.5'>");
@@ -427,9 +427,9 @@ public class ShipController extends Controller
 				html.append("<b>").append(StringEscapeUtils.escapeHtml4(note.speaker)).append("</b>: ").append(Common._text(note.reply)).append("<br /><br />");
 			}
 		}
-		if( ergebnis != null && !ergebnis.isEmpty() )
+		if( result != null && !result.isEmpty() )
 		{
-			html.append(ergebnis).append("<br />");
+			html.append(result).append("<br />");
 		}
 		html.append("<a class='forschinfo' style='font-size:16px' href='")
 				.append(Common.buildUrl("default", "module", "angriff", "battle", ship.getBattle().getId(), "ship", ship.getId()))
@@ -446,7 +446,7 @@ public class ShipController extends Controller
 	public RedirectViewResult landAction(Ship ship, @UrlParam(name = "shiplist") String shipIdList)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.LAND);
+		checkCampaign(ship, CampaignAction.LAND);
 
 		if (shipIdList.equals(""))
 		{
@@ -480,7 +480,7 @@ public class ShipController extends Controller
 	public RedirectViewResult startAction(Ship ship, @UrlParam(name = "shiplist") String shipIdList)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.LAND);
+		checkCampaign(ship, CampaignAction.LAND);
 
 		if (shipIdList.equals(""))
 		{
@@ -514,7 +514,7 @@ public class ShipController extends Controller
 	public RedirectViewResult aufladenAction(Ship ship, @UrlParam(name = "tar") String shipIdList)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.DOCK);
+		checkCampaign(ship, CampaignAction.DOCK);
 
 		User user = (User) getUser();
 
@@ -570,7 +570,7 @@ public class ShipController extends Controller
 	public RedirectViewResult abladenAction(Ship ship, @UrlParam(name = "tar") String shipIdList)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.DOCK);
+		checkCampaign(ship, CampaignAction.DOCK);
 
 		if (shipIdList.equals(""))
 		{
@@ -604,7 +604,7 @@ public class ShipController extends Controller
 	public RedirectViewResult joinAction(Ship ship, int join)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -656,7 +656,7 @@ public class ShipController extends Controller
 	public RedirectViewResult shupAction(Ship ship, int shup)
 	{
 		validateShip(ship);
-		pruefeKampagne(ship, CampaignAction.SHIP_ACTION);
+		checkCampaign(ship, CampaignAction.SHIP_ACTION);
 
 		ShipTypeData shiptype = ship.getTypeData();
 		int shieldfactor = 100;
@@ -1195,7 +1195,7 @@ public class ShipController extends Controller
 		return t;
 	}
 
-	private void pruefeKampagne(Ship ship, CampaignAction action)
+	private void checkCampaign(Ship ship, CampaignAction action)
 	{
 		new CampaignActionGuard().check((User) getUser(), ship, action);
 	}

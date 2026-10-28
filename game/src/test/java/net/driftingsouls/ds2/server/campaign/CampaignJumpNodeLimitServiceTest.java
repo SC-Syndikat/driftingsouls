@@ -54,13 +54,13 @@ public class CampaignJumpNodeLimitServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenKeineLimits_check_sollteAllesErlauben()
+	public void givenNoLimits_check_shouldAllowEverything()
 	{
 		assertFalse(limits.check(player, nodeId, List.of(fighter, cruiser)).isPresent());
 	}
 
 	@Test
-	public void gegebenErlaubteKlassen_check_sollteAndereKlassenAbweisen()
+	public void givenAllowedClasses_check_shouldRejectOtherClasses()
 	{
 		limits.save(nodeId, JumpNodeLimits.NONE.withAllowedShipClasses(Set.of(ShipClasses.JAEGER.name())));
 
@@ -69,7 +69,7 @@ public class CampaignJumpNodeLimitServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenMaxPunkteJeSchiff_check_sollteZuGrosseSchiffeAbweisen()
+	public void givenMaxPointsPerShip_check_shouldRejectShipsThatAreTooLarge()
 	{
 		limits.save(nodeId, JumpNodeLimits.NONE.withMaxPointsPerShip(5));
 
@@ -78,7 +78,7 @@ public class CampaignJumpNodeLimitServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinSpielerKontingent_check_sollteBisherigeDurchgaengeMitzaehlen()
+	public void givenAPlayerQuota_check_shouldCountPreviousPassages()
 	{
 		limits.save(nodeId, JumpNodeLimits.NONE.withMaxPointsPerPlayer(10));
 
@@ -90,7 +90,7 @@ public class CampaignJumpNodeLimitServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinKontingentProTick_check_sollteNurDenAktuellenTickZaehlen()
+	public void givenAQuotaPerTick_check_shouldOnlyCountTheCurrentTick()
 	{
 		limits.save(nodeId, JumpNodeLimits.NONE.withMaxPointsPerPlayer(8).withPeriod(JumpNodeLimits.Period.PER_TICK));
 		limits.record(player, nodeId, List.of(cruiser));
@@ -102,7 +102,7 @@ public class CampaignJumpNodeLimitServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinGameMaster_check_sollteNichtBeschraenken()
+	public void givenAGameMaster_check_shouldNotRestrict()
 	{
 		limits.save(nodeId, JumpNodeLimits.NONE.withMaxPointsPerShip(1));
 

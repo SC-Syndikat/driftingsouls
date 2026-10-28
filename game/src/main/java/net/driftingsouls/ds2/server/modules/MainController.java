@@ -108,13 +108,13 @@ public class MainController extends Controller {
 				.iterate().next()).intValue();
 		status.pm = pmcount > 0;
 		status.comNet = new ComNetService().hasActiveUserUnreadComNetMessages();
-		status.gmRequests = hatUngeleseneGmAnfragen();
+		status.gmRequests = hasUnreadGmRequests();
 		status.version = version.getVersion();
 
 		return status;
 	}
 
-	private boolean hatUngeleseneGmAnfragen() {
+	private boolean hasUnreadGmRequests() {
 		// While steering an NPC, the game master is the one behind the session
 		BasicUser real = GameMasterControl.realUser();
 		boolean gameMaster = GameMasterPermissionResolver.isGameMaster(real);

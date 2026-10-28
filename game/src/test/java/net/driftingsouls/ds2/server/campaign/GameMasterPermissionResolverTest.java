@@ -12,7 +12,7 @@ public class GameMasterPermissionResolverTest
 	private static final PermissionResolver NOTHING = permission -> false;
 
 	@Test
-	public void gegebenEinGameMaster_hasPermission_sollteDieKampagnenrechteGewaehren()
+	public void givenAGameMaster_hasPermission_shouldGrantTheCampaignPermissions()
 	{
 		var resolver = new GameMasterPermissionResolver(NOTHING, true);
 
@@ -23,7 +23,7 @@ public class GameMasterPermissionResolverTest
 	}
 
 	@Test
-	public void gegebenEinGameMaster_hasPermission_sollteDasGestaltenVonSystemenErlauben()
+	public void givenAGameMaster_hasPermission_shouldAllowDesigningSystems()
 	{
 		var resolver = new GameMasterPermissionResolver(NOTHING, true);
 
@@ -35,7 +35,7 @@ public class GameMasterPermissionResolverTest
 	}
 
 	@Test
-	public void gegebenEinGameMaster_hasPermission_sollteKeineAnderenAdminrechteGewaehren()
+	public void givenAGameMaster_hasPermission_shouldGrantNoOtherAdminPermissions()
 	{
 		var resolver = new GameMasterPermissionResolver(NOTHING, true);
 
@@ -46,7 +46,7 @@ public class GameMasterPermissionResolverTest
 	}
 
 	@Test
-	public void gegebenKeinGameMaster_hasPermission_sollteAnDenInnerenResolverDelegieren()
+	public void givenNoGameMaster_hasPermission_shouldDelegateToTheInnerResolver()
 	{
 		assertFalse(new GameMasterPermissionResolver(NOTHING, false)
 				.hasPermission(WellKnownAdminPermission.CAMPAIGN_PARTICIPANTS));

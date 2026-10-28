@@ -19,7 +19,7 @@ public class ShipGroupLimitsTest
 	}
 
 	@Test
-	public void gegebenGenugPlatz_trim_sollteNichtsAendern()
+	public void givenEnoughSpace_trim_shouldChangeNothing()
 	{
 		ShipGroupLimits.Result<String> result = ShipGroupLimits.trim(List.of(load("a", 10, 2), load("b", 5, 1)), 25, "Cargo");
 
@@ -29,7 +29,7 @@ public class ShipGroupLimitsTest
 	}
 
 	@Test
-	public void gegebenEineUeberbelegung_trim_sollteDenLetztenEintragReduzieren()
+	public void givenAnOverflow_trim_shouldReduceTheLastEntry()
 	{
 		ShipGroupLimits.Result<String> result = ShipGroupLimits.trim(List.of(load("a", 10, 2), load("b", 10, 3)), 26, "Cargo");
 
@@ -39,7 +39,7 @@ public class ShipGroupLimitsTest
 	}
 
 	@Test
-	public void gegebenEineGrosseUeberbelegung_trim_sollteVonHintenEntfernenUndReduzieren()
+	public void givenALargeOverflow_trim_shouldRemoveAndReduceFromTheEnd()
 	{
 		ShipGroupLimits.Result<String> result = ShipGroupLimits.trim(List.of(load("a", 10, 2), load("b", 4, 5), load("c", 3, 10)), 12, "Einheiten");
 
@@ -49,7 +49,7 @@ public class ShipGroupLimitsTest
 	}
 
 	@Test
-	public void gegebenEintraegeOhneGroesse_trim_sollteSieBehalten()
+	public void givenEntriesWithoutSize_trim_shouldKeepThem()
 	{
 		ShipGroupLimits.Result<String> result = ShipGroupLimits.trim(List.of(load("a", 5, 4), load("frei", 100, 0)), 8, "Cargo");
 
@@ -57,7 +57,7 @@ public class ShipGroupLimitsTest
 	}
 
 	@Test
-	public void gegebenKeinPlatz_trim_sollteAllesEntfernen()
+	public void givenNoSpace_trim_shouldRemoveEverything()
 	{
 		ShipGroupLimits.Result<String> result = ShipGroupLimits.trim(List.of(load("a", 5, 4)), 0, "Einheiten");
 

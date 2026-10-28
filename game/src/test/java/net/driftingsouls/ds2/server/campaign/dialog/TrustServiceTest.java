@@ -34,7 +34,7 @@ public class TrustServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenAktionenVonAllianzmitgliedern_trust_sollteSieAnteiligMitzaehlen()
+	public void givenActionsOfAllianceMembers_trust_shouldCountThemProportionally()
 	{
 		trust.record(npc.getId(), alice.getId(), 10, "Hilfe", TrustService.Kind.ACTION, null, null, null);
 		trust.record(npc.getId(), bob.getId(), 4, "Hilfe", TrustService.Kind.ACTION, null, null, null);
@@ -49,7 +49,7 @@ public class TrustServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEineKorrektur_trust_sollteNurFuerDenSpielerZaehlen()
+	public void givenACorrection_trust_shouldOnlyCountForThePlayer()
 	{
 		trust.record(npc.getId(), alice.getId(), 10, "Hilfe", TrustService.Kind.ACTION, null, null, null);
 

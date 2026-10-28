@@ -17,7 +17,7 @@ import static org.junit.Assert.assertEquals;
 public class DBUtilTest extends DBTest
 {
 	@Test
-	public void gegebenEinGeflushterHibernateInsert_jooqSelect_sollteDieZeileSehen() throws SQLException
+	public void givenAFlushedHibernateInsert_jooqSelect_shouldSeeTheRow() throws SQLException
 	{
 		EntityManager em = getEM();
 		em.getTransaction().begin();
@@ -36,7 +36,7 @@ public class DBUtilTest extends DBTest
 	}
 
 	@Test
-	public void gegebenEinJooqUpdate_hibernateQueryInDerselbenTransaktion_sollteDenNeuenWertSehen() throws SQLException
+	public void givenAJooqUpdate_hibernateQueryInTheSameTransaction_shouldSeeTheNewValue() throws SQLException
 	{
 		EntityManager em = getEM();
 		em.getTransaction().begin();
@@ -60,7 +60,7 @@ public class DBUtilTest extends DBTest
 	}
 
 	@Test
-	public void gegebenEinRollback_sollteJooqUndHibernateSchreibzugriffeZuruecknehmen() throws SQLException
+	public void givenARollback_shouldUndoJooqAndHibernateWrites() throws SQLException
 	{
 		EntityManager em = getEM();
 

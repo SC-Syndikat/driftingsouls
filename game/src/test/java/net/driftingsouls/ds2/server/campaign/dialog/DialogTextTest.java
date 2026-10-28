@@ -7,7 +7,7 @@ import static org.junit.Assert.assertEquals;
 public class DialogTextTest
 {
 	@Test
-	public void gegebenBedingteBloecke_resolve_sollteDenPassendenTeilZeigen()
+	public void givenConditionalBlocks_resolve_shouldShowTheMatchingPart()
 	{
 		// Outside a campaign every variable is 0
 		String text = "Notruf: [wenn teile == 0]##rausch##[/wenn][wenn teile >= 1]Kurier Daro[sonst] ?[/wenn] Ende";
@@ -16,7 +16,7 @@ public class DialogTextTest
 	}
 
 	@Test
-	public void gegebenTextOhneBloecke_resolve_sollteIhnUnveraendertLassen()
+	public void givenTextWithoutBlocks_resolve_shouldLeaveItUnchanged()
 	{
 		assertEquals("[b]Halt![/b]", DialogText.resolve("[b]Halt![/b]", null));
 	}

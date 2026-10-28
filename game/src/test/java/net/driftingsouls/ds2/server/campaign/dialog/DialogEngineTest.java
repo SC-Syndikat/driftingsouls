@@ -78,7 +78,7 @@ public class DialogEngineTest
 			Map.of("RECORD", new RecordingAction())));
 
 	@Test
-	public void gegebenEineErfuellteBedingung_evaluate_sollteDieOptionAnbieten()
+	public void givenAMetCondition_evaluate_shouldOfferTheOption()
 	{
 		DialogModel.Option option = option(null, List.of(condition(80, Comparison.GE, 50)), List.of(), List.of());
 
@@ -89,7 +89,7 @@ public class DialogEngineTest
 	}
 
 	@Test
-	public void gegebenEineUnerfuellteBedingung_evaluate_sollteDieOptionSperren()
+	public void givenAnUnmetCondition_evaluate_shouldBlockTheOption()
 	{
 		DialogModel.Option option = option(null, List.of(condition(20, Comparison.GE, 50)), List.of(), List.of());
 
@@ -100,7 +100,7 @@ public class DialogEngineTest
 	}
 
 	@Test
-	public void gegebenModifikatoren_evaluate_sollteDieChanceBerechnenUndBegrenzen()
+	public void givenModifiers_evaluate_shouldCalculateAndClampTheChance()
 	{
 		// 30 + 0.5 * clamp(100, max 60) = 30 + 30 = 60
 		DialogModel.Option option = option(30, List.of(), List.of(modifier(100, 0.5, null, 60.0)), List.of());
@@ -112,7 +112,7 @@ public class DialogEngineTest
 	}
 
 	@Test
-	public void gegebenEinWurfUnterDerChance_choose_sollteErfolgreichSeinUndErfolgsaktionenAusfuehren()
+	public void givenARollBelowTheChance_choose_shouldSucceedAndRunTheSuccessActions()
 	{
 		DialogModel.Option option = option(50, List.of(), List.of(), List.of(
 				action(DialogModel.Outcome.SUCCESS, "gewonnen"),
@@ -127,7 +127,7 @@ public class DialogEngineTest
 	}
 
 	@Test
-	public void gegebenEinWurfUeberDerChance_choose_sollteMisslingenUndZumFehlschlagKnotenFuehren()
+	public void givenARollAboveTheChance_choose_shouldFailAndLeadToTheFailureNode()
 	{
 		DialogModel.Option option = option(50, List.of(), List.of(), List.of(
 				action(DialogModel.Outcome.SUCCESS, "gewonnen"),
@@ -141,7 +141,7 @@ public class DialogEngineTest
 	}
 
 	@Test
-	public void gegebenEineVorschau_choose_sollteAktionenNurBeschreiben()
+	public void givenAPreview_choose_shouldOnlyDescribeActions()
 	{
 		DialogModel.Option option = option(null, List.of(), List.of(), List.of(action(DialogModel.Outcome.ALWAYS, "belohnung")));
 
@@ -152,7 +152,7 @@ public class DialogEngineTest
 	}
 
 	@Test
-	public void gegebenEinErzwungenesErgebnis_choose_sollteNichtWuerfeln()
+	public void givenAForcedOutcome_choose_shouldNotRoll()
 	{
 		DialogModel.Option option = option(100, List.of(), List.of(), List.of());
 
@@ -160,7 +160,7 @@ public class DialogEngineTest
 	}
 
 	@Test
-	public void gegebenEineTeilerfolgSpanne_choose_sollteNachWurfErfolgTeilerfolgOderMisserfolgLiefern()
+	public void givenAPartialSuccessRange_choose_shouldReturnSuccessPartialSuccessOrFailureByRoll()
 	{
 		DialogModel.Option option = new DialogModel.Option(1, 1, 0, "Entschlüsseln", 2, 3, 30, 40, 4, true, false, List.of(), List.of(),
 				List.of(action(DialogModel.Outcome.PARTIAL, "bruchstück")));
@@ -179,7 +179,7 @@ public class DialogEngineTest
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void gegebenEineGesperrteOption_choose_sollteAbgelehntWerden()
+	public void givenABlockedOption_choose_shouldBeRejected()
 	{
 		DialogModel.Option option = option(null, List.of(condition(0, Comparison.GT, 0)), List.of(), List.of());
 

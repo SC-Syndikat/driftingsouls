@@ -30,7 +30,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenKeineKampagne_prepare_sollteEineKampagneInVorbereitungAnlegen()
+	public void givenNoCampaign_prepare_shouldCreateACampaignInPreparation()
 	{
 		Campaign campaign = service.prepare("  Sturm über Rigel  ", gamemaster);
 
@@ -41,14 +41,14 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test(expected = CampaignException.class)
-	public void gegebenEineOffeneKampagne_prepare_sollteAbgelehntWerden()
+	public void givenAnOpenCampaign_prepare_shouldBeRejected()
 	{
 		service.prepare("Erste", gamemaster);
 		service.prepare("Zweite", gamemaster);
 	}
 
 	@Test
-	public void gegebenEineKampagneInVorbereitung_updateParticipants_sollteNurDieListeUndNichtDasFlagAendern()
+	public void givenACampaignInPreparation_updateParticipants_shouldOnlyChangeTheListAndNotTheFlag()
 	{
 		Campaign campaign = service.prepare("Test", gamemaster);
 
@@ -61,7 +61,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenBestehendeTeilnehmer_updateParticipants_sollteNurDieDifferenzSchreiben()
+	public void givenExistingParticipants_updateParticipants_shouldOnlyWriteTheDifference()
 	{
 		Campaign campaign = service.prepare("Test", gamemaster);
 		service.updateParticipants(campaign, Set.of(alice.getId()), gamemaster);
@@ -74,7 +74,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenKeineTeilnehmer_findStartBlockers_sollteDenStartBlockieren()
+	public void givenNoParticipants_findStartBlockers_shouldBlockTheStart()
 	{
 		Campaign campaign = service.prepare("Test", gamemaster);
 
@@ -82,7 +82,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinTeilnehmerImUrlaub_findStartBlockers_sollteDenStartBlockieren()
+	public void givenAParticipantOnVacation_findStartBlockers_shouldBlockTheStart()
 	{
 		Campaign campaign = service.prepare("Test", gamemaster);
 		service.updateParticipants(campaign, Set.of(alice.getId()), gamemaster);
@@ -92,7 +92,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEineVorbereiteteKampagne_start_sollteDieTeilnehmerFlagsSetzen()
+	public void givenAPreparedCampaign_start_shouldSetTheParticipantFlags()
 	{
 		Campaign campaign = service.prepare("Test", gamemaster);
 		service.updateParticipants(campaign, Set.of(alice.getId()), gamemaster);
@@ -105,7 +105,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEineLaufendeKampagne_updateParticipants_sollteSofortWirken()
+	public void givenARunningCampaign_updateParticipants_shouldTakeEffectImmediately()
 	{
 		Campaign campaign = service.prepare("Test", gamemaster);
 		service.updateParticipants(campaign, Set.of(alice.getId()), gamemaster);
@@ -121,7 +121,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEineLaufendeKampagne_end_sollteAlleFlagsZuruecksetzen()
+	public void givenARunningCampaign_end_shouldResetAllFlags()
 	{
 		Campaign campaign = service.prepare("Test", gamemaster);
 		service.updateParticipants(campaign, Set.of(alice.getId()), gamemaster);

@@ -467,7 +467,7 @@ public class FleetMgntController extends Controller
 	public Object newowner2Action(ShipFleet fleet, @UrlParam(name = "ownerid") User newowner)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		if (newowner != null)
 		{
@@ -498,7 +498,7 @@ public class FleetMgntController extends Controller
 	public Object newowner3Action(ShipFleet fleet, @UrlParam(name = "ownerid") User newowner)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		User user = (User) this.getUser();
 		org.hibernate.Session db = getDB();
@@ -546,7 +546,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult shupAction(ShipFleet fleet)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 
@@ -624,7 +624,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult undockAction(ShipFleet fleet)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.DOCK);
+		checkCampaign(fleet, CampaignAction.DOCK);
 
 		fleet.undockContainers();
 
@@ -638,7 +638,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult redockAction(ShipFleet fleet)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.DOCK);
+		checkCampaign(fleet, CampaignAction.DOCK);
 
 		User user = (User) getUser();
 
@@ -654,7 +654,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult redock2Action(ShipFleet fleet)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.DOCK);
+		checkCampaign(fleet, CampaignAction.DOCK);
 
 		User user = (User) getUser();
 
@@ -670,7 +670,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult jstartAction(ShipFleet fleet)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.LAND);
+		checkCampaign(fleet, CampaignAction.LAND);
 
 		fleet.startFighters();
 
@@ -684,7 +684,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult jlandAction(ShipFleet fleet, int jaegertype)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.LAND);
+		checkCampaign(fleet, CampaignAction.LAND);
 
 		User user = (User) getUser();
 
@@ -702,7 +702,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult fleetcombineAction(ShipFleet fleet, @UrlParam(name = "fleetcombine") ShipFleet targetFleet)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		User user = (User) getUser();
 
@@ -733,7 +733,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult alarmAction(ShipFleet fleet, AlertLevel alarm)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		fleet.setAlarm(alarm);
 
@@ -749,7 +749,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult schnelleKampfbereitschaftAction(ShipFleet fleet, boolean schnelleKampfbereitschaft)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		for(Ship ship : fleet.getShips())
 		{
@@ -788,7 +788,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult buildAction(ShipFleet fleet, int buildcount, String buildid)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		if (buildcount <= 0)
 		{
@@ -855,7 +855,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult fillFoodAction(ShipFleet fleet) {
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -890,7 +890,7 @@ public class FleetMgntController extends Controller
 	@Action(ActionType.DEFAULT)
 	public RedirectViewResult fillFoodFromAstiAction(ShipFleet fleet){
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 		StringBuilder message = new StringBuilder(100);
 
 		org.hibernate.Session db = getDB();
@@ -1150,7 +1150,7 @@ public class FleetMgntController extends Controller
 	public RedirectViewResult getCrewAction(ShipFleet fleet, int crewinpercent)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 		User user = (User) getUser();
@@ -1202,7 +1202,7 @@ public class FleetMgntController extends Controller
 	public Object dismantleAction(ShipFleet fleet)
 	{
 		validateFleetExists(fleet);
-		pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+		checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
 		List<WerftObject> shipyards = new ArrayList<>();
 
@@ -1280,7 +1280,7 @@ public class FleetMgntController extends Controller
     public Object repairAction(ShipFleet fleet)
     {
         validateFleetExists(fleet);
-        pruefeKampagne(fleet, CampaignAction.SHIP_ACTION);
+        checkCampaign(fleet, CampaignAction.SHIP_ACTION);
 
         List<WerftObject> shipyards = new ArrayList<>();
 
@@ -1695,7 +1695,7 @@ public class FleetMgntController extends Controller
 				.uniqueResult();
 	}
 
-	private void pruefeKampagne(ShipFleet fleet, CampaignAction action)
+	private void checkCampaign(ShipFleet fleet, CampaignAction action)
 	{
 		List<Ship> ships = fleet.getShips();
 		if (!ships.isEmpty())

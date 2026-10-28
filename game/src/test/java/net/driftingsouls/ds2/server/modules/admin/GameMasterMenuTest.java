@@ -9,7 +9,7 @@ import static org.junit.Assert.assertTrue;
 public class GameMasterMenuTest
 {
 	@Test
-	public void jederEintrag_sollteEinPluginOeffnenDasDerGameMasterNutzenDarf() throws ClassNotFoundException
+	public void everyEntry_shouldOpenAPluginTheGameMasterMayUse() throws ClassNotFoundException
 	{
 		var resolver = new GameMasterPermissionResolver(permission -> false, true);
 

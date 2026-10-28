@@ -48,7 +48,7 @@ public class CampaignMapServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinNeuerKampagnenSprungpunkt_createJumpNode_sollteIhnVersteckenUndVorbereiten()
+	public void givenANewCampaignJumpNode_createJumpNode_shouldHideAndPrepareIt()
 	{
 		List<JumpNode> nodes = map.createJumpNode(campaign, new Location(normalSystem.getID(), 5, 5),
 				new Location(campaignSystem.getID(), 10, 10), "Zugang", true);
@@ -62,13 +62,13 @@ public class CampaignMapServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test(expected = CampaignException.class)
-	public void gegebenKeinKampagnensystem_createJumpNode_sollteAbgelehntWerden()
+	public void givenNoCampaignSystem_createJumpNode_shouldBeRejected()
 	{
 		map.createJumpNode(campaign, new Location(normalSystem.getID(), 5, 5), new Location(normalSystem.getID(), 10, 10), "Zugang", false);
 	}
 
 	@Test
-	public void gegebenEineKampagneInVorbereitung_jumpDenial_sollteNurNpcUndGmHineinlassen()
+	public void givenACampaignInPreparation_jumpDenial_shouldOnlyLetNpcAndGmIn()
 	{
 		JumpNode node = entrance();
 		map.setJumpNodeState(node.getId(), CampaignJumpNodeState.ACTIVE);
@@ -78,7 +78,7 @@ public class CampaignMapServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEineLaufendeKampagne_jumpDenial_sollteNurTeilnehmerHineinlassen()
+	public void givenARunningCampaign_jumpDenial_shouldOnlyLetParticipantsIn()
 	{
 		JumpNode node = entrance();
 		start();
@@ -88,7 +88,7 @@ public class CampaignMapServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinFertigerTeilnehmer_jumpDenial_sollteDenSprungVerbieten()
+	public void givenAFinishedParticipant_jumpDenial_shouldForbidTheJump()
 	{
 		JumpNode node = entrance();
 		start();
@@ -98,7 +98,7 @@ public class CampaignMapServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinNurSichtbarerSprungpunkt_jumpDenial_sollteDenSprungVerbieten()
+	public void givenAJumpNodeThatIsOnlyVisible_jumpDenial_shouldForbidTheJump()
 	{
 		JumpNode node = entrance();
 		start();
@@ -109,7 +109,7 @@ public class CampaignMapServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenStartUndEnde_sollteDieSprungpunkteAktivierenUndZuruecksetzen()
+	public void givenStartAndEnd_shouldActivateAndResetTheJumpNodes()
 	{
 		JumpNode node = entrance();
 
@@ -123,7 +123,7 @@ public class CampaignMapServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinAusgang_findExits_sollteNurSprungpunkteAusDemKampagnensystemLiefern()
+	public void givenAnExit_findExits_shouldOnlyReturnJumpNodesOutOfTheCampaignSystem()
 	{
 		map.createJumpNode(campaign, new Location(normalSystem.getID(), 5, 5), new Location(campaignSystem.getID(), 10, 10), "Zugang", true);
 

@@ -79,7 +79,7 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinGespraech_submit_sollteEineAnfrageMitUnterhaltungAnlegen()
+	public void givenAConversation_submit_shouldCreateARequestWithTheConversation()
 	{
 		dialogs.start(player, playerShip, interactionId);
 
@@ -97,13 +97,13 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test(expected = CampaignException.class)
-	public void gegebenKeinGespraech_submit_sollteAbgelehntWerden()
+	public void givenNoConversation_submit_shouldBeRejected()
 	{
 		requests.submit(player, playerShip, "Hallo?");
 	}
 
 	@Test
-	public void gegebenEineAnfrage_sollteDerGameMasterAktionenAusfuehrenUndDasGespraechFortsetzen()
+	public void givenARequest_theGameMasterShouldRunActionsAndContinueTheConversation()
 	{
 		dialogs.start(player, playerShip, interactionId);
 		int id = requests.submit(player, playerShip, "Ich biete meine Hilfe an.");
@@ -118,7 +118,7 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinUebergebenesNpcSchiff_sollteSeineInteraktionenEntfernen()
+	public void givenAHandedOverNpcShip_shouldRemoveItsInteractions()
 	{
 		Ship.MESSAGE.get().setLength(0);
 		assertFalse(npcShip.consign(player, false));
@@ -127,7 +127,7 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenMehrereNpcSchiffe_schiffUebergebenImSektor_sollteAlleSchiffeDesNpcsImSektorUebergeben()
+	public void givenSeveralNpcShips_handOverShipInSector_shouldHandOverAllShipsOfTheNpcInTheSector()
 	{
 		Ship escort = persist(new Ship(npc, type, npcShip.getSystem(), 5, 5));
 		Ship elsewhere = persist(new Ship(npc, type, npcShip.getSystem(), 9, 9));
@@ -142,7 +142,7 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEineSchlachtGegenDenNpc_kapitulieren_sollteDemSpielerDieSchiffeUebergebenUndDieSchlachtBeenden()
+	public void givenABattleAgainstTheNpc_capitulate_shouldHandTheShipsToThePlayerAndEndTheBattle()
 	{
 		for (User user : List.of(player, npc))
 		{

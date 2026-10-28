@@ -11,28 +11,28 @@ public class CampaignActionGuardTest
 	private static final Campaign RUNNING = campaign(CampaignStatus.RUNNING);
 
 	@Test
-	public void gegebenKeinKampagnensystem_decide_sollteAllesErlauben()
+	public void givenNoCampaignSystem_decide_shouldAllowEverything()
 	{
 		assertAllowed(RUNNING, false, false, true, CampaignAction.START_BATTLE);
 		assertAllowed(PREPARING, false, false, false, CampaignAction.ENTER_SYSTEM);
 	}
 
 	@Test
-	public void gegebenEineKampagneInVorbereitung_decide_sollteNurDasBetretenVerbieten()
+	public void givenACampaignInPreparation_decide_shouldOnlyForbidEntering()
 	{
 		assertDenied(PREPARING, true, true, false, CampaignAction.ENTER_SYSTEM);
 		assertAllowed(PREPARING, true, false, false, CampaignAction.MOVE);
 	}
 
 	@Test
-	public void gegebenEineLaufendeKampagne_decide_sollteNichtteilnehmerAusschliessen()
+	public void givenARunningCampaign_decide_shouldExcludeNonParticipants()
 	{
 		assertDenied(RUNNING, true, false, false, CampaignAction.ENTER_SYSTEM);
 		assertDenied(RUNNING, true, false, false, CampaignAction.TRANSFER);
 	}
 
 	@Test
-	public void gegebenEineLaufendeKampagne_decide_sollteFertigeTeilnehmerSperren()
+	public void givenARunningCampaign_decide_shouldBlockFinishedParticipants()
 	{
 		assertDenied(RUNNING, true, true, true, CampaignAction.MOVE);
 		assertDenied(RUNNING, true, true, true, CampaignAction.START_BATTLE);

@@ -90,7 +90,7 @@ public class DialogServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinTeilnehmerImSektor_findOffers_sollteDieInteraktionAnbieten()
+	public void givenAParticipantInTheSector_findOffers_shouldOfferTheInteraction()
 	{
 		List<DialogService.Offer> offers = service.findOffers(player, playerShip);
 
@@ -100,13 +100,13 @@ public class DialogServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinNichtteilnehmer_findOffers_sollteNichtsAnbieten()
+	public void givenANonParticipant_findOffers_shouldOfferNothing()
 	{
 		assertTrue(service.findOffers(outsider, outsiderShip).isEmpty());
 	}
 
 	@Test
-	public void gegebenEinGespraech_sollteBedingungenAktionenUndLimitsBeachten()
+	public void givenAConversation_shouldRespectConditionsActionsAndLimits()
 	{
 		int interactionId = service.findOffers(player, playerShip).get(0).interactions.get(0).id;
 		service.start(player, playerShip, interactionId);
@@ -130,7 +130,7 @@ public class DialogServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEineNurEinmalWaehlbareAntwort_choose_sollteSieDanachNichtMehrAnbieten()
+	public void givenAnAnswerThatCanOnlyBeChosenOnce_choose_shouldNotOfferItAgainAfterwards()
 	{
 		DialogRepository dialogs = new DialogRepository();
 		int compliment = dialogs.createOption(greeting, 3, "Schönes Schiff!", greeting, null, null, true, true);
@@ -150,7 +150,7 @@ public class DialogServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinLaufendesGespraech_sollteDieSchiffeImSektorBinden()
+	public void givenARunningConversation_shouldBindTheShipsInTheSector()
 	{
 		int interactionId = service.findOffers(player, playerShip).get(0).interactions.get(0).id;
 		CampaignActionGuard guard = new CampaignActionGuard();
@@ -165,7 +165,7 @@ public class DialogServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinPflichtknoten_quit_sollteAbgelehntWerden()
+	public void givenAMandatoryNode_quit_shouldBeRejected()
 	{
 		new DialogRepository().setNodeForced(greeting, true);
 		int interactionId = service.findOffers(player, playerShip).get(0).interactions.get(0).id;
@@ -178,7 +178,7 @@ public class DialogServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEineAntwortEinesAnderenKnotens_choose_sollteAbgelehntWerden()
+	public void givenAnAnswerOfAnotherNode_choose_shouldBeRejected()
 	{
 		int interactionId = service.findOffers(player, playerShip).get(0).interactions.get(0).id;
 		service.start(player, playerShip, interactionId);
@@ -188,7 +188,7 @@ public class DialogServiceTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	public void gegebenEinFertigerTeilnehmer_findOffers_sollteNichtsAnbieten()
+	public void givenAFinishedParticipant_findOffers_shouldOfferNothing()
 	{
 		player.setTickReady(true);
 

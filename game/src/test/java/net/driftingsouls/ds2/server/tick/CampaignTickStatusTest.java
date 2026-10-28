@@ -16,7 +16,7 @@ public class CampaignTickStatusTest
 	}
 
 	@Test
-	public void gegebenEinGestarteterTick_running_sollteDenSchrittUndDenStartBehalten()
+	public void givenAStartedTick_running_shouldKeepTheStepAndTheStart()
 	{
 		CampaignTickStatus.started();
 		long startedAt = CampaignTickStatus.get().getStartedAt();
@@ -30,7 +30,7 @@ public class CampaignTickStatusTest
 	}
 
 	@Test
-	public void gegebenEinLaufenderTick_finished_sollteDenSchrittVergessenUndDasEndeFesthalten()
+	public void givenARunningTick_finished_shouldForgetTheStepAndRecordTheEnd()
 	{
 		CampaignTickStatus.running("berechne Schlachten");
 

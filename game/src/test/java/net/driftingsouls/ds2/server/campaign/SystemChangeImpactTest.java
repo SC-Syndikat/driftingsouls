@@ -9,61 +9,61 @@ import static org.junit.Assert.*;
 
 public class SystemChangeImpactTest
 {
-	private static final CampaignObject INNEN = new CampaignObject(CampaignObject.Type.SHIP, 1, "Innen", 7, 50, 50, 42, "Spieler");
-	private static final CampaignObject RECHTS = new CampaignObject(CampaignObject.Type.BASE, 2, "Rechts", 7, 150, 10, 42, "Spieler");
-	private static final CampaignObject UNTEN = new CampaignObject(CampaignObject.Type.SHIP, 3, "Unten", 7, 10, 120, 43, "Andere");
-	private static final List<CampaignObject> OBJEKTE = List.of(INNEN, RECHTS, UNTEN);
+	private static final CampaignObject INSIDE = new CampaignObject(CampaignObject.Type.SHIP, 1, "Innen", 7, 50, 50, 42, "Spieler");
+	private static final CampaignObject RIGHT = new CampaignObject(CampaignObject.Type.BASE, 2, "Rechts", 7, 150, 10, 42, "Spieler");
+	private static final CampaignObject BELOW = new CampaignObject(CampaignObject.Type.SHIP, 3, "Unten", 7, 10, 120, 43, "Andere");
+	private static final List<CampaignObject> OBJECTS = List.of(INSIDE, RIGHT, BELOW);
 
 	@Test
-	public void gegebenKeineRelevanteAenderung_ofUpdate_sollteNichtsBetreffen()
+	public void givenNoRelevantChange_ofUpdate_shouldAffectNothing()
 	{
-		assertTrue(SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 200, 200, StarSystem.Access.NORMAL, OBJEKTE).isEmpty());
-		assertTrue("Vergrößern", SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 300, 250, StarSystem.Access.NORMAL, OBJEKTE).isEmpty());
+		assertTrue(SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 200, 200, StarSystem.Access.NORMAL, OBJECTS).isEmpty());
+		assertTrue("Vergrößern", SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 300, 250, StarSystem.Access.NORMAL, OBJECTS).isEmpty());
 	}
 
 	@Test
-	public void gegebenEinVerkleinertesSystem_ofUpdate_sollteNurObjekteAusserhalbBetreffen()
+	public void givenAShrunkSystem_ofUpdate_shouldOnlyAffectObjectsOutside()
 	{
-		SystemChangeImpact impact = SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 100, 100, StarSystem.Access.NORMAL, OBJEKTE);
+		SystemChangeImpact impact = SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 100, 100, StarSystem.Access.NORMAL, OBJECTS);
 
-		assertEquals(List.of(RECHTS, UNTEN), impact.objects);
+		assertEquals(List.of(RIGHT, BELOW), impact.objects);
 		assertEquals(1, impact.reasons.size());
 	}
 
 	@Test
-	public void gegebenEinObjektAufDemNeuenRand_ofUpdate_sollteEsNichtBetreffen()
+	public void givenAnObjectOnTheNewEdge_ofUpdate_shouldNotAffectIt()
 	{
-		SystemChangeImpact impact = SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 150, 120, StarSystem.Access.NORMAL, OBJEKTE);
+		SystemChangeImpact impact = SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 150, 120, StarSystem.Access.NORMAL, OBJECTS);
 
 		assertTrue(impact.isEmpty());
 	}
 
 	@Test
-	public void gegebenGeaenderteZugriffsrechte_ofUpdate_sollteAlleObjekteBetreffen()
+	public void givenChangedAccessRights_ofUpdate_shouldAffectAllObjects()
 	{
-		SystemChangeImpact impact = SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 100, 200, StarSystem.Access.NPC, OBJEKTE);
+		SystemChangeImpact impact = SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 100, 200, StarSystem.Access.NPC, OBJECTS);
 
-		assertEquals(OBJEKTE, impact.objects);
+		assertEquals(OBJECTS, impact.objects);
 		assertEquals("Verkleinern und Zugriffsrechte", 2, impact.reasons.size());
 	}
 
 	@Test
-	public void gegebenKeineSpielerobjekte_ofUpdate_sollteNichtsBetreffen()
+	public void givenNoPlayerObjects_ofUpdate_shouldAffectNothing()
 	{
 		assertTrue(SystemChangeImpact.ofUpdate(200, 200, StarSystem.Access.NORMAL, 10, 10, StarSystem.Access.ADMIN, List.of()).isEmpty());
 	}
 
 	@Test
-	public void gegebenEinGeloeschtesSystem_ofDelete_sollteAlleObjekteBetreffen()
+	public void givenADeletedSystem_ofDelete_shouldAffectAllObjects()
 	{
-		assertEquals(OBJEKTE, SystemChangeImpact.ofDelete(OBJEKTE).objects);
+		assertEquals(OBJECTS, SystemChangeImpact.ofDelete(OBJECTS).objects);
 		assertTrue(SystemChangeImpact.ofDelete(List.of()).isEmpty());
 	}
 
 	@Test
-	public void gegebenDasEntfernenAllerBasen_ofClearingBases_sollteNurBasenBetreffen()
+	public void givenRemovingAllBases_ofClearingBases_shouldOnlyAffectBases()
 	{
-		assertEquals(List.of(RECHTS), SystemChangeImpact.ofClearingBases(OBJEKTE).objects);
-		assertTrue(SystemChangeImpact.ofClearingBases(List.of(INNEN)).isEmpty());
+		assertEquals(List.of(RIGHT), SystemChangeImpact.ofClearingBases(OBJECTS).objects);
+		assertTrue(SystemChangeImpact.ofClearingBases(List.of(INSIDE)).isEmpty());
 	}
 }

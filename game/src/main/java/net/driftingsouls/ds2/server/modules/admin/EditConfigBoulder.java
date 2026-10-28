@@ -44,7 +44,7 @@ public class EditConfigBoulder implements EntityEditor<ConfigFelsbrocken>
 		var system = form.field("System mit Felsbrocken", ConfigFelsbrockenSystem.class, ConfigFelsbrocken::getSystem, ConfigFelsbrocken::setSystem);
 		if (restriction.applies())
 		{
-			system.withOptions(GameMasterOptions.felsbrockenSystems(restriction));
+			system.withOptions(GameMasterOptions.boulderSystems(restriction));
 		}
 		form.field("Schiffstyp", ShipType.class, ConfigFelsbrocken::getShiptype, ConfigFelsbrocken::setShiptype);
 		form.field("Wahrscheinlichkeitsfaktor", Integer.class, ConfigFelsbrocken::getChance, ConfigFelsbrocken::setChance);

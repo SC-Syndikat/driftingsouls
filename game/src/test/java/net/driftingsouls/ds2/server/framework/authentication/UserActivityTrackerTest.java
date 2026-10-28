@@ -12,14 +12,14 @@ public class UserActivityTrackerTest
 	private final UserActivityTracker tracker = new UserActivityTracker(now::get);
 
 	@Test
-	public void gegebenKeineAktivitaet_isOnline_sollteFalseLiefern()
+	public void givenNoActivity_isOnline_shouldReturnFalse()
 	{
 		assertFalse(tracker.isOnline(1, 300));
 		assertTrue(tracker.secondsSinceLastActivity(1).isEmpty());
 	}
 
 	@Test
-	public void gegebenAktivitaetInnerhalbDerSchwelle_isOnline_sollteTrueLiefern()
+	public void givenActivityInsideTheThreshold_isOnline_shouldReturnTrue()
 	{
 		tracker.recordActivity(1);
 		now.addAndGet(300_000);
@@ -29,7 +29,7 @@ public class UserActivityTrackerTest
 	}
 
 	@Test
-	public void gegebenAktivitaetAusserhalbDerSchwelle_isOnline_sollteFalseLiefern()
+	public void givenActivityOutsideTheThreshold_isOnline_shouldReturnFalse()
 	{
 		tracker.recordActivity(1);
 		now.addAndGet(301_000);

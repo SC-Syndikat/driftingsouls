@@ -9,7 +9,7 @@ import static org.junit.Assert.assertEquals;
 public class CampaignUserViewTest
 {
 	@Test
-	public void describeLastSeen_sollteDieZeitSeitDerLetztenAktivitaetBeschreiben()
+	public void describeLastSeen_shouldDescribeTheTimeSinceTheLastActivity()
 	{
 		assertEquals("online", CampaignUserView.describeLastSeen(OptionalLong.of(10), true));
 		assertEquals("seit dem Serverstart nicht gesehen", CampaignUserView.describeLastSeen(OptionalLong.empty(), false));

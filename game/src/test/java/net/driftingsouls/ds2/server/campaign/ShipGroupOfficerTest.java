@@ -10,20 +10,20 @@ import static org.junit.Assert.*;
 public class ShipGroupOfficerTest
 {
 	@Test
-	public void gegebenFaehigkeiten_getRank_sollteDenDurchschnittDurch125Liefern()
+	public void givenAbilities_getRank_shouldReturnTheAverageDividedBy125()
 	{
 		assertEquals(0, new ShipGroupTemplate.Officer(100, 100, 100, 100, 100, "").getRank());
 		assertEquals(2, new ShipGroupTemplate.Officer(250, 250, 250, 250, 300, "").getRank());
 	}
 
 	@Test
-	public void gegebenSehrHoheFaehigkeiten_getRank_sollteBeimHoechstenRangEnden()
+	public void givenVeryHighAbilities_getRank_shouldEndAtTheHighestRank()
 	{
 		assertEquals(6, new ShipGroupTemplate.Officer(5000, 5000, 5000, 5000, 5000, "").getRank());
 	}
 
 	@Test
-	public void gegebenEineFaehigkeit_getAbility_sollteDenPassendenWertLiefern()
+	public void givenAnAbility_getAbility_shouldReturnTheMatchingValue()
 	{
 		ShipGroupTemplate.Officer officer = new ShipGroupTemplate.Officer(1, 2, 3, 4, 5, "");
 
@@ -35,14 +35,14 @@ public class ShipGroupOfficerTest
 	}
 
 	@Test
-	public void gegebenEineFesteSpezialfaehigkeit_resolveSpecial_sollteSieLiefern()
+	public void givenAFixedSpecialAbility_resolveSpecial_shouldReturnIt()
 	{
 		assertEquals(Offizier.Special.NONE, new ShipGroupTemplate.Officer(0, 0, 0, 0, 0, "").resolveSpecial(new Random(1)));
 		assertEquals(Offizier.Special.WAFFENNARR, new ShipGroupTemplate.Officer(0, 0, 0, 0, 0, "WAFFENNARR").resolveSpecial(new Random(1)));
 	}
 
 	@Test
-	public void gegebenEineZufaelligeSpezialfaehigkeit_resolveSpecial_sollteNieKeineLiefern()
+	public void givenARandomSpecialAbility_resolveSpecial_shouldNeverReturnNone()
 	{
 		ShipGroupTemplate.Officer officer = new ShipGroupTemplate.Officer(0, 0, 0, 0, 0, ShipGroupTemplate.Officer.RANDOM_SPECIAL);
 		Random random = new Random(42);
@@ -53,7 +53,7 @@ public class ShipGroupOfficerTest
 	}
 
 	@Test
-	public void gegebenUngueltigeWerte_sollteAbgelehntWerden()
+	public void givenInvalidValues_shouldBeRejected()
 	{
 		assertThrows(CampaignException.class, () -> new ShipGroupTemplate.Officer(-1, 0, 0, 0, 0, ""));
 		assertThrows(CampaignException.class, () -> new ShipGroupTemplate.Officer(0, 0, 0, 0, 0, "GIBTSNICHT"));

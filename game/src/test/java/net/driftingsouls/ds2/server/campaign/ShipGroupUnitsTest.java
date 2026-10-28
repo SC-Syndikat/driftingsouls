@@ -10,7 +10,7 @@ import static org.junit.Assert.*;
 public class ShipGroupUnitsTest
 {
 	@Test
-	public void gegebenEinEinheitenString_parse_sollteTypUndAnzahlLiefern()
+	public void givenAUnitString_parse_shouldReturnTypeAndCount()
 	{
 		Map<Integer, Long> units = ShipGroupUnits.parse(" 1:10 | 2:3 ");
 
@@ -20,7 +20,7 @@ public class ShipGroupUnitsTest
 	}
 
 	@Test
-	public void gegebenUngueltigeAngaben_parse_sollteAbgelehntWerden()
+	public void givenInvalidInput_parse_shouldBeRejected()
 	{
 		assertThrows(CampaignException.class, () -> ShipGroupUnits.parse("1"));
 		assertThrows(CampaignException.class, () -> ShipGroupUnits.parse("a:3"));
@@ -28,7 +28,7 @@ public class ShipGroupUnitsTest
 	}
 
 	@Test
-	public void gegebenEinheiten_format_sollteDasGespeicherteFormatLiefernUndLeereAuslassen()
+	public void givenUnits_format_shouldReturnTheStoredFormatAndOmitEmptyOnes()
 	{
 		Map<Integer, Long> units = new LinkedHashMap<>();
 		units.put(1, 10L);
