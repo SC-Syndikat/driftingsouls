@@ -20,6 +20,7 @@ account under *Einstellungen* via OAuth2 — they log in at Discord, the game ne
 The game reads the channels through a bot and posts player messages through a webhook named
 "Drifting Souls", which it creates per channel. Messages carry the player's server alias and avatar,
 as if written in Discord directly.
+For what to do when merging and rolling out the chat, see [`docs/discord-chat-merge.md`](../docs/discord-chat-merge.md).
 
 Everything is configured in the admin area under *Sonstiges → Discord-Bot* (admin permission
 `Discord`): bot token, client ID and secret, server ID (our server `471610776126226432` is preset;
