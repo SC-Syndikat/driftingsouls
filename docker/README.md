@@ -27,7 +27,8 @@ Everything is configured in the admin area under *Sonstiges → Discord-Bot* (ad
 enter another one to test), redirect URI, and per channel who may read and who may write.
 *Verbindung prüfen* checks the token, the Message Content Intent and the bot's permissions;
 *Kanäle synchronisieren* fetches the server's text channels. New channels stay blocked until an admin
-allows them.
+allows them. The page opens with a step-by-step guide for the first setup in Discord and in the game,
+which collapses once the chat is active.
 
 The bot token and client secret can instead come from the environment variables
 `DS_DISCORD_BOT_TOKEN` and `DS_DISCORD_CLIENT_SECRET` (passed through by `docker-compose.yml`); they

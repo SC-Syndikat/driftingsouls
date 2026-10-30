@@ -80,6 +80,7 @@ public class DiscordAdmin implements AdminPlugin
 		echo.append("<div class='gfxbox' style='width:900px'>");
 		echo.append("<h1>Discord-Bot</h1>");
 		printMessages(echo);
+		printSetupGuide(echo, request, configuration);
 		printSettings(echo, request, configuration);
 		printCheck(echo, check);
 		printChannels(echo, em, configuration);
@@ -292,6 +293,59 @@ public class DiscordAdmin implements AdminPlugin
 		{
 			echo.append("<br />");
 		}
+	}
+
+	/**
+	 * Anleitung fuer die Ersteinrichtung in Discord und im Spiel. Sie ist aufgeklappt,
+	 * solange der Chat nicht aktiv ist.
+	 */
+	private void printSetupGuide(StringBuilder echo, Request request, DiscordConfiguration configuration)
+	{
+		String suggestion = DiscordConfiguration.suggestRedirectUri(request.getRequestURL());
+
+		echo.append("<details").append(configuration.isActive() ? "" : " open='open'").append(" style='margin-bottom:12px'>");
+		echo.append("<summary style='cursor:pointer;font-weight:bold;color:#FEB626'>Ersteinrichtung Schritt für Schritt</summary>");
+		echo.append("<p>Solange <i>Chat aktiv</i> aus ist, sehen Spieler nichts vom Chat. Du kannst also in Ruhe einrichten und prüfen.</p>");
+
+		echo.append("<p><b>1. Im Discord Developer Portal</b></p><ol>");
+		echo.append("<li>Unter <a href='https://discord.com/developers/applications' target='_blank' rel='noopener noreferrer'>discord.com/developers/applications</a> ")
+				.append("mit <i>New Application</i> eine Anwendung anlegen. Ihr Name und Bild erscheinen später am Bot.</li>");
+		echo.append("<li>Seite <i>Bot</i>: mit <i>Reset Token</i> das Bot-Token erzeugen und kopieren, Discord zeigt es nur einmal an. ")
+				.append("Unter <i>Privileged Gateway Intents</i> den <i>Message Content Intent</i> einschalten, sonst kommen die Nachrichten ohne Text an. ")
+				.append("Schaltest du <i>Public Bot</i> aus, kann nur der Eigentümer der Anwendung den Bot einladen.</li>");
+		echo.append("<li>Seite <i>OAuth2</i>: Client-ID und Client-Secret (<i>Reset Secret</i>) kopieren und unter <i>Redirects</i> die Redirect-URI eintragen, ")
+				.append("hier z.B. <code>").append(Common.escapeHTML(suggestion)).append("</code>. Sie muss Zeichen für Zeichen mit dem Feld unten übereinstimmen.</li>");
+		echo.append("</ol>");
+
+		echo.append("<p><b>2. Hier im Spiel</b></p><ol start='4'>");
+		echo.append("<li>Server-ID: in Discord unter <i>Benutzereinstellungen → Erweitert</i> den <i>Entwicklermodus</i> einschalten, ")
+				.append("dann Rechtsklick auf den Server → <i>Server-ID kopieren</i>.</li>");
+		echo.append("<li>Client-ID, Redirect-URI und einen Einladungslink für Spieler eintragen (in Discord: Server → <i>Leute einladen</i>, Link ohne Ablaufdatum). ")
+				.append("Bot-Token und Client-Secret hier eintragen oder besser als Umgebungsvariablen setzen. Dann <i>Speichern</i>.</li>");
+		echo.append("</ol>");
+
+		echo.append("<p><b>3. Auf dem Discord-Server</b></p><ol start='6'>");
+		echo.append("<li>Den Bot über den <i>Einladungslink des Bots</i> unter den Einstellungen einladen. Dafür brauchst du auf dem Server das Recht ")
+				.append("<i>Server verwalten</i>. Der Bot bekommt damit nur <i>Kanäle ansehen</i>, <i>Nachrichtenverlauf lesen</i> und <i>Einladung erstellen</i>.</li>");
+		echo.append("<li>In jedem Kanal, den der Chat nutzen soll: <i>Kanal bearbeiten → Berechtigungen</i>, den Bot hinzufügen und <i>Webhooks verwalten</i> erlauben. ")
+				.append("Nicht serverweit, und den Bot nie zum Administrator machen.</li>");
+		echo.append("<li>Private Kanäle: dem Bot dort zusätzlich <i>Kanäle ansehen</i> und <i>Nachrichtenverlauf lesen</i> geben, am einfachsten über eine eigene Rolle.</li>");
+		echo.append("</ol>");
+
+		echo.append("<p><b>4. Prüfen und freigeben</b></p><ol start='9'>");
+		echo.append("<li><i>Verbindung prüfen</i>: Alle Punkte müssen grün sein.</li>");
+		echo.append("<li><i>Kanäle von Discord synchronisieren</i>, je Kanal Lesen und Schreiben einstellen, einen für alle Spieler lesbaren Standardkanal wählen ")
+				.append("und <i>Kanalrechte speichern</i>. Erst das Speichern gibt die Kanäle frei.</li>");
+		echo.append("<li><i>Chat aktiv</i> anhaken und speichern.</li>");
+		echo.append("</ol>");
+
+		echo.append("<p><b>Außerhalb des Spiels</b></p><ul>");
+		echo.append("<li>Die Datenschutzerklärung um den Discord-Chat ergänzen: Spieler, die zustimmen, laden Avatare, Emojis und Bilder direkt von Discord, ")
+				.append("Discord sieht dabei ihre IP-Adresse. Welcher Discord-Account eine Nachricht aus dem Spiel geschrieben hat, speichert das Spiel 30 Tage.</li>");
+		echo.append("<li>In den Discord-Serverregeln erwähnen, dass die öffentlichen Kanäle im Spiel gelesen und von dort beschrieben werden können.</li>");
+		echo.append("</ul>");
+		echo.append("<p>Ausführlicher im Repository: <code>docker/README.md</code> und <code>docs/discord-chat-merge.md</code>.</p>");
+		echo.append("</details>");
 	}
 
 	private void printSettings(StringBuilder echo, Request request, DiscordConfiguration configuration)
