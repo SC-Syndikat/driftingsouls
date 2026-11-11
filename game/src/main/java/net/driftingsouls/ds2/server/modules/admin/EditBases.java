@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules.admin;
 
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.bases.AutoGTUAction;
 import net.driftingsouls.ds2.server.bases.Base;
@@ -55,9 +57,27 @@ public class EditBases implements EntityEditor<Base>
 	@Override
 	public void configureFor(@Nonnull EditorForm8<Base> form)
 	{
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		if (restriction.applies())
+		{
+			// A game master only sees bases in campaign star systems
+			form.restrictVisible(base -> restriction.isSystemAllowed(base.getSystem()),
+					(builder, root) -> restriction.getSystems().isEmpty()
+							? builder.disjunction()
+							: root.get(Base_.system).in(restriction.getSystems()));
+			form.allowUpdate(base -> restriction.isAllowed(base.getSystem(), ownerId(base)));
+			form.validateUpdate((before, after) -> restriction.check(after.getSystem(), ownerId(after)));
+		}
+
+		form.label("Kampagne", base -> "<a class='forschinfo' href='" + CampaignInteractions.objectUrl(ObjectType.BASE, base.getId()) + "'>Interaktionen</a>");
 		form.field("Name", String.class, Base::getName, Base::setName);
-		form.field("Besitzer", User.class, Base::getOwner, Base::setOwner).dbColumn(Base_.owner);
-		form.field("System", Integer.class, Base::getSystem, Base::setSystem).dbColumn(Base_.system);
+		var owner = form.field("Besitzer", User.class, Base::getOwner, Base::setOwner).dbColumn(Base_.owner);
+		var system = form.field("System", Integer.class, Base::getSystem, Base::setSystem).dbColumn(Base_.system);
+		if (restriction.applies())
+		{
+			owner.withOptions(GameMasterOptions.owners(restriction));
+			system.withOptions(GameMasterOptions.systemIds(restriction));
+		}
 		form.field("x", Integer.class, Base::getX, Base::setX);
 		form.field("y", Integer.class, Base::getY, Base::setY);
 		form.field("Aktuelle Energie", Integer.class, Base::getEnergy, Base::setEnergy);
@@ -109,5 +129,10 @@ public class EditBases implements EntityEditor<Base>
 			return newTiles;
 		}
 		return tiles;
+	}
+
+	private static int ownerId(Base base)
+	{
+		return base.getOwner() != null ? base.getOwner().getId() : 0;
 	}
 }

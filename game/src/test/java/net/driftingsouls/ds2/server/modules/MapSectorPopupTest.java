@@ -18,15 +18,14 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * Three tests here are @Ignore'd because they fail on a known, documented defect rather than a
- * mistake in the test: PlayerFieldView.getJumpNodes() obtains its own connection via
- * DBUtil.getConnection(em), so its jOOQ query runs outside the request transaction and cannot see
- * rows the test has persisted but not committed. See docs/adr/0002 and docs/adr/0005.
+ * Three tests here are @Ignore'd because MapController.sectorAction() has its whole body commented out:
+ * it returns an empty view model whatever is in the sector, so no test expecting a jump node can pass.
  *
- * Re-enable them in roadmap step 3.3 — they are its acceptance criteria.
+ * This was previously attributed to the jOOQ-outside-transaction defect (docs/adr/0002). That defect is
+ * fixed now (DBUtil.getConnection, covered by DBUtilTest), and these tests still fail for the reason
+ * above.
  *
- * Note that the two tests still running assert an empty result, so they currently pass vacuously:
- * getJumpNodes() returns nothing in every case. They only become meaningful once the three below do.
+ * Note that the two tests still running assert an empty result, so they pass vacuously.
  */
 public class MapSectorPopupTest extends DBSingleTransactionTest
 {
@@ -52,7 +51,7 @@ public class MapSectorPopupTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	@Ignore("Fails on the jOOQ-outside-transaction defect; see docs/adr/0002. Re-enable in roadmap step 3.3.")
+	@Ignore("MapController.sectorAction() has its whole body commented out and always returns an empty result.")
 	public void givenAVisibleJumpNode_sectorAction_shouldReturnThisJumpNode()
 	{
 		// setup
@@ -90,7 +89,7 @@ public class MapSectorPopupTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	@Ignore("Fails on the jOOQ-outside-transaction defect; see docs/adr/0002. Re-enable in roadmap step 3.3.")
+	@Ignore("MapController.sectorAction() has its whole body commented out and always returns an empty result.")
 	public void givenAHiddenJumpNodeAndAnOwnShipInTheSector_sectorAction_shouldReturnThisJumpNode()
 	{
 		// setup
@@ -115,7 +114,7 @@ public class MapSectorPopupTest extends DBSingleTransactionTest
 	}
 
 	@Test
-	@Ignore("Fails on the jOOQ-outside-transaction defect; see docs/adr/0002. Re-enable in roadmap step 3.3.")
+	@Ignore("MapController.sectorAction() has its whole body commented out and always returns an empty result.")
 	public void givenAHiddenJumpNodeAndAnOwnShipInLrsRange_sectorAction_shouldReturnThisJumpNode()
 	{
 		// setup

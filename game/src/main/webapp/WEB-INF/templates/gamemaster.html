@@ -26,7 +26,14 @@
   <div id="admin">
     <div class="gfxbox treemenu">
       <ul style="display: block;">
-        <li><img src="data/interface/admin/editor.png"><a th:class="${not campaign ? 'forschinfo' : 'error'}" th:href="${not campaign ? './gamemaster?show=start': '#'}" >Kampagne starten</a></li>
+        <li th:if="${campaignName}" class="smallfont" th:text="${campaignName} + ${campaign ? ' (läuft)' : ' (in Vorbereitung)'}"></li>
+        <th:block th:utext="${tickInfo}"></th:block>
+        <li><img src="data/interface/admin/editor.png"><span>Kampagne vorbereiten</span>
+          <ul style="display:block; margin-left:14px; line-height:1.6">
+            <li th:each="entry: ${gmMenu}"><a class="forschinfo" th:href="${entry.url}" th:text="${entry.label}">Teilnehmer</a></li>
+          </ul>
+        </li>
+        <li><img src="data/interface/admin/editor.png"><a th:class="${preparing ? 'forschinfo' : 'error'}" th:href="${preparing ? './gamemaster?show=start': '#'}" >Kampagne starten</a></li>
         <li><img src="data/interface/admin/editor.png"><a th:class="${    campaign ? 'forschinfo' : 'error'}" th:href="${    campaign ? './gamemaster?show=tick' : '#'}" >Kampagnentick</a></li>
         <li><img src="data/interface/admin/editor.png"><a th:class="${    campaign ? 'forschinfo' : 'error'}" th:href="${    campaign ? './gamemaster?show=end'  : '#'}" >Kampagne beenden</a></li>
       </ul>
@@ -35,6 +42,57 @@
 
       <div id="out" th:style="${out == null ? 'display:none' : 'display:block'}" >
         <span class="smallfont" th:if="${out && not out.isEmpty()}" th:text="${out}"><br /><br /></span>
+      </div>
+
+      <div class="gfxbox" style="width:95%" th:if="${campaign}">
+        <b>Offene Spieler-Anfragen</b> &middot; <a class="forschinfo" th:href="${requestsPlugin}">alle anzeigen</a>
+        <div th:if="${#lists.isEmpty(gmRequests)}" class="smallfont">Keine offenen Anfragen.</div>
+        <table class="noBorderX" width="100%" cellspacing="2" cellpadding="2" th:unless="${#lists.isEmpty(gmRequests)}">
+          <tr>
+            <td class="noBorderX">#</td>
+            <td class="noBorderX">Spieler</td>
+            <td class="noBorderX">Gespräch</td>
+            <td class="noBorderX">Letzte Nachricht</td>
+            <td class="noBorderX">Zeit</td>
+            <td class="noBorderX"></td>
+          </tr>
+          <tr th:each="r: ${gmRequests}">
+            <td class="noBorderX" th:text="${r.id}"></td>
+            <td class="noBorderX" th:text="${r.player}"></td>
+            <td class="noBorderX" th:text="${r.dialog}"></td>
+            <td class="noBorderX" th:text="${r.excerpt}"></td>
+            <td class="noBorderX"><span th:text="${r.updated}"></span> <span th:if="${r.unread}" class="error">neu</span></td>
+            <td class="noBorderX"><a class="forschinfo" th:href="${r.url}">öffnen &raquo;</a></td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="gfxbox" style="width:95%" th:if="${campaign}">
+        <b>Schlachten in Kampagnensystemen</b>
+        <div th:if="${#lists.isEmpty(gmBattles)}" class="smallfont">Keine Schlachten.</div>
+        <table class="noBorderX" width="100%" cellspacing="2" cellpadding="2" th:unless="${#lists.isEmpty(gmBattles)}">
+          <tr>
+            <td class="noBorderX">#</td>
+            <td class="noBorderX">Ort</td>
+            <td class="noBorderX">Seite 1</td>
+            <td class="noBorderX">Seite 2</td>
+            <td class="noBorderX"></td>
+          </tr>
+          <tr th:each="b: ${gmBattles}">
+            <td class="noBorderX" th:text="${b.id}"></td>
+            <td class="noBorderX" th:text="${b.location}"></td>
+            <td class="noBorderX" th:text="${b.side0}"></td>
+            <td class="noBorderX" th:text="${b.side1}"></td>
+            <td class="noBorderX">
+              <a class="forschinfo" th:href="${b.url}" th:text="${b.linkLabel} + ' »'">ansehen</a>
+              <form action="./gamemaster" method="post" style="display:inline" onsubmit="return confirm('Diese Schlacht unentschieden beenden?');">
+                <input type="hidden" name="action" value="endbattle" />
+                <input type="hidden" name="battle" th:value="${b.id}" />
+                <input type="submit" value="beenden" />
+              </form>
+            </td>
+          </tr>
+        </table>
       </div>
 
       <div id="tickbox" class="gfxbox gmbox" th:style="'display: '+${show == 'TICK' ? 'flex' : 'none'} + '; flex-direction: row'">
@@ -46,16 +104,20 @@
                 <td class="noBorderX" >ID</td>
                 <td class="noBorderX" >Name</td>
                 <td class="noBorderX" >Status</td>
+                <td class="noBorderX" >Online</td>
               </tr>
             </thead>
             <tbody>
               <tr th:each="user: ${participants}">
-                <td th:text="${user.getId()}" class="noBorderX" align="center"></td>
-                <td th:utext="${user.getFormatedName()}"></td>
+                <td th:text="${user.id}" class="noBorderX" align="center"></td>
+                <td th:utext="${user.formattedName}"></td>
                 <td class="noBorderX" align="center">
                   <span class="nobr">
-                    <img th:src="'./data/interface/diplomacy/' + ${user.isTickReady() ? 'friend' : 'enemy' } + '1.png'" alt="" th:title="${user.isTickReady() ? 'bereit' : 'spielt' }"><img th:src="'./data/interface/diplomacy/' + ${user.isTickReady() ? 'friend' : 'enemy' } + '2.png'" alt="" th:title="${user.isTickReady() ? 'bereit' : 'spielt' }">
+                    <img th:src="'./data/interface/diplomacy/' + ${user.tickReady ? 'friend' : 'enemy' } + '1.png'" alt="" th:title="${user.tickReady ? 'bereit' : 'spielt' }"><img th:src="'./data/interface/diplomacy/' + ${user.tickReady ? 'friend' : 'enemy' } + '2.png'" alt="" th:title="${user.tickReady ? 'bereit' : 'spielt' }">
                   </span>
+                </td>
+                <td class="noBorderX" align="center" th:title="${user.lastSeen}">
+                  <span th:style="${user.online ? 'color:#33dd33' : 'color:#888888'}">&#9679;</span>
                 </td>
               </tr>
             </tbody>
@@ -68,38 +130,82 @@
           <input type="hidden" name="show" value="tick">
           <ul class="systems" >
             <li th:each="system: ${starsystems}">
-              <input type="checkbox"
-                  th:field="'System_'+${system.id}"
+              <input type="checkbox" checked="checked"
+                  th:id="'System_'+${system.id}"
                   th:value="${system.id}"
-                  th:name="systemcheckbox" />
+                  name="systemcheckbox" />
               <label
                   th:for="'System_'+${system.id}"
                   th:text="${system.name}"></label>
             </li>
           </ul>
+          <div th:if="${#lists.isEmpty(starsystems)}" class="error">Die Kampagne hat keine Systeme. <a class="forschinfo" th:href="${participantsPlugin}">Kampagne einrichten</a></div>
+          <div th:if="${allReady != null and not allReady}">
+            <span class="error">Nicht alle Teilnehmer sind bereit.</span><br />
+            <label><input type="checkbox" name="confirm" value="1"> Kampagnentick trotzdem ausf&uuml;hren</label>
+          </div>
           <input type="submit" value="Kampagnentick ausf&uuml;hren">
         </form>
       </div>
 
-      <div id="startbox" class="gfxbox gmbox" th:style="'display: '+${show=='START' ? 'flex' :  'none'} + '; flex-direction: row'">
-        <form action="./gamemaster" method="post">
-          <div>Teilnehmende Spieler ausw&auml;hlen:</div>
-          <ul class="users" >
-            <li th:each="user: ${users}">
-              <input type="checkbox"
-                  th:field="'User_'+${user.getId()}"
-                  th:value="${user.getId()}"
-                  th:name="usercheckbox" />
-              <label
-                  th:for="'User_'+${user.getId()}"
-                  th:utext="${user.getFormatedName()} + ' (' + ${user.getId()} + ')'"></label>
-            </li>
+      <div id="startbox" class="gfxbox gmbox" th:style="'display: '+${show=='START' ? 'flex' :  'none'} + '; flex-direction: column'">
+        <div th:if="${not preparing}">Es wird keine Kampagne vorbereitet. <a class="forschinfo" th:href="${participantsPlugin}">Kampagne vorbereiten</a></div>
+        <div th:if="${preparing}">
+          <div>Teilnehmer pr&uuml;fen und freigeben (<a class="forschinfo" th:href="${participantsPlugin}">Teilnehmer bearbeiten</a>):</div>
+          <table class="noBorderX" width="100%" cellspacing="2" cellpadding="2">
+            <thead>
+              <tr>
+                <td class="noBorderX" >ID</td>
+                <td class="noBorderX" >Name</td>
+                <td class="noBorderX" >Allianz</td>
+                <td class="noBorderX" >Inaktiv</td>
+                <td class="noBorderX" >Online</td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="user: ${participants}">
+                <td th:text="${user.id}" class="noBorderX" align="center"></td>
+                <td>
+                  <span th:utext="${user.formattedName}"></span>
+                  <span th:if="${user.npc}" class="smallfont"> (NPC)</span>
+                  <span th:if="${user.gamemaster}" class="smallfont"> (GM)</span>
+                  <span th:if="${not user.eligible}" class="error"> (Urlaubsmodus)</span>
+                </td>
+                <td class="noBorderX" th:text="${user.allianceName}"></td>
+                <td class="noBorderX" align="center" th:text="${user.inactivity}"></td>
+                <td class="noBorderX" align="center" th:title="${user.lastSeen}">
+                  <span th:style="${user.online ? 'color:#33dd33' : 'color:#888888'}">&#9679;</span>
+                  <span class="smallfont" th:text="${user.lastSeen}"></span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="smallfont">
+            <span th:text="${campaignSystemCount} + ' Kampagnensystem(e), ' + ${campaignJumpNodeCount} + ' Kampagnen-Sprungpunkt(e). Beim Start werden alle Kampagnen-Sprungpunkte aktiv.'"></span>
+          </div>
+          <div th:if="${not #lists.isEmpty(foreignObjects)}">
+            <div class="error">Objekte von Spielern, die nicht teilnehmen, befinden sich in Kampagnensystemen. Ihre Besitzer k&ouml;nnen dort w&auml;hrend der Kampagne nichts tun:</div>
+            <table class="noBorderX" cellpadding="2">
+              <tr th:each="object: ${foreignObjects}">
+                <td class="noBorderX" th:text="${object.type.label}"></td>
+                <td class="noBorderX" th:text="${object.id}"></td>
+                <td class="noBorderX" th:text="${object.name}"></td>
+                <td class="noBorderX" th:text="${object.location}"></td>
+                <td class="noBorderX" th:text="${object.ownerName} + ' (' + ${object.ownerId} + ')'"></td>
+              </tr>
+            </table>
+          </div>
+          <ul th:if="${not #lists.isEmpty(startBlockers)}">
+            <li th:each="blocker: ${startBlockers}" class="error" th:text="${blocker}"></li>
           </ul>
-          <input type="hidden" name="action" value="start">
-          <input type="hidden" name="module" value="gamemaster">
-          <input type="hidden" name="show" value="start">
-          <input type="submit" value="Kampagne starten">
-        </form>
+          <form th:if="${#lists.isEmpty(startBlockers)}" action="./gamemaster" method="post">
+            <input type="hidden" name="action" value="start">
+            <input type="hidden" name="module" value="gamemaster">
+            <input type="hidden" name="show" value="start">
+            <label><input type="checkbox" name="confirm" value="1"> Teilnehmerliste gepr&uuml;ft und freigegeben</label><br />
+            <input type="submit" value="Kampagne starten">
+          </form>
+        </div>
       </div>
 
       <div id="endbox" class="gfxbox gmbox" th:style="'display: '+${show=='END' ? 'flex' :  'none'} + '; flex-direction: row'">
@@ -111,25 +217,62 @@
                 <td class="noBorderX" >ID</td>
                 <td class="noBorderX" >Name</td>
                 <td class="noBorderX" >Status</td>
+                <td class="noBorderX" >Online</td>
               </tr>
             </thead>
             <tbody>
               <tr th:each="user: ${participants}">
-                <td th:text="${user.getId()}" class="noBorderX" align="center"></td>
-                <td th:utext="${user.getFormatedName()}"></td>
+                <td th:text="${user.id}" class="noBorderX" align="center"></td>
+                <td th:utext="${user.formattedName}"></td>
                 <td class="noBorderX" align="center">
                   <span class="nobr">
-                    <img th:src="'./data/interface/diplomacy/' + ${user.isTickReady() ? 'friend' : 'enemy' } + '1.png'" alt="" th:title="${user.isTickReady() ? 'bereit' : 'spielt' }"><img th:src="'./data/interface/diplomacy/' + ${user.isTickReady() ? 'friend' : 'enemy' } + '2.png'" alt="" th:title="${user.isTickReady() ? 'bereit' : 'spielt' }">
+                    <img th:src="'./data/interface/diplomacy/' + ${user.tickReady ? 'friend' : 'enemy' } + '1.png'" alt="" th:title="${user.tickReady ? 'bereit' : 'spielt' }"><img th:src="'./data/interface/diplomacy/' + ${user.tickReady ? 'friend' : 'enemy' } + '2.png'" alt="" th:title="${user.tickReady ? 'bereit' : 'spielt' }">
                   </span>
+                </td>
+                <td class="noBorderX" align="center" th:title="${user.lastSeen}">
+                  <span th:style="${user.online ? 'color:#33dd33' : 'color:#888888'}">&#9679;</span>
                 </td>
               </tr>
             </tbody>
           </table>
 
+          <div th:if="${leftBehind != null and not #lists.isEmpty(leftBehind)}">
+            <br />Spielerobjekte in Kampagnensystemen &ndash; die Kampagnen-Sprungpunkte werden beim Beenden wieder gesperrt:
+            <table class="noBorderX" cellpadding="2">
+              <tr th:each="object: ${leftBehind}">
+                <td class="noBorderX" th:text="${object.type.label}"></td>
+                <td class="noBorderX" th:text="${object.id}"></td>
+                <td class="noBorderX" th:text="${object.name}"></td>
+                <td class="noBorderX" th:text="${object.location}"></td>
+                <td class="noBorderX" th:text="${object.ownerName} + ' (' + ${object.ownerId} + ')'"></td>
+                <td class="noBorderX">
+                  <form th:if="${object.type.name() == 'SHIP' and not #lists.isEmpty(exits)}" action="./gamemaster" method="post" style="display:inline">
+                    <input type="hidden" name="action" value="relocate">
+                    <input type="hidden" name="show" value="end">
+                    <input type="hidden" name="ship" th:value="${object.id}">
+                    <select name="exit"><option th:each="exit: ${exits}" th:value="${exit.value}" th:text="${exit.label}"></option></select>
+                    <input type="submit" value="versetzen">
+                  </form>
+                </td>
+              </tr>
+            </table>
+            <form th:if="${not #lists.isEmpty(exits)}" action="./gamemaster" method="post">
+              <input type="hidden" name="action" value="relocate">
+              <input type="hidden" name="show" value="end">
+              <input type="hidden" name="ship" value="all">
+              Alle Schiffe versetzen nach
+              <select name="exit"><option th:each="exit: ${exits}" th:value="${exit.value}" th:text="${exit.label}"></option></select>
+              <input type="submit" value="alle versetzen">
+            </form>
+            <div th:if="${#lists.isEmpty(exits)}" class="smallfont">Es gibt keinen Kampagnen-Sprungpunkt aus einem Kampagnensystem hinaus, daher kein Ziel zum Versetzen.</div>
+            Nicht versetzte Objekte bleiben, wo sie sind.
+          </div>
+
           <form action="./gamemaster" method="post">
             <input type="hidden" name="action" value="end">
             <input type="hidden" name="module" value="gamemaster">
             <input type="hidden" name="show" value="end">
+            <label><input type="checkbox" name="confirm" value="1"> Kampagne wirklich beenden</label><br />
             <input type="submit" value="Kampagne beenden">
           </form>
         </div>

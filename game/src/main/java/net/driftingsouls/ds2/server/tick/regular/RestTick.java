@@ -499,8 +499,9 @@ public class RestTick extends TickController {
 		}
 
 		this.doJumps();
-		this.doStatistics();
 		if( ! isCampaignTick()){
+			// The statistics are keyed by the regular tick number, which a campaign tick does not advance
+			this.doStatistics();
 			this.doVacation();
 			this.doNoobProtection();
 		}

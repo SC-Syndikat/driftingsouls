@@ -20,6 +20,8 @@ package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.campaign.CampaignException;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ItemID;
 import net.driftingsouls.ds2.server.cargo.Resources;
@@ -119,12 +121,31 @@ public class AddShips implements AdminPlugin {
 			echo.append("</tr>\n");
 			echo.append("<tr>\n");
 			echo.append("<td class=\"noBorderX\">Spieler:</td>\n");
-			echo.append("<td class=\"noBorderX\"><input type=\"text\" name=\"owner\" size=\"6\" /></td>\n");
+			GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+			if (restriction.applies())
+			{
+				// A game master gives ships only to the campaign's NPCs, in campaign star systems
+				echo.append("<td class=\"noBorderX\">");
+				CampaignAdminHtml.select(echo, "owner", CampaignOptions.users(context.getEM(), restriction.getMasterLoginIds()), null, null);
+				echo.append("</td>\n");
+			}
+			else
+			{
+				echo.append("<td class=\"noBorderX\"><input type=\"text\" name=\"owner\" size=\"6\" /></td>\n");
+			}
 			echo.append("</tr>\n");
 			echo.append("<tr>\n");
 			echo.append("<td class=\"noBorderX\">Pos:</td>\n");
 			echo.append("<td class=\"noBorderX\">\n");
-			echo.append("<input type=\"text\" name=\"system\" size=\"3\" />:<input type=\"text\" name=\"x\" size=\"3\" />/<input type=\"text\" name=\"y\" size=\"3\" />\n");
+			if (restriction.applies())
+			{
+				CampaignAdminHtml.select(echo, "system", CampaignOptions.systems(context.getEM(), restriction.getSystems()), null, null);
+			}
+			else
+			{
+				echo.append("<input type=\"text\" name=\"system\" size=\"3\" />");
+			}
+			echo.append(":<input type=\"text\" name=\"x\" size=\"3\" />/<input type=\"text\" name=\"y\" size=\"3\" />\n");
 			echo.append("</td>\n");
 			echo.append("</tr>\n");
 			echo.append("<tr>\n");
@@ -250,6 +271,14 @@ public class AddShips implements AdminPlugin {
 			int lowid = context.getRequest().getParameterInt("lowid");
 			int jlowid = context.getRequest().getParameterInt("jlowid");
 
+			try {
+				GameMasterRestriction.forActiveUser().check(system, ownerId);
+			}
+			catch( CampaignException e ) {
+				echo.append("<div class='gfxbox' style='width:560px'><span class='error'>").append(e.getMessage()).append("</span></div>");
+				return;
+			}
+
 			String currentTime = Common.getIngameTime(context.get(ContextCommon.class).getTick());
 
 			ShipType shiptype = (ShipType)db.get(ShipType.class, shipTypeId);
@@ -303,6 +332,8 @@ public class AddShips implements AdminPlugin {
 					ship.setId(shipid);
 				}
 				db.save(ship);
+				// save() does not cascade to the history like persist() would
+				db.persist(ship.getHistory());
 
 				if( shiptype.getWerft() != 0 ) {
 					ShipWerft werft = new ShipWerft(ship);
@@ -389,6 +420,7 @@ public class AddShips implements AdminPlugin {
 							fighter.setId(shouldId);
 						}
 						db.save(fighter);
+						db.persist(fighter.getHistory());
 
 						fighter.recalculateShipStatus();
 

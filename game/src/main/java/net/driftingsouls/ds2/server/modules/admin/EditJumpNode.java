@@ -1,7 +1,9 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.entities.JumpNode;
+import net.driftingsouls.ds2.server.entities.JumpNode_;
 import net.driftingsouls.ds2.server.map.TileCache;
 import net.driftingsouls.ds2.server.modules.admin.editors.EditorForm8;
 import net.driftingsouls.ds2.server.modules.admin.editors.EntityEditor;
@@ -22,11 +24,30 @@ public class EditJumpNode implements EntityEditor<JumpNode>
 	{
 		form.allowAdd();
 		form.allowDelete();
+
+		GameMasterRestriction restriction = GameMasterRestriction.forActiveUser();
+		if (restriction.applies())
+		{
+			// A game master only connects star systems of the campaign
+			form.restrictVisible(node -> restriction.isJumpNodeAllowed(node.getSystem(), node.getSystemOut()),
+					(builder, root) -> restriction.getSystems().isEmpty()
+							? builder.disjunction()
+							: builder.and(root.get(JumpNode_.system).in(restriction.getSystems()),
+									root.get(JumpNode_.systemOut).in(restriction.getSystems())));
+			form.allowUpdate(node -> restriction.isJumpNodeAllowed(node.getSystem(), node.getSystemOut()));
+			form.allowDelete(node -> restriction.isJumpNodeAllowed(node.getSystem(), node.getSystemOut()));
+			form.validateUpdate((before, after) -> restriction.checkJumpNode(after.getSystem(), after.getSystemOut()));
+		}
 		form.field("Name", String.class, JumpNode::getName, JumpNode::setName);
-		form.field("System", Integer.class, JumpNode::getSystem, JumpNode::setSystem);
+		var system = form.field("System", Integer.class, JumpNode::getSystem, JumpNode::setSystem);
 		form.field("x", Integer.class, JumpNode::getX, JumpNode::setX);
 		form.field("y", Integer.class, JumpNode::getY, JumpNode::setY);
-		form.field("System (Ausgang)", Integer.class, JumpNode::getSystemOut, JumpNode::setSystemOut);
+		var systemOut = form.field("System (Ausgang)", Integer.class, JumpNode::getSystemOut, JumpNode::setSystemOut);
+		if (restriction.applies())
+		{
+			system.withOptions(GameMasterOptions.systemIds(restriction));
+			systemOut.withOptions(GameMasterOptions.systemIds(restriction));
+		}
 		form.field("x (Ausgang)", Integer.class, JumpNode::getXOut, JumpNode::setXOut);
 		form.field("y (Ausgang)", Integer.class, JumpNode::getYOut, JumpNode::setYOut);
 		form.field("GCP blockiert", Boolean.class, JumpNode::isGcpColonistBlock, JumpNode::setGcpColonistBlock);

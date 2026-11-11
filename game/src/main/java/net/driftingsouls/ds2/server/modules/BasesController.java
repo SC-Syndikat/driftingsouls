@@ -18,6 +18,9 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.bases.BaseStatus;
 import net.driftingsouls.ds2.server.bases.Building;
@@ -131,6 +134,13 @@ public class BasesController extends Controller
 		t.setBlock("bases.listitem", "bases.units.listitem", "bases.units.list");
 
 		Criteria criteria = db.createCriteria(Base.class).add(Restrictions.eq("owner", user));
+		if (GameMasterControl.isControlling())
+		{
+			// The game master steering an NPC sees its bases in campaign star systems only
+			Set<Integer> systems = new CampaignMapService(getEM()).getOpenCampaignSystemIds();
+			criteria.add(Restrictions.in("system", systems.isEmpty() ? Set.of(0) : systems));
+		}
+		t.setVar("gamemaster.control", GameMasterMenu.controlToggle("bases"));
 		for (String s : ow)
 		{
 			criteria.addOrder(order == 1 ? Order.desc(s) : Order.asc(s));

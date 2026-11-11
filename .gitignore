@@ -48,3 +48,8 @@
 /docker/.env
 game/src/main/webapp/null
 
+# Uploaded at runtime by players; only the placeholder 0.gif is versioned
+/game/src/main/webapp/data/logos/**/*
+!/game/src/main/webapp/data/logos/ally/0.gif
+!/game/src/main/webapp/data/logos/user/0.gif
+/game/src/main/webapp/data/starmap/_tilecache

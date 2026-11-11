@@ -1,5 +1,7 @@
 package net.driftingsouls.ds2.server.ships;
 
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.BattleShip;
@@ -568,6 +570,13 @@ public class ShipMovementService
 
 		if( selectedShip.getBattle() != null ) {
 			out.append("Fehler: Das Schiff ist in einen Kampf verwickelt\n");
+			return new MovementResult(MovementStatus.SHIP_FAILURE, out.toString());
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().denial(user, selectedShip.getSystem(), CampaignAction.MOVE)
+				.or(() -> new CampaignActionGuard().dialogDenial(user, selectedShip.getLocation()));
+		if( campaignDenial.isPresent() ) {
+			out.append("<span style=\"color:#ff0000\">").append(campaignDenial.get()).append("</span><br />\n");
 			return new MovementResult(MovementStatus.SHIP_FAILURE, out.toString());
 		}
 

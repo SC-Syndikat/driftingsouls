@@ -2,6 +2,8 @@ package net.driftingsouls.ds2.server.ships;
 
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.bases.Base;
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeLimitService;
 import net.driftingsouls.ds2.server.config.Races;
 import net.driftingsouls.ds2.server.entities.JumpNode;
 import net.driftingsouls.ds2.server.entities.User;
@@ -15,6 +17,7 @@ import javax.annotation.Nonnull;
 import javax.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -110,6 +113,14 @@ public class ShipJumpService
 			return new JumpResult(outputbuffer.toString(), false);
 		}
 
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), node.getId())
+				.or(() -> new CampaignActionGuard().dialogDenial(user, shipLoc));
+		if (campaignDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(campaignDenial.get()).append("</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
 		//
 		// Liste der Schiffe ermitteln, welche springen sollen
 		//
@@ -124,6 +135,21 @@ public class ShipJumpService
 		else
 		{
 			shiplist.add(selectedShip);
+		}
+
+		// Limits des Kampagnen-Sprungpunkts gelten fuer den ganzen Verband samt gedockter Schiffe
+		List<Ship> passage = new ArrayList<>();
+		for (Ship ship : shiplist)
+		{
+			passage.add(ship);
+			passage.addAll(ship.getGedockteUndGelandeteSchiffe());
+		}
+		CampaignJumpNodeLimitService jumpLimits = new CampaignJumpNodeLimitService(db);
+		Optional<String> limitDenial = jumpLimits.check(user, node.getId(), passage);
+		if (limitDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(limitDenial.get()).append("</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
 		}
 
 		//
@@ -169,6 +195,7 @@ public class ShipJumpService
 			}
 		}
 
+		jumpLimits.record(user, node.getId(), passage);
 		return new JumpResult(outputbuffer.toString(), true);
 	}
 
@@ -339,6 +366,14 @@ public class ShipJumpService
 		if (!shipLoc.sameSector(0, nodeLoc, 0))
 		{
 			outputbuffer.append("<span style=\"color:red\">Fehler: ").append(nodetypename).append(" befindet sich nicht im selben Sektor wie das Schiff.</span><br />\n");
+			return new JumpResult(outputbuffer.toString(), false);
+		}
+
+		Optional<String> campaignDenial = new CampaignActionGuard().jumpDenial(user, shipLoc.getSystem(), outLoc.getSystem(), null)
+				.or(() -> new CampaignActionGuard().dialogDenial(user, shipLoc));
+		if (campaignDenial.isPresent())
+		{
+			outputbuffer.append("<span style=\"color:red\">").append(campaignDenial.get()).append("</span><br />\n");
 			return new JumpResult(outputbuffer.toString(), false);
 		}
 

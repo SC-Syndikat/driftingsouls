@@ -102,6 +102,24 @@ public class WellKnownConfigValue<T> implements ConfigValueDescriptor<T>
 	 */
 	public static final ConfigValueDescriptor<Integer> TICK = new WellKnownConfigValue<>(Integer.class, "tick", "0", "Sperrt Accounts waehrend des Ticks. 0 fuer keine Sperre, 1 fuer Sperre.");
 	/**
+	 * Battles started less than this many seconds before a regular tick are not advanced by it.
+	 */
+	public static final ConfigValueDescriptor<Integer> BATTLE_TICK_LOCK_SECONDS = new WellKnownConfigValue<>(Integer.class, "battle_tick_lock_seconds", "1800", "Schlachten, die weniger als so viele Sekunden vor einem regulaeren Tick begonnen wurden, werden in diesem Tick nicht weitergerechnet");
+	/**
+	 * Like {@link #BATTLE_TICK_LOCK_SECONDS}, for battles in the star systems of a running campaign. The
+	 * campaign tick itself uses no lock at all.
+	 */
+	public static final ConfigValueDescriptor<Integer> CAMPAIGN_BATTLE_TICK_LOCK_SECONDS = new WellKnownConfigValue<>(Integer.class, "campaign_battle_tick_lock_seconds", "120", "Wie battle_tick_lock_seconds, fuer Schlachten in Systemen einer laufenden Kampagne (regulaerer Tick). Der Kampagnentick rechnet ohne Sperre.");
+	/**
+	 * Share of the alliance members' trust events towards an NPC that counts for a player, unless the NPC
+	 * has its own setting.
+	 */
+	public static final ConfigValueDescriptor<Double> NPC_TRUST_ALLIANCE_FACTOR = new WellKnownConfigValue<>(Double.class, "npc_trust_alliance_factor", "0.5", "Anteil der Vertrauensaenderungen von Allianzmitgliedern gegenueber einem NPC, der fuer einen Spieler zaehlt (sofern der NPC keinen eigenen Wert hat)");
+	/**
+	 * How long after their last request a user still counts as online, in seconds.
+	 */
+	public static final ConfigValueDescriptor<Integer> ONLINE_THRESHOLD_SECONDS = new WellKnownConfigValue<>(Integer.class, "online_threshold_seconds", "300", "Wie lange ein Spieler nach seinem letzten Seitenaufruf als online gilt, in Sekunden");
+	/**
 	 * Automatisches Feuern fuer NPCs im Tick ein- oder ausschalten.
 	 */
 	public static final ConfigValueDescriptor<Boolean> AUTOFIRE = new WellKnownConfigValue<>(Boolean.class, "autofire", "false", "Automatisches Feuern fuer NPCs im Tick ein- oder ausschalten");

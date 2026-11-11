@@ -245,7 +245,14 @@ public class FieldGenerator<E, T> implements CustomFieldGenerator<E>
 	private void editEntityBySelection(StringBuilder echo, String name, Class<?> type, Object value, E entity) {
 		Serializable selected = selectedValueIdentifier(type, value);
 
-		HtmlUtils.select(echo, name, readOnly.apply(entity), this.selectionOptions, selected);
+		Map<Serializable, Object> options = this.selectionOptions;
+		if (selected != null && !options.containsKey(selected))
+		{
+			// The stored value stays selectable, so that saving does not change it silently
+			options = new LinkedHashMap<>(options);
+			options.put(selected, value);
+		}
+		HtmlUtils.select(echo, name, readOnly.apply(entity), options, selected);
 	}
 
 	private Serializable selectedValueIdentifier(Class<?> type, Object value)

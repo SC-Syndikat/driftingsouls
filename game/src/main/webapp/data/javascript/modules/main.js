@@ -42,6 +42,7 @@ function checkPMStatus() {
 
 		$('#mailicon').css('display', data.pm ? 'inline' : 'none');
 		$('#comneticon').css('display', data.comNet ? 'inline' : 'none');
+		$('#gmrequesticon').css('display', data.gmRequests ? 'inline' : 'none');
 	}
 
 	if( !checkPMStatusCanceled ) {

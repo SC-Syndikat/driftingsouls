@@ -28,6 +28,8 @@ import net.driftingsouls.ds2.server.framework.pipeline.controllers.Controller;
 import net.driftingsouls.ds2.server.framework.pipeline.controllers.ValidationException;
 import net.driftingsouls.ds2.server.modules.admin.AdminMenuEntry;
 import net.driftingsouls.ds2.server.modules.admin.AdminPlugin;
+import net.driftingsouls.ds2.server.framework.BasicUser;
+import net.driftingsouls.ds2.server.modules.admin.GameMasterMenu;
 import net.driftingsouls.ds2.server.modules.admin.editors.EditPlugin8;
 import net.driftingsouls.ds2.server.modules.admin.editors.EntityEditor;
 import net.driftingsouls.ds2.server.modules.admin.editors.EntitySelectionViewModel;
@@ -304,6 +306,26 @@ public class AdminController extends Controller
 	{
 		Writer echo = getContext().getResponse().getWriter();
 		echo.append("<div id='admin'>\n");
+		BasicUser activeUser = getContext().getActiveUser();
+		if (GameMasterMenu.shownFor(activeUser, getContext().getRequest(), namedplugin))
+		{
+			// A game master does not see the admin menu, only his own; an admin coming from it keeps it
+			GameMasterMenu.render(echo, namedplugin, activeUser.isAdmin());
+			echo.append("<br /><div id=\"adminplugin\">\n");
+			try
+			{
+				if ((namedplugin.length() > 0) && (validPlugins.contains(namedplugin)))
+				{
+					echo.append(callNamedPlugin(namedplugin));
+				}
+			}
+			finally
+			{
+				// No Admin.initMenu(): it would fold the game master's menu, which stays fully open
+				echo.append("</div></div>");
+			}
+			return;
+		}
 		echo.append("<div class='gfxbox treemenu'>\n");
 		echo.append("<ul>");
 		for (MenuCategory category : this.menu.values())
