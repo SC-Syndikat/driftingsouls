@@ -1,12 +1,20 @@
 -- Test dialogs for the "Testkampagne Maelstrom" on the dev database (prod backup of 2026-10-12).
--- Requires campaign 1, ship group template 1 and the ships 2338362-2338364 created beforehand.
+-- Requires campaign 1, ship group template 1 and the scenario's ships created beforehand (see README.md).
 SET NAMES utf8mb4;
+
+-- The scenario's ships, found by owner and name because their ids depend on the database
+SET @vex = (SELECT MIN(id) FROM ships WHERE owner = -900 AND name = 'Flaggschiff Vex');
+SET @cruiser = (SELECT MIN(id) FROM ships WHERE owner = 90003 AND name = 'Testkreuzer');
+SET @freighter = (SELECT MIN(id) FROM ships WHERE owner = 90003 AND name = 'Testfrachter');
+-- Stops the script ("Subquery returns more than 1 row") while one of them is missing
+SELECT IF(@vex IS NULL OR @cruiser IS NULL OR @freighter IS NULL, (SELECT 1 UNION SELECT 2), 'ok') AS ships_found;
+
 START TRANSACTION;
 
 -- Ships created while save() skipped the history
 INSERT INTO ship_history (id, history)
 SELECT s.id, 'Indienststellung (Testkampagne)' FROM ships s LEFT JOIN ship_history h ON h.id = s.id
-WHERE h.id IS NULL AND s.id IN (2338362, 2338363, 2338364);
+WHERE h.id IS NULL AND s.id IN (@vex, @cruiser, @freighter);
 
 INSERT INTO dialog_node (id, title, speaker_name, image, text) VALUES
 (1, 'Vex: Begrüßung', 'Admiral Vex', '',
@@ -91,7 +99,7 @@ INSERT INTO dialog_option_action (option_id, sort, outcome, type, params) VALUES
 (17, 1, 'ALWAYS', 'SET_VARIABLE', '{"name":"auftrag_angenommen","scope":"USER","value":"1"}');
 
 INSERT INTO interaction (id, label, object_type, object_id, start_node_id, npc_user_id, active, max_uses_per_user, cooldown_ticks, audience) VALUES
-(1, 'Mit Admiral Vex sprechen', 'SHIP', 2338362, 1, -900, 1, NULL, NULL, 'ALL'),
+(1, 'Mit Admiral Vex sprechen', 'SHIP', @vex, 1, -900, 1, NULL, NULL, 'ALL'),
 (2, 'Notsignal untersuchen', 'STAR_SYSTEM', 621, 6, -900, 1, 1, NULL, 'ALL');
 
 COMMIT;

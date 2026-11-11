@@ -1,9 +1,9 @@
 # Kampagnen- und GameMaster-System: Umsetzungsplan
 
-**Status:** Umgesetzt auf `feature/campaign` (P0–P9). Offen sind die Prüfung auf dem Dev-System und die
-Fragen in Abschnitt 8.
+**Status:** Umgesetzt auf `feature/campaign` (P0–P9, zweite und dritte Runde). Was noch offen ist,
+steht in Abschnitt 11.
 **Bezug:** `docs/CAMPAIGN_SYSTEM_PLAN.md` (Anforderungen v4.0)
-**Erstellt:** 2026-09-24, **Stand:** 2026-09-25
+**Erstellt:** 2026-09-24, **Stand:** 2026-11-11
 
 ## Umsetzungsstand
 
@@ -22,12 +22,40 @@ Legende: ✅ umgesetzt · ✅* umgesetzt, aber abweichend vom Plan (die Abweichu
 | P7 Dialog-Kern | ✅* | `6ca36289b` |
 | P8 Interaktionen, Spieler-Dialog | ✅* ❓ | `6ca36289b` |
 | P9 GM-Editor | ✅ | `45e8338c8` |
+| Antworten auf Abschnitt 8 | ✅ | `bd35724c5` |
+| Zweite Runde (Abschnitt 9) | ✅ | `5d7496732` … `9a142e685` |
+| Dritte Runde (Abschnitt 10) | ✅ | `25e4dd50a` … `00378bd80` |
 
 Migrationen: V043 (Kampagne, Teilnehmer), V044 (Systeme, Sprungpunkte), V045 (Schiffsgruppen),
-V046 (Dialoge, Variablen, Vertrauen), V047 (Interaktionen, Sessions, Protokoll).
+V046 (Dialoge, Variablen, Vertrauen), V047 (Interaktionen, Sessions, Protokoll), V048 (Limits der
+Sprungpunkte), V049 (Fremdschlüssel der Schiffshistorie entfernt), V050 (Antwort nur einmal), V051
+(Schlachtnotiz), V052 (Teilerfolg), V053 (Standardwerte der Waren-Aktionen), V054 (Pflichtantwort),
+V055 (GM-Anfragen), V056 (Anfragen aus Schlachten), V057 (einzelne Offiziersfähigkeiten in Vorlagen),
+V058 (Module in Vorlagen). V042 gehört zum Discord-Chat.
 
 Vokabular gemäß `CONTEXT.md`. Neuer Code verwendet englische Bezeichner. Bestehende Klassen, in die wir
 nur Hooks einbauen, werden **nicht** umbenannt (das macht Track Zero).
+
+**Namen seit Track Zero:** Abschnitte 1 bis 8 nennen die Klassen mit ihren damaligen Namen. Inzwischen
+heißen sie:
+
+| Im Plan | Heute |
+|---|---|
+| `SchiffSprungService` | `ShipJumpService` |
+| `SchiffFlugService` | `ShipMovementService` |
+| `SchiffHinzufuegenService` | `ShipCreationService` |
+| `SchlachtErstellenService` | `BattleCreationService` |
+| `SchiffController`, `SchiffAjaxController` | `ShipController`, `ShipAjaxController` |
+| `UeberController` | `OverviewController` |
+| `AngriffController` | `BattleController` |
+| `KapernController`, `PluendernController` | `BoardController`, `PlunderController` |
+| `UnitTauschController` | `UnitTransferController` |
+| `ErsteigernController` | `FactionController` |
+| `Handelsposten` (Schiffsplugin) | `TradingPostDefault` |
+| `ValidierungException` | `ValidationException` |
+| `CampaignAdminForms` (geplant) | `CampaignAdminHtml` |
+| `RandomSource` (geplant) | `DoubleSupplier random` im `DialogContext` |
+| `FleetStrength`-Helper (geplant) | `StandardFactors.FleetStrengthFactor` |
 
 ---
 
@@ -727,6 +755,8 @@ Beantwortet am 2026-09-25:
      Hinterhalt der Piratenrotte bei Misserfolg;
    - `reset_test_campaign.sql` setzt den Fortschritt des Spielers zurück.
 
+   Wie man die Kampagne auf einer frischen Datenbank aufbaut, steht in `docs/testdata/README.md`.
+
    Beim Anlegen fielen zwei Fehler auf: Der Prod-Dump enthielt keine Stored Procedures (im Dev
    nachträglich angelegt), und der alte Fremdschlüssel `ships.id → ship_history.id` verhinderte
    jedes neue Schiff (V049 entfernt ihn; AddShips und CreateObjects speichern die Historie jetzt
@@ -836,3 +866,90 @@ Beantwortet am 2026-09-25:
 27. **Bedienung.** ✅ Die Sektor-Sperre verlinkt auf das Schiff mit dem Gespräch; das GM-Menü sieht auf
     allen Seiten aus wie auf der Startseite; Namen erscheinen ohne BB-Code (`CampaignText`); Waren und
     Items werden im Dialog-Editor aus einer Liste gewählt.
+
+
+## 10. Dritte Runde (2026-10-16 bis 2026-11-11)
+
+1. **Kampagnentick rechnet wirklich.** ✅ `25e4dd50a`. Er tat bisher nichts: Die Kampagnensysteme
+   landeten in den thread-gebundenen Proxys statt in den Ticks dahinter, und ohne Log-Verzeichnis im
+   Container wurde jeder Teil übersprungen. Ein Log, das sich nicht öffnen lässt, überspringt den Tick
+   nicht mehr. Der Basis-Tick hat einen eigenen Kampagnenpfad; die Schiffsstatistik bleibt beim
+   regulären Tick. Das GM-Menü zeigt Tickzähler und Fortschritt, die Spieler den Zähler in der
+   Übersicht.
+2. **GM-Symbol in der Menüleiste.** ✅ `332c27dbc`. Ein blinkendes „GM“ neben den Symbolen für neue
+   Nachrichten, solange die laufende Kampagne ungelesene Anfragen hat, mit Link auf die
+   Spieler-Anfragen. Abgefragt wird nur für den GM bzw. den Admin, der die Kampagne leitet, auch im
+   Steuermodus.
+3. **Kapitulation der Gegenseite.** ✅ `f52e00598`. Aus einer Schlacht-Anfrage lässt der GM die
+   Gegenseite kapitulieren: Die Schlacht endet, alle ihre Schiffe gehen an den Spieler, auch solche,
+   die zu einem anderen Kampagnen-NPC übergelaufen sind. Darf ein Schiff nicht übergeben werden, läuft
+   die Schlacht weiter, und es wird nichts halb übergeben. „Schiff übergeben“ kann alle Schiffe des NPC
+   im Sektor übergeben. Behoben: Nach einer Masterlogin in einen gesperrten Account und einem neuen
+   Login hing der User an sich selbst (Stack Overflow bei jedem Request); gesperrte Accounts werden für
+   Masterlogin und Steuerung abgelehnt. Behoben: Aufklappen einer Schiffsgruppe in der Sensorliste.
+4. **GM entwirft Sternensysteme.** ✅ `91f371ecc`. Systeme anlegen, bearbeiten, löschen, aus einem
+   Bild füllen, mit festen Sprungpunkten verbinden und ihre Asteroiden einstellen, alles beschränkt auf
+   die Systeme der offenen Kampagne. Ein neues System gehört sofort zur Kampagne. Heimat- und
+   Admin-Zugang darf der GM nicht setzen. Behoben: Das Hinzufügen im Entity-Editor prüfte weder die
+   Berechtigung noch die Validierung; der Bildimport nahm jeden Serverpfad an.
+5. **Schiffsgruppen-Vorlagen leicht befüllen.** ✅ `5c7f2d656`, `d8a68d67f`, `444423120`, V057, V058.
+   - Offizier: jede Fähigkeit einzeln, Würfeln zwischen Minimum und Maximum, Spezialfähigkeit (keine,
+     gewählt, zufällig). Der Rang ergibt sich wie im Spiel. Nur Schiffe, die einen Offizier tragen
+     können, bekommen einen.
+   - Cargo über den Admin-Cargo-Editor, Einheiten mit eigenem Editor samt freiem Platz.
+   - Module je Slot des Schiffstyps, angeboten wie in der Werft. Gespawnte Schiffe bekommen sie zuerst,
+     damit Hülle, Energie, Crew und Schilde zu den Werten mit Modulen passen. Zu viel Cargo oder zu
+     viele Einheiten werden beim Speichern gekürzt, mit Warnung.
+   - Einträge lassen sich bearbeiten; Besitzer und System für „Jetzt erstellen“ sind Auswahllisten.
+   - Behoben `00378bd80`: Ein Modul ohne Slots (Item 9510 im Produktionsbestand) brachte die
+     Vorlagen-Seite zum Absturz.
+6. **Auswahllisten statt IDs.** ✅ `b244d1c3b`, `1e5c853e9`. Dialog-Aktionen und -Faktoren, das
+   Anfrage-Formular, Kampagnen-Sprungpunkte, Zielgruppen von Interaktionen, Protokollfilter und die
+   Besitzer- und Systemfelder der Objekt-Werkzeuge bieten passende Einträge zur Auswahl. Ein
+   gespeicherter Wert bleibt wählbar, auch wenn er nicht in der Liste steht.
+7. **Bestätigung bei Systemänderungen.** ✅ `1b66e8ed1`. Verkleinern, Zugangsrechte ändern, Löschen
+   oder Leeren für einen Bildimport listen zuerst die betroffenen Schiffe und Basen von Spielern und
+   ändern erst nach Bestätigung etwas. Gilt für GM und Admin.
+8. **Englische Bezeichner.** ✅ `0b49d7827`. Die restlichen deutschen Bezeichner im Kampagnencode
+   (ADR-0006); Texte für Spieler und Kommentare bleiben deutsch.
+
+## 11. Offen (Stand 2026-11-11)
+
+**Abnahme und Tests**
+
+1. **Manuelle Abnahme** der Use Cases 7.1, 7.2, 8.1 und 8.2 aus den Anforderungen. Ein lokales
+   Testsystem aus dem Backup vom 2026-10-12 mit der Testkampagne steht dafür bereit.
+2. **Fehlende Tests** (Abschnitt 8, Frage 6, zurückgestellt):
+   - Rollback einer Dialogauswahl, bei der eine Aktion scheitert. Er zeigt, ob die Minimalvariante
+     von P0.1 für atomare Dialogaktionen reicht.
+   - Je ein Test für die 17 Faktoren in `StandardFactors` und die 19 Aktionen in `StandardActions`.
+     Bisher laufen nur `CHANGE_TRUST`, `GIVE_SHIP`, `SET_VARIABLE` und `VARIABLE` in den Engine- und
+     Service-Tests mit.
+   - DB-Szenarien: Schlachtsperrzeiten mit echten Schlachten (bisher nur die Berechnung in
+     `BattleTickLockTest`), Sprungsperren in `ShipJumpService`, Differenz beim Speichern der
+     Teilnehmerliste, Steuermodus (`controlDenial`) und Masterlogin-Einschränkung.
+3. **P0.1 vollständig** (Roadmap 3.1–3.3) bleibt zurückgestellt.
+
+**Offene Entscheidungen aus Abschnitt 8**
+
+4. Masterlogin in der Vorbereitung (Frage 4). Der Steuermodus (Abschnitt 9, Punkt 22) deckt den
+   Zweck inzwischen weitgehend ab.
+5. `GIVE_CREDITS` zahlt vom Konto des NPC (Frage 5).
+
+**Lücken im Konzept** (aufgefallen beim Abgleich am 2026-11-11, Entscheidungen stehen noch aus)
+
+6. **Kampagnenende:** `CampaignService.end()` setzt nur die Sprungpunkte zurück und die
+   Teilnehmer-Flags. Ungeregelt sind offene Gespräche, offene GM-Anfragen, laufende Schlachten in
+   Kampagnensystemen, gespawnte NPC-Schiffe, aktive Interaktionen und ein laufender Steuermodus.
+7. **Mehrere Kampagnen:** Interaktionen haben keinen Kampagnenbezug und sind in der nächsten Kampagne
+   wieder aktiv. Variablen gelten je Kampagne, eine Fortsetzung kann nicht auf ihnen aufbauen. Es gibt
+   keine Kopie einer Kampagne als Vorlage und kein Archiv.
+8. **Benachrichtigung:** Start, Ende und Kampagnentick schicken den Teilnehmern keine Nachricht.
+9. **Wirtschaft im Kampagnentick:** Der Kampagnentick rechnet den ganzen regulären Tick für die
+   Kampagnensysteme, also auch Produktion und Verbrauch. Ob das gewollt ist, ist nicht festgelegt.
+10. **Protokoll der GM-Handlungen:** Masterlogin und Vertrauenskorrekturen werden festgehalten;
+    Spawnen, Übergeben, Credits, Schlachtende, Aktionen aus Anfragen und der Steuermodus nicht.
+11. **Ein GM je Kampagne:** keine Vertretung, kein Co-GM; nur ein Admin kann einspringen.
+12. **Abweichungen von den Anforderungen bestätigen:** Sprungpunkte gehen beim Ende auf PREPARED
+    zurück, statt entfernt zu werden (Anforderung 6.1); die bestehende Kampagnenverwaltung wurde
+    umgebaut (Anforderung 1.1).

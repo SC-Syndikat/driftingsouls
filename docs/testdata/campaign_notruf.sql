@@ -1,10 +1,16 @@
 -- The distorted distress call of the "Testkampagne Maelstrom" (needs V050-V052 and campaign_test_dialogs.sql).
 -- Once per campaign tick the player may try to decode it; success reveals the whole message, partial success one
--- more fragment, failure nothing. The message leads to the wreck (ship 2338365, 621:35/42) with the data disk.
+-- more fragment, failure nothing. The message leads to the wreck (an NPC ship of -900 at 621:35/42) with the data disk.
 SET NAMES utf8mb4;
+
+-- The wreck, found by owner and position because its id depends on the database; this script names it
+SET @wreck = (SELECT MIN(id) FROM ships WHERE owner = -900 AND star_system = 621 AND x = 35 AND y = 42);
+-- Stops the script ("Subquery returns more than 1 row") while it is missing
+SELECT IF(@wreck IS NULL, (SELECT 1 UNION SELECT 2), 'ok') AS wreck_found;
+
 START TRANSACTION;
 
-UPDATE ships SET name = 'Trümmerteil' WHERE id = 2338365;
+UPDATE ships SET name = 'Trümmerteil' WHERE id = @wreck;
 
 -- The old signal: no direct disk and no ambush any more
 DELETE FROM dialog_option_action WHERE option_id IN (12, 14, 15);
@@ -76,6 +82,6 @@ INSERT INTO dialog_option_action (option_id, sort, outcome, type, params) VALUES
 -- Once per campaign tick, as often as needed
 UPDATE interaction SET label = 'Notruf empfangen', max_uses_per_user = NULL, cooldown_ticks = 1 WHERE id = 2;
 INSERT INTO interaction (id, label, object_type, object_id, start_node_id, npc_user_id, active, max_uses_per_user, cooldown_ticks, audience) VALUES
-(3, 'Trümmerteil untersuchen', 'SHIP', 2338365, 12, -900, 1, NULL, NULL, 'ALL');
+(3, 'Trümmerteil untersuchen', 'SHIP', @wreck, 12, -900, 1, NULL, NULL, 'ALL');
 
 COMMIT;
