@@ -146,6 +146,10 @@ public class ModuleSlot {
 	 * @return <code>true</code> falls einer/alle Slots kompatibel sind.
 	 */
 	public boolean isMemberIn( String[] slottype, String cmp ) {
+		// Ein Modul ohne Slots (z.B. Item 9510 im Produktionsbestand) passt in keinen Slot
+		if( slottype.length == 0 ) {
+			return false;
+		}
 		if( slottype.length > 1 ) {
 			for (String aSlottype : slottype)
 			{
