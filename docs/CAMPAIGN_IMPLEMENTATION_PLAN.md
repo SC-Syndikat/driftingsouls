@@ -936,17 +936,39 @@ Beantwortet am 2026-09-25:
    Zweck inzwischen weitgehend ab.
 5. `GIVE_CREDITS` zahlt vom Konto des NPC (Frage 5).
 
-**Lücken im Konzept** (aufgefallen beim Abgleich am 2026-11-11, Entscheidungen stehen noch aus)
+**Lücken im Konzept** (aufgefallen beim Abgleich am 2026-11-11)
 
-6. **Kampagnenende:** `CampaignService.end()` setzt nur die Sprungpunkte zurück und die
-   Teilnehmer-Flags. Ungeregelt sind offene Gespräche, offene GM-Anfragen, laufende Schlachten in
-   Kampagnensystemen, gespawnte NPC-Schiffe, aktive Interaktionen und ein laufender Steuermodus.
-7. **Mehrere Kampagnen:** Interaktionen haben keinen Kampagnenbezug und sind in der nächsten Kampagne
-   wieder aktiv. Variablen gelten je Kampagne, eine Fortsetzung kann nicht auf ihnen aufbauen. Es gibt
-   keine Kopie einer Kampagne als Vorlage und kein Archiv.
-8. **Benachrichtigung:** Start, Ende und Kampagnentick schicken den Teilnehmern keine Nachricht.
-9. **Wirtschaft im Kampagnentick:** Der Kampagnentick rechnet den ganzen regulären Tick für die
-   Kampagnensysteme, also auch Produktion und Verbrauch. Ob das gewollt ist, ist nicht festgelegt.
+Entschieden am 2026-11-11, noch nicht umgesetzt:
+
+6. **Kampagnenende schließt Offenes automatisch ab.** `CampaignService.end()` setzt bisher nur die
+   Sprungpunkte und die Teilnehmer-Flags zurück. Künftig zusätzlich:
+   - offene Gespräche (`dialog_session`) enden;
+   - offene GM-Anfragen werden geschlossen;
+   - laufende Schlachten in Kampagnensystemen enden unentschieden, wie mit „Schlacht beenden“
+     (`CampaignBattles.end`);
+   - ein laufender Steuermodus des GM endet.
+
+   Die Ende-Ansicht kündigt das vorher an und nennt die Anzahl je Art.
+7. **Interaktionen gehören zu einer Kampagne.** Bisher hängen sie nur am Objekt und sind in der
+   nächsten Kampagne wieder aktiv. Künftig:
+   - `interaction` bekommt eine `campaign_id`; angeboten werden nur die Interaktionen der laufenden
+     Kampagne, der Editor zeigt die der offenen Kampagne;
+   - die Migration ordnet bestehende Interaktionen der zuletzt angelegten Kampagne zu;
+   - „Kampagne kopieren“ legt eine neue vorbereitete Kampagne an und übernimmt Systeme,
+     Sprungpunkte, Teilnehmer nach Wahl und die Interaktionen; die Dialoge sind ohnehin
+     wiederverwendbar.
+
+   Offen dabei: ob Variablen der alten Kampagne in die Kopie übernommen werden können (für
+   Fortsetzungen) und ob gespawnte NPC-Schiffe beim Ende stehen bleiben (bisher: ja).
+8. **PM an alle Teilnehmer** bei Kampagnenstart (Name, Hinweis auf die Sprungpunkte), bei
+   Kampagnenende (wer noch Schiffe in Kampagnensystemen hat, erfährt, wo sie stehen) und nach jedem
+   Kampagnentick (Ticknummer, „du bist wieder dran“). Absender wie bei den übrigen Systemnachrichten.
+9. **Der Kampagnentick bleibt ein voller Tick.** Er rechnet für die Kampagnensysteme alles, was der
+   reguläre Tick rechnet, auch Produktion und Verbrauch. Kampagnensysteme laufen damit bewusst
+   schneller als der Rest des Universums.
+
+Noch nicht entschieden:
+
 10. **Protokoll der GM-Handlungen:** Masterlogin und Vertrauenskorrekturen werden festgehalten;
     Spawnen, Übergeben, Credits, Schlachtende, Aktionen aus Anfragen und der Steuermodus nicht.
 11. **Ein GM je Kampagne:** keine Vertretung, kein Co-GM; nur ein Admin kann einspringen.
