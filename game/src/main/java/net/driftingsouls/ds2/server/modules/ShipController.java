@@ -21,6 +21,9 @@ package net.driftingsouls.ds2.server.modules;
 import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.WellKnownPermission;
 import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.interaction.CampaignBattleNotes;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ResourceEntry;
@@ -225,8 +228,14 @@ public class ShipController extends Controller
 		}
 
 		ShipFleet fleet = ship.getFleet();
+		User previousOwner = ship.getOwner();
 
 		boolean result = ship.consign(newowner, false);
+		if (GameMasterControl.isControlling() && ship.getOwner() == newowner)
+		{
+			new GmActionLog().record(GmAction.HAND_OVER, GameMasterControl.realUser().getId(), previousOwner.getId(), newowner.getId(),
+					ship.getName() + " (" + ship.getId() + ") bei " + ship.getLocation().displayCoordinates(false));
+		}
 
 		if (result)
 		{

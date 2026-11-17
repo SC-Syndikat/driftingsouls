@@ -1,12 +1,14 @@
 package net.driftingsouls.ds2.server.campaign;
 
 import net.driftingsouls.ds2.server.battles.Battle;
+import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
 import net.driftingsouls.ds2.server.campaign.interaction.GmRequest;
 import net.driftingsouls.ds2.server.campaign.interaction.GmRequestRepository;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.comm.PM;
 import net.driftingsouls.ds2.server.config.StarSystem;
 import net.driftingsouls.ds2.server.entities.User;
+import net.driftingsouls.ds2.server.entities.UserFlag;
 import net.driftingsouls.ds2.server.framework.Common;
 
 import javax.persistence.EntityManager;
@@ -205,7 +207,7 @@ public class CampaignService
 	{
 		return new EndConsequences(new InteractionRepository().countSessions(),
 				new GmRequestRepository().findForCampaign(campaign.getId(), true).size(),
-				findBattles(campaign).size());
+				findBattles(campaign).size(), countNpcShips(campaign));
 	}
 
 	/**
@@ -222,6 +224,8 @@ public class CampaignService
 			throw new CampaignException("Die Kampagne läuft nicht.");
 		}
 
+		// Spawned NPC ships stay; the game master clears them up himself
+		int npcShips = countNpcShips(campaign);
 		// Battles first: ending one needs the campaign still open
 		List<Battle> battles = findBattles(campaign);
 		for (Battle battle : battles)
@@ -239,6 +243,11 @@ public class CampaignService
 
 		tellPlayersAboutTheEnd(campaign);
 
+		EndConsequences closed = new EndConsequences(conversations, openRequests.size(), battles.size(), npcShips);
+		// While the campaign is still open, so that the entry belongs to it
+		new GmActionLog().record(GmAction.CAMPAIGN_END, actor.getId(), null, null, campaign.getName() + ": " + closed.conversations
+				+ " Gespräch(e), " + closed.requests + " Anfrage(n), " + closed.battles + " Schlacht(en) abgeschlossen");
+
 		repository.markEnded(campaign.getId(), Common.time());
 		new CampaignMapService(em).setAllJumpNodeStates(CampaignJumpNodeState.PREPARED);
 		List<User> flagged = em.createQuery("select u from User u where u.campaign_participant = true", User.class)
@@ -247,7 +256,25 @@ public class CampaignService
 		{
 			leaveCampaign(user);
 		}
-		return new EndConsequences(conversations, openRequests.size(), battles.size());
+		return closed;
+	}
+
+	/**
+	 * @return The ships of the participating NPCs in the campaign's star systems, which stay after its end
+	 */
+	private int countNpcShips(Campaign campaign)
+	{
+		Set<Integer> systems = new CampaignMapService(em).getSystemIds(campaign);
+		Set<Integer> npcs = repository.findParticipantIds(campaign.getId()).stream().filter(id -> id < 0)
+				.collect(Collectors.toSet());
+		if (systems.isEmpty() || npcs.isEmpty())
+		{
+			return 0;
+		}
+		return em.createQuery("select count(*) from Ship where owner.id in (:npcs) and system in (:systems) and id > 0", Long.class)
+				.setParameter("npcs", npcs)
+				.setParameter("systems", systems)
+				.getSingleResult().intValue();
 	}
 
 	private List<Battle> findBattles(Campaign campaign)
@@ -293,7 +320,7 @@ public class CampaignService
 	 * Prepares a new campaign from an ended one: its star systems, its interactions and, if wanted, its
 	 * participants. Campaign jump nodes are shared by all campaigns and need no copy.
 	 */
-	public Campaign copy(Campaign source, String name, User gamemaster, boolean withParticipants)
+	public Campaign copy(Campaign source, String name, User gamemaster, boolean withParticipants, boolean withVariables)
 	{
 		if (source.isPreparing() || source.isRunning())
 		{
@@ -317,6 +344,10 @@ public class CampaignService
 			repository.addParticipants(copy.getId(), eligible, gamemaster.getId(), now);
 		}
 		new InteractionRepository().copyToCampaign(source.getId(), copy.getId());
+		if (withVariables)
+		{
+			new CampaignVariableService().copyToCampaign(source.getId(), copy.getId());
+		}
 		return copy;
 	}
 
@@ -352,6 +383,25 @@ public class CampaignService
 	}
 
 	/**
+	 * @return Who gets the game master's messages of the campaign: every account with the game master flag, as
+	 * all of them work on the open campaign, and the one who prepared it, e.g. an admin without the flag
+	 */
+	public Set<Integer> gamemasterIds(Campaign campaign)
+	{
+		Set<Integer> ids = em.createQuery("from User where flags like :flag", User.class)
+				.setParameter("flag", "%" + UserFlag.GAMEMASTER.getFlag() + "%")
+				.getResultList().stream()
+				.filter(user -> user.hasFlag(UserFlag.GAMEMASTER))
+				.map(User::getId)
+				.collect(Collectors.toCollection(TreeSet::new));
+		if (campaign.getGamemasterId() != null)
+		{
+			ids.add(campaign.getGamemasterId());
+		}
+		return ids;
+	}
+
+	/**
 	 * @return Whether the user may be chosen as participant: not in vacation mode. NPC accounts qualify.
 	 */
 	public static boolean isEligible(User user)
@@ -376,14 +426,20 @@ public class CampaignService
 		public final int requests;
 		/** Battles in the campaign's star systems. */
 		public final int battles;
+		/** Ships of the participating NPCs in the campaign's star systems; they are not closed but stay. */
+		public final int npcShips;
 
-		EndConsequences(int conversations, int requests, int battles)
+		EndConsequences(int conversations, int requests, int battles, int npcShips)
 		{
 			this.conversations = conversations;
 			this.requests = requests;
 			this.battles = battles;
+			this.npcShips = npcShips;
 		}
 
+		/**
+		 * @return Whether nothing is left to close; NPC ships staying behind do not count
+		 */
 		public boolean isEmpty()
 		{
 			return conversations == 0 && requests == 0 && battles == 0;
@@ -397,13 +453,14 @@ public class CampaignService
 				return false;
 			}
 			EndConsequences other = (EndConsequences) o;
-			return conversations == other.conversations && requests == other.requests && battles == other.battles;
+			return conversations == other.conversations && requests == other.requests && battles == other.battles
+					&& npcShips == other.npcShips;
 		}
 
 		@Override
 		public int hashCode()
 		{
-			return Objects.hash(conversations, requests, battles);
+			return Objects.hash(conversations, requests, battles, npcShips);
 		}
 	}
 

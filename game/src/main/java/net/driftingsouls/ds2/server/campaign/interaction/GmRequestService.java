@@ -6,6 +6,9 @@ import net.driftingsouls.ds2.server.campaign.CampaignBattles;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapRepository;
 import net.driftingsouls.ds2.server.campaign.CampaignRepository;
+import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogAction;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogContext;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogRepository;
@@ -66,13 +69,12 @@ public class GmRequestService
 				session.currentNodeId));
 		requests.addMessage(id, user.getId(), GmRequest.Kind.PLAYER, message);
 
-		Integer gamemaster = campaign.getGamemasterId();
-		if (gamemaster != null && open.isEmpty())
+		if (open.isEmpty())
 		{
 			String label = interactions.find(session.interactionId).map(i -> i.label).orElse("?");
-			PM.send(user, gamemaster, "Kampagne: neue Anfrage von " + user.getPlainname(),
+			tellGamemasters(campaign, user, "Kampagne: neue Anfrage von " + user.getPlainname(),
 					"Anfrage #" + id + " zu „" + label + "“ (Schiff " + ship.getId() + "):\n\n" + message
-							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.", em);
+							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.");
 		}
 		return id;
 	}
@@ -96,14 +98,21 @@ public class GmRequestService
 		int id = open.map(r -> r.id).orElseGet(() -> requests.create(campaign.getId(), user.getId(), ship.getId(), null, null, battle.getId()));
 		requests.addMessage(id, user.getId(), GmRequest.Kind.PLAYER, message);
 
-		Integer gamemaster = campaign.getGamemasterId();
-		if (gamemaster != null && open.isEmpty())
+		if (open.isEmpty())
 		{
-			PM.send(user, gamemaster, "Kampagne: Anfrage aus einer Schlacht von " + user.getPlainname(),
+			tellGamemasters(campaign, user, "Kampagne: Anfrage aus einer Schlacht von " + user.getPlainname(),
 					"Anfrage #" + id + " aus der Schlacht bei " + battle.getLocation().displayCoordinates(false) + ":\n\n" + message
-							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.", em);
+							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.");
 		}
 		return id;
+	}
+
+	private void tellGamemasters(Campaign campaign, User from, String title, String text)
+	{
+		for (int gamemaster : new CampaignService(em).gamemasterIds(campaign))
+		{
+			PM.send(from, gamemaster, title, text, em);
+		}
 	}
 
 	/**
@@ -142,8 +151,11 @@ public class GmRequestService
 		{
 			throw new CampaignException("Die Schlacht dieser Anfrage ist bereits zu Ende.");
 		}
+		String location = battle.getLocation().displayCoordinates(false);
 		CampaignBattles.end(em, battle, gamemaster);
 		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION, "Der GameMaster hat die Schlacht beendet.");
+		new GmActionLog().record(GmAction.BATTLE_END, gamemaster.getId(), null, request.userId,
+				"Schlacht bei " + location + " unentschieden beendet (Anfrage #" + request.id + ")");
 	}
 
 	/**
@@ -203,6 +215,8 @@ public class GmRequestService
 		int count = enemies.size();
 		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION,
 				"Die Gegenseite hat kapituliert: " + count + " Schiff(e) gehören jetzt dir, die Schlacht ist zu Ende.");
+		new GmActionLog().record(GmAction.CAPITULATION, gamemaster.getId(), null, player.getId(),
+				count + " Schiff(e) an den Spieler übergeben, Schlacht beendet (Anfrage #" + request.id + ")");
 		return count;
 	}
 
@@ -295,6 +309,8 @@ public class GmRequestService
 		action.execute(context, params);
 
 		String description = action.describe(params);
+		new GmActionLog().record(GmAction.REQUEST_ACTION, gamemaster.getId(), context.npc == null ? null : context.npc.getId(), request.userId,
+				"Anfrage #" + request.id + ": " + description);
 		String playerMessage = action.playerMessage(context, params);
 		if (playerMessage != null)
 		{

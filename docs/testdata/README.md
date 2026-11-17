@@ -54,9 +54,9 @@ Danach startet der GM die Kampagne auf `/gamemaster`. Der Spieler 90003 steht mi
 Sprungpunkt in 612:150/150.
 
 `reset_test_campaign.sql` setzt den Fortschritt des Spielers zurück: gespawnte NPC-Schiffe,
-Leih-Raider, Schlachten aus Dialogen, Gespräche, Anfragen, Protokoll, Variablen, Vertrauen,
-Beziehungen, Position und Ladung der Spielerschiffe und die Konten. Die Kampagne selbst und ihre
-Dialoge bleiben.
+Leih-Raider, Schlachten aus Dialogen, Gespräche, Anfragen, beide Protokolle (Interaktionen und
+GM-Handlungen), Variablen, Vertrauen, Beziehungen, Position und Ladung der Spielerschiffe und die
+Konten. Die Kampagne selbst und ihre Dialoge bleiben.
 
 Die Interaktionen legen die Skripte für Kampagne 1 an (`interaction.campaign_id`, ab V059).
 

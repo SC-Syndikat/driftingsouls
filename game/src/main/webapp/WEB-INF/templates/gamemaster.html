@@ -276,6 +276,7 @@
               <li th:if="${endConsequences.battles > 0}" th:text="${endConsequences.battles} + ' Schlacht(en) in Kampagnensystemen enden unentschieden'"></li>
               <li th:if="${endConsequences.empty}">ist kein Gespräch, keine Anfrage und keine Schlacht mehr offen</li>
               <li>erhalten alle teilnehmenden Spieler eine PM; wer noch Schiffe in Kampagnensystemen hat, erfährt, wo sie stehen</li>
+              <li th:if="${endConsequences.npcShips > 0}" th:text="${endConsequences.npcShips} + ' Schiff(e) der teilnehmenden NPCs bleiben in den Kampagnensystemen stehen; aufräumen musst du sie selbst'"></li>
             </ul>
           </div>
 

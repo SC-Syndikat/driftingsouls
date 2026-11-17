@@ -5,6 +5,8 @@ import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.NpcTestUsers;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogEngine;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogRepository;
@@ -93,6 +95,11 @@ public class CampaignEndTest extends DBSingleTransactionTest
 		assertEquals(1, before.requests);
 		assertEquals(1, before.battles);
 		assertEquals(before, done);
+		assertEquals("Das NPC-Schiff bleibt stehen, die Ende-Ansicht nennt es", 1, before.npcShips);
+		assertNotNull(getEM().find(Ship.class, npcShip.getId()));
+		GmActionLog.Entry logged = new GmActionLog().find(campaign.getId(), 10).get(0);
+		assertEquals("Das Ende steht im GM-Protokoll der Kampagne", GmAction.CAMPAIGN_END, logged.action);
+		assertEquals(gamemaster.getId(), logged.gamemasterId);
 		assertTrue(new InteractionRepository().findSessionOf(player.getId()).isEmpty());
 		assertEquals(GmRequest.Status.CLOSED, new GmRequestRepository().find(requestId).orElseThrow().status);
 		assertNull(getEM().find(Battle.class, battleId));
@@ -106,6 +113,20 @@ public class CampaignEndTest extends DBSingleTransactionTest
 		assertEquals(0, consequences.conversations);
 		assertEquals(0, consequences.requests);
 		assertEquals(0, consequences.battles);
+		assertTrue("Stehende NPC-Schiffe sind nichts, was beim Ende abgeschlossen wird", consequences.isEmpty());
+	}
+
+	@Test
+	public void findEndConsequences_shouldCountTheNpcShipsInCampaignSystemsOnly()
+	{
+		persist(new Ship(npc, npcShip.getBaseType(), npcShip.getSystem(), 9, 9));
+		StarSystem elsewhere = persist(new StarSystem());
+		persist(new Ship(npc, npcShip.getBaseType(), elsewhere.getID(), 1, 1));
+		getEM().flush();
+
+		CampaignService.EndConsequences consequences = campaigns.findEndConsequences(campaign);
+
+		assertEquals(2, consequences.npcShips);
 	}
 
 	@Test

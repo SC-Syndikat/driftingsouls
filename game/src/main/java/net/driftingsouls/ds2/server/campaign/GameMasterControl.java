@@ -62,13 +62,13 @@ public final class GameMasterControl
 	}
 
 	/**
-	 * @return The NPCs taking part in the running campaign, which the game master may steer; not locked
-	 * accounts, whose session the next request would reject
+	 * @return The NPCs taking part in the open campaign, which the game master may steer, also while it is
+	 * prepared; not locked accounts, whose session the next request would reject
 	 */
 	public static List<User> controllableNpcs()
 	{
 		Context context = ContextMap.getContext();
-		Optional<Campaign> campaign = new CampaignRepository().findOpen().filter(Campaign::isRunning);
+		Optional<Campaign> campaign = new CampaignRepository().findOpen();
 		List<User> npcs = new ArrayList<>();
 		if (campaign.isEmpty())
 		{
@@ -125,12 +125,13 @@ public final class GameMasterControl
 			return;
 		}
 		User npc = controllableNpcs().stream().filter(u -> u.getId() == userId).findFirst()
-				.orElseThrow(() -> new CampaignException("Steuern kannst du nur NPCs, die an der laufenden Kampagne teilnehmen."));
+				.orElseThrow(() -> new CampaignException("Steuern kannst du nur NPCs, die an der offenen Kampagne teilnehmen."));
 		session.setUser(npc);
 		session.setAttach(real);
 		if (state != null)
 		{
 			state.active = true;
 		}
+		new GmActionLog().record(GmAction.CONTROL, real.getId(), npc.getId(), null, "steuert " + npc.getPlainname());
 	}
 }

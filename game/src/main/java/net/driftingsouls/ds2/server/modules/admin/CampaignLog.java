@@ -1,6 +1,9 @@
 package net.driftingsouls.ds2.server.modules.admin;
 
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
+import net.driftingsouls.ds2.server.campaign.Campaign;
+import net.driftingsouls.ds2.server.campaign.CampaignRepository;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.interaction.DialogService;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionLogEntry;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
@@ -11,12 +14,14 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.pipeline.Request;
 
 import javax.persistence.EntityManager;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
 
 /**
- * What players did with interactions.
+ * What players did with interactions, and what the game masters did.
  */
 @AdminMenuEntry(category = "Kampagne", name = "Protokoll", permission = WellKnownAdminPermission.CAMPAIGN_LOG)
 public class CampaignLog implements AdminPlugin
@@ -73,5 +78,44 @@ public class CampaignLog implements AdminPlugin
 		}
 		echo.append("</table><br /><a class='forschinfo' href='").append(pluginUrl(CampaignVariables.class))
 				.append("'>Kampagnenvariablen ansehen und bearbeiten</a></div><br />");
+
+		renderGmActions(echo, em);
+	}
+
+	/**
+	 * What the game masters did in the open campaign, or everywhere when none is open.
+	 */
+	private void renderGmActions(StringBuilder echo, EntityManager em)
+	{
+		Optional<Campaign> campaign = new CampaignRepository().findOpen();
+		echo.append("<div class='gfxbox' style='width:950px'><h3>Handlungen der GameMaster</h3>")
+				.append("<p>").append(campaign.map(c -> "Kampagne „" + esc(c.getName()) + "“").orElse("Alle Kampagnen"))
+				.append(": Spawnen, Übergeben, Aktionen aus Anfragen, Schlachtende, Steuermodus, Masterlogin, Vertrauen, ")
+				.append("Start, Kampagnentick und Ende. Die letzten 300 Einträge.</p>");
+		echo.append("<table class='noBorderX' cellpadding='2'><tr><td class='noBorderX'>Zeit</td><td class='noBorderX'>Tick</td>")
+				.append("<td class='noBorderX'>GameMaster</td><td class='noBorderX'>Handlung</td><td class='noBorderX'>NPC</td>")
+				.append("<td class='noBorderX'>Spieler</td><td class='noBorderX'>Details</td></tr>");
+		List<GmActionLog.Entry> entries = new GmActionLog().find(campaign.map(Campaign::getId).orElse(null), 300);
+		for (GmActionLog.Entry entry : entries)
+		{
+			echo.append("<tr><td class='noBorderX'>").append(esc(Common.date("d.m. H:i", entry.createdAt)))
+					.append("</td><td class='noBorderX'>").append(entry.campaignTick)
+					.append("</td><td class='noBorderX'>").append(userName(em, entry.gamemasterId))
+					.append("</td><td class='noBorderX'>").append(esc(entry.action.getLabel()))
+					.append("</td><td class='noBorderX'>").append(entry.npcId == null ? "" : userName(em, entry.npcId))
+					.append("</td><td class='noBorderX'>").append(entry.userId == null ? "" : userName(em, entry.userId))
+					.append("</td><td class='noBorderX'>").append(esc(entry.details)).append("</td></tr>");
+		}
+		if (entries.isEmpty())
+		{
+			echo.append("<tr><td class='noBorderX' colspan='7'>Noch keine Einträge.</td></tr>");
+		}
+		echo.append("</table></div><br />");
+	}
+
+	private static String userName(EntityManager em, int userId)
+	{
+		User user = em.find(User.class, userId);
+		return (user == null ? "?" : esc(user.getPlainname())) + " (" + userId + ")";
 	}
 }

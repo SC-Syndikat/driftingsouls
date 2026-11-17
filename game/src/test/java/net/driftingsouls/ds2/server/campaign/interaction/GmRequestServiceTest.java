@@ -8,6 +8,8 @@ import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.NpcTestUsers;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogEngine;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogRepository;
@@ -97,6 +99,45 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 		assertEquals(1, requests.visibleToPlayer(player, playerShip).size());
 	}
 
+	@Test
+	public void givenTwoGameMasters_submit_shouldTellBoth()
+	{
+		User second = persist(new User("gm2", "***", 0, "", new Cargo(), "gm2@localhost"));
+		second.setFlag(UserFlag.GAMEMASTER);
+		User bystander = persist(new User("other", "***", 0, "", new Cargo(), "other@localhost"));
+		dialogs.start(player, playerShip, interactionId);
+
+		requests.submit(player, playerShip, "Ich möchte dem Admiral ein Geschenk machen.");
+		getEM().flush();
+
+		assertEquals(1, pmsTo(gamemaster, "Kampagne: neue Anfrage%"));
+		assertEquals(1, pmsTo(second, "Kampagne: neue Anfrage%"));
+		assertEquals(0, pmsTo(bystander, "Kampagne: neue Anfrage%"));
+	}
+
+	@Test
+	public void givenTwoGameMasters_aPmToTheGameMaster_shouldReachBoth()
+	{
+		User second = persist(new User("gm2", "***", 0, "", new Cargo(), "gm2@localhost"));
+		second.setFlag(UserFlag.GAMEMASTER);
+		dialogs.start(player, playerShip, interactionId);
+		int id = requests.submit(player, playerShip, "Ich biete meine Hilfe an.");
+
+		requests.runAction(gamemaster, id, "SEND_PM", Params.of("to", "GAMEMASTER", "title", "Hilfe angeboten", "text", "{spieler} hilft."));
+		getEM().flush();
+
+		assertEquals(1, pmsTo(gamemaster, "Hilfe angeboten"));
+		assertEquals(1, pmsTo(second, "Hilfe angeboten"));
+	}
+
+	private long pmsTo(User user, String title)
+	{
+		return getEM().createQuery("select count(*) from PM where empfaenger = :user and title like :title", Long.class)
+				.setParameter("user", user)
+				.setParameter("title", title)
+				.getSingleResult();
+	}
+
 	@Test(expected = CampaignException.class)
 	public void givenNoConversation_submit_shouldBeRejected()
 	{
@@ -114,6 +155,12 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 		requests.setStatus(gamemaster, id, GmRequest.Status.CLOSED);
 
 		assertEquals(5, new TrustService(getEM()).trust(player.getId(), npc.getId()).getTotal(), 0.001);
+		GmActionLog.Entry logged = new GmActionLog().find(null, 10).get(0);
+		assertEquals("Die Aktion steht im GM-Protokoll", GmAction.REQUEST_ACTION, logged.action);
+		assertEquals(gamemaster.getId(), logged.gamemasterId);
+		assertEquals(Integer.valueOf(npc.getId()), logged.npcId);
+		assertEquals(Integer.valueOf(player.getId()), logged.userId);
+		assertTrue(logged.details.contains("#" + id));
 		assertTrue("Das Gespräch steht beim Abschied", dialogs.currentView(player, playerShip).orElseThrow().textHtml.contains("Viel Gl"));
 		assertThrows(CampaignException.class, () -> requests.playerReply(player, id, "Danke!"));
 	}

@@ -1,6 +1,7 @@
 package net.driftingsouls.ds2.server.campaign;
 
 import net.driftingsouls.ds2.server.DBSingleTransactionTest;
+import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogRepository;
 import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
 import net.driftingsouls.ds2.server.campaign.interaction.Interaction;
@@ -188,7 +189,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 		service.start(original);
 		service.end(service.findCampaign(original.getId()).orElseThrow(), gamemaster);
 
-		Campaign copy = service.copy(service.findCampaign(original.getId()).orElseThrow(), "Zweite", gamemaster, true);
+		Campaign copy = service.copy(service.findCampaign(original.getId()).orElseThrow(), "Zweite", gamemaster, true, false);
 
 		assertTrue(copy.isPreparing());
 		assertEquals("Zweite", copy.getName());
@@ -217,10 +218,10 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 		service.updateParticipants(first, Set.of(alice.getId()), gamemaster);
 		service.start(first);
 		service.end(service.findCampaign(first.getId()).orElseThrow(), gamemaster);
-		Campaign second = service.copy(service.findCampaign(first.getId()).orElseThrow(), "Zweite", gamemaster, true);
+		Campaign second = service.copy(service.findCampaign(first.getId()).orElseThrow(), "Zweite", gamemaster, true, false);
 		service.start(second);
 		service.end(service.findCampaign(second.getId()).orElseThrow(), gamemaster);
-		Campaign third = service.copy(service.findCampaign(second.getId()).orElseThrow(), "Dritte", gamemaster, true);
+		Campaign third = service.copy(service.findCampaign(second.getId()).orElseThrow(), "Dritte", gamemaster, true, false);
 
 		int inThird = interactions.findForCampaign(third.getId()).get(0).id;
 		assertEquals("Ein Dialog verweist weiter auf die erste Interaktion", inThird, interactions.resolveForCampaign(original, third.getId()));
@@ -236,9 +237,44 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 		service.start(original);
 		service.end(service.findCampaign(original.getId()).orElseThrow(), gamemaster);
 
-		Campaign copy = service.copy(service.findCampaign(original.getId()).orElseThrow(), "Zweite", gamemaster, false);
+		Campaign copy = service.copy(service.findCampaign(original.getId()).orElseThrow(), "Zweite", gamemaster, false, false);
 
 		assertTrue(service.getParticipantIds(copy).isEmpty());
+	}
+
+	@Test
+	public void copy_withVariables_shouldContinueThePlayersProgress()
+	{
+		Campaign ended = endedCampaignWithVariables();
+		CampaignVariableService variables = new CampaignVariableService();
+
+		Campaign continued = service.copy(ended, "Zweite", gamemaster, true, true);
+
+		assertEquals(1, variables.get(continued.getId(), alice.getId(), "vex_geholfen"));
+		assertEquals(3, variables.get(continued.getId(), CampaignVariableService.GLOBAL, "rotte_besiegt"));
+		assertEquals("Die alte Kampagne behält ihre Variablen", 2, variables.list(ended.getId()).size());
+	}
+
+	@Test
+	public void copy_withoutVariables_shouldStartWithoutProgress()
+	{
+		Campaign ended = endedCampaignWithVariables();
+
+		Campaign fresh = service.copy(ended, "Zweite", gamemaster, true, false);
+
+		assertTrue(new CampaignVariableService().list(fresh.getId()).isEmpty());
+	}
+
+	private Campaign endedCampaignWithVariables()
+	{
+		Campaign original = service.prepare("Erste", gamemaster);
+		service.updateParticipants(original, Set.of(alice.getId()), gamemaster);
+		service.start(original);
+		CampaignVariableService variables = new CampaignVariableService();
+		variables.set(original.getId(), alice.getId(), "vex_geholfen", 1);
+		variables.set(original.getId(), CampaignVariableService.GLOBAL, "rotte_besiegt", 3);
+		service.end(service.findCampaign(original.getId()).orElseThrow(), gamemaster);
+		return service.findCampaign(original.getId()).orElseThrow();
 	}
 
 	@Test(expected = CampaignException.class)
@@ -246,7 +282,7 @@ public class CampaignServiceTest extends DBSingleTransactionTest
 	{
 		Campaign original = service.prepare("Erste", gamemaster);
 
-		service.copy(original, "Zweite", gamemaster, false);
+		service.copy(original, "Zweite", gamemaster, false, false);
 	}
 
 	private List<PM> campaignPmsTo(User user)

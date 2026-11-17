@@ -6,6 +6,7 @@ import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeLimitService;
 import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeState;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.JumpNodeLimits;
 import net.driftingsouls.ds2.server.campaign.ShipGroupRepository;
 import net.driftingsouls.ds2.server.campaign.ShipGroupSpawner;
@@ -1116,18 +1117,15 @@ public final class StandardActions
 		@Override
 		public void execute(DialogContext context, Params params)
 		{
-			int to = context.user.getId();
-			if ("GAMEMASTER".equals(params.get("to")))
-			{
-				Integer gamemaster = context.requireCampaign().getGamemasterId();
-				if (gamemaster == null)
-				{
-					return;
-				}
-				to = gamemaster;
-			}
+			// To the game master means to all of them
+			Set<Integer> to = "GAMEMASTER".equals(params.get("to"))
+					? new CampaignService(context.em).gamemasterIds(context.requireCampaign())
+					: Set.of(context.user.getId());
 			String text = params.get("text").replace("{spieler}", context.user.getPlainname());
-			PM.send(context.npc, to, params.get("title"), text, context.em);
+			for (int recipient : to)
+			{
+				PM.send(context.npc, recipient, params.get("title"), text, context.em);
+			}
 		}
 
 		@Override

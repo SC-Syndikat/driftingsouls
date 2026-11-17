@@ -3,7 +3,7 @@
 **Status:** Umgesetzt auf `feature/campaign` (P0–P9, zweite und dritte Runde). Was noch offen ist,
 steht in Abschnitt 11.
 **Bezug:** `docs/CAMPAIGN_SYSTEM_PLAN.md` (Anforderungen v4.0)
-**Erstellt:** 2026-09-24, **Stand:** 2026-11-11
+**Erstellt:** 2026-09-24, **Stand:** 2026-11-17
 
 ## Umsetzungsstand
 
@@ -31,7 +31,8 @@ V046 (Dialoge, Variablen, Vertrauen), V047 (Interaktionen, Sessions, Protokoll),
 Sprungpunkte), V049 (Fremdschlüssel der Schiffshistorie entfernt), V050 (Antwort nur einmal), V051
 (Schlachtnotiz), V052 (Teilerfolg), V053 (Standardwerte der Waren-Aktionen), V054 (Pflichtantwort),
 V055 (GM-Anfragen), V056 (Anfragen aus Schlachten), V057 (einzelne Offiziersfähigkeiten in Vorlagen),
-V058 (Module in Vorlagen), V059 (Interaktionen gehören zu einer Kampagne). V042 gehört zum Discord-Chat.
+V058 (Module in Vorlagen), V059 (Interaktionen gehören zu einer Kampagne), V060 (Protokoll der
+GM-Handlungen). V042 gehört zum Discord-Chat.
 
 Vokabular gemäß `CONTEXT.md`. Neuer Code verwendet englische Bezeichner. Bestehende Klassen, in die wir
 nur Hooks einbauen, werden **nicht** umbenannt (das macht Track Zero).
@@ -931,16 +932,16 @@ Beantwortet am 2026-09-25:
      Teilnehmerliste, Steuermodus (`controlDenial`) und Masterlogin-Einschränkung.
 3. **P0.1 vollständig** (Roadmap 3.1–3.3) bleibt zurückgestellt.
 
-Reihenfolge, entschieden am 2026-11-17: erst die Entscheidungen unten (Punkte 4, 7, 10, 11) umsetzen,
-dann die fehlenden Tests (2), danach die manuelle Abnahme (1).
+Reihenfolge, entschieden am 2026-11-17: erst die Entscheidungen unten (Punkte 4, 7, 10, 11) umsetzen
+(erledigt am 2026-11-17), dann die fehlenden Tests (2), danach die manuelle Abnahme (1).
 
 **Offene Entscheidungen aus Abschnitt 8**
 
 Entschieden am 2026-11-17:
 
-4. **Steuermodus auch in der Vorbereitung** (Frage 4). ⏳ Der Umschalter auf die teilnehmenden NPCs
-   (`GameMasterControl`, Abschnitt 9, Punkt 22) gilt schon, solange die Kampagne vorbereitet wird,
-   nicht erst, wenn sie läuft. Die Masterlogin bleibt dem GM als Rückfallweg erhalten.
+4. **Steuermodus auch in der Vorbereitung** (Frage 4). ✅ Der Umschalter auf die teilnehmenden NPCs
+   (`GameMasterControl.controllableNpcs`, Abschnitt 9, Punkt 22) gilt für die offene Kampagne, also
+   schon in der Vorbereitung (`GameMasterControlTest`). Die Masterlogin bleibt dem GM als Rückfallweg.
 5. **`GIVE_CREDITS` bleibt, wie es ist** (Frage 5). ✅ Der GM wählt je Aktion die Quelle: vom Konto des
    NPC (scheitert, wenn es nicht reicht) oder neu geschaffen.
 
@@ -977,10 +978,12 @@ Entschieden am 2026-11-11, umgesetzt am 2026-11-17:
    - Die Testskripte in `docs/testdata/` legen ihre Interaktionen für Kampagne 1 an.
 
    Entschieden am 2026-11-17:
-   - ⏳ **Variablen wahlweise übernehmen:** „Kampagne kopieren“ bekommt ein Ankreuzfeld (Standard:
-     aus), das die Kampagnenvariablen der alten Kampagne in die Kopie übernimmt, für Fortsetzungen.
-   - ⏳ **Gespawnte NPC-Schiffe bleiben stehen**, der GM räumt selbst auf. Die Ende-Ansicht zählt sie
-     auf (Schiffe der teilnehmenden NPCs in Kampagnensystemen), damit er sie sieht.
+   - ✅ **Variablen wahlweise übernehmen:** „Kampagne kopieren“ hat ein Ankreuzfeld (Standard: aus),
+     das die Kampagnenvariablen der alten Kampagne in die Kopie übernimmt, für Fortsetzungen
+     (`CampaignVariableService.copyToCampaign`).
+   - ✅ **Gespawnte NPC-Schiffe bleiben stehen**, der GM räumt selbst auf. Ende-Ansicht und Meldung
+     nach dem Beenden nennen die Zahl der Schiffe der teilnehmenden NPCs in Kampagnensystemen
+     (`EndConsequences.npcShips`; zählt nicht als „offen“).
 8. **PM an alle teilnehmenden Spieler** ✅ bei Kampagnenstart (Name und Kampagnensysteme), bei
    Kampagnenende (mit den Schiffen, die noch in Kampagnensystemen stehen) und nach jedem Kampagnentick
    (`CampaignService.recordCampaignTick`, aus `CampaignTick` in eigener Transaktion). NPC-Accounts
@@ -1004,14 +1007,23 @@ Entschieden am 2026-11-11, umgesetzt am 2026-11-17:
 
 Entschieden am 2026-11-17:
 
-10. **Alle GM-Eingriffe werden protokolliert.** ⏳ Bisher halten Masterlogin und Vertrauenskorrekturen
-    fest, wer was getan hat. Dazu kommen: Spawnen, Übergeben von Schiffen, Credits, Schlachtende,
-    Aktionen aus Anfragen und Wechsel in den Steuermodus. Jeder Eintrag nennt GM, NPC, Spieler (falls
-    betroffen) und Kampagne; einsehbar für Admins und GMs.
-11. **Alle Accounts mit dem Flag `gamemaster` sind GM der offenen Kampagne.** ⏳ Die Rechte sind schon
-    so: Jeder Flag-Inhaber darf an der offenen Kampagne arbeiten. Neu: Die PMs zu neuen
-    Spieler-Anfragen und die Dialog-PM „an den GM“ gehen an alle Flag-Inhaber, nicht nur an den
-    eingetragenen GM (`campaign.gamemaster_id`). Eine eigene GM-Liste je Kampagne gibt es nicht.
+10. **Alle GM-Eingriffe werden protokolliert.** ✅ V060 (`gm_action_log`), `GmActionLog` und `GmAction`.
+    Jeder Eintrag nennt GM (auch hinter dem Steuermodus), NPC, Spieler, Kampagne und Kampagnentick.
+    Protokolliert werden:
+    - Schiffsgruppe spawnen (`CampaignShipGroups`) und Schiffe hinzufügen als GM (`AddShips`);
+    - Aktionen aus Anfragen (`GmRequestService.runAction`, damit auch Übergeben und Credits),
+      Schlachtende und Kapitulation aus Anfragen;
+    - Schlachtende auf der GM-Seite, Kampagnenstart, Kampagnentick und Kampagnenende;
+    - Wechsel in den Steuermodus und Übergaben von Schiffen und Flotten darin;
+    - Masterlogin eines GMs (weiterhin auch in `login.log`) und Vertrauenskorrekturen.
+
+    Zu sehen im Plugin „Protokoll“ unter „Handlungen der GameMaster“ (die offene Kampagne, sonst alle).
+    Bearbeitungen im Entity-Editor (EditShip, EditBases) werden nicht protokolliert.
+11. **Alle Accounts mit dem Flag `gamemaster` sind GM der offenen Kampagne.** ✅ Die Rechte waren schon
+    so: Jeder Flag-Inhaber darf an der offenen Kampagne arbeiten. Die PMs zu neuen Spieler-Anfragen
+    (aus Gesprächen und Schlachten) und die Dialog-PM „an den GM“ gehen jetzt an alle Flag-Inhaber und
+    an den eingetragenen GM (`CampaignService.gamemasterIds`). Eine eigene GM-Liste je Kampagne gibt
+    es nicht. In den Produktionsdaten trägt außer dem Test-GM auch Account 4724 das Flag.
 12. **Abweichungen von den Anforderungen bestätigt.** ✅
     - Sprungpunkte gehen beim Ende auf PREPARED zurück, statt entfernt zu werden (Anforderung 6.1).
     - Die bestehende Kampagnenverwaltung wurde zu den GM-Werkzeugen und der GM-Seite umgebaut

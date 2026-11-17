@@ -3,6 +3,8 @@ package net.driftingsouls.ds2.server.modules.thymeleaf;
 import net.driftingsouls.ds2.server.campaign.CampaignBattles;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.interaction.GmRequest;
 import net.driftingsouls.ds2.server.campaign.interaction.GmRequestRepository;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
@@ -166,6 +168,8 @@ public class GameMasterController implements DSController {
 
       // Directly, not through the admin console: that needs the console permission, which a game master does not have
       context.getBean(TickAdminCommand.class, null).runRegularTick(null, String.join(";", systems));
+      new GmActionLog().record(GmAction.CAMPAIGN_TICK, GameMasterControl.realUser().getId(), null, null,
+          "für Systeme " + String.join(", ", systems));
       ctx.setVariable("out", "Kampagnentick für Systeme "+String.join(", ",systems)+" gestartet");
       defaultAction(ctx, request, user, Show.TICK);
     }
@@ -192,6 +196,7 @@ public class GameMasterController implements DSController {
 
       try {
         service.start(campaign.get());
+        new GmActionLog().record(GmAction.CAMPAIGN_START, GameMasterControl.realUser().getId(), null, null, campaign.get().getName());
         ctx.setVariable("out", "Kampagne gestartet. Die Kampagnen-Sprungpunkte sind jetzt aktiv.");
       } catch(CampaignException e) {
         ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster?show=start"));
@@ -223,7 +228,8 @@ public class GameMasterController implements DSController {
         }
         ctx.setVariable("out", "Kampagne beendet. Teilnehmerstatus zurückgesetzt, Kampagnen-Sprungpunkte wieder vorbereitet, Teilnehmer per PM informiert."
             + (closed.isEmpty() ? "" : " Abgeschlossen: " + closed.conversations + " Gespräch(e), " + closed.requests + " Anfrage(n), "
-            + closed.battles + " Schlacht(en)."));
+            + closed.battles + " Schlacht(en).")
+            + (closed.npcShips == 0 ? "" : " " + closed.npcShips + " NPC-Schiff(e) stehen noch in den Kampagnensystemen."));
       } catch(CampaignException e) {
         ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster"));
       }
@@ -298,7 +304,10 @@ public class GameMasterController implements DSController {
         // handled by CampaignBattles
       }
       try {
-        ctx.setVariable("out", "Schlacht bei " + CampaignBattles.end(db, battle, user) + " beendet.");
+        String location = CampaignBattles.end(db, battle, user);
+        new GmActionLog().record(GmAction.BATTLE_END, GameMasterControl.realUser().getId(), null, null,
+            "Schlacht bei " + location + " unentschieden beendet");
+        ctx.setVariable("out", "Schlacht bei " + location + " beendet.");
       } catch(CampaignException e) {
         ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster"));
       }

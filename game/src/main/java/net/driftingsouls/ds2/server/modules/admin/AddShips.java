@@ -22,6 +22,9 @@ import net.driftingsouls.ds2.server.ContextCommon;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ItemID;
 import net.driftingsouls.ds2.server.cargo.Resources;
@@ -341,6 +344,10 @@ public class AddShips implements AdminPlugin {
 				}
 
 				echo.append("<a href='ds?module=schiff&action=default&ship=").append(ship.getId()).append("'>Schiff (").append(ship.getId()).append(")</a> hinzugef&uuml;gt<br />");
+				if( GameMasterRestriction.forActiveUser().applies() ) {
+					new GmActionLog().record(GmAction.ADD_SHIPS, GameMasterControl.realUser().getId(), ownerId < 0 ? ownerId : null, ownerId > 0 ? ownerId : null,
+							shiptype.getNickname() + " (" + ship.getId() + ") bei " + ship.getLocation().displayCoordinates(false));
+				}
 
 				// Offizier einfuegen
 				if( (officerType > 0) && (officerName.length() > 0) &&

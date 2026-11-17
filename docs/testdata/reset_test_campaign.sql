@@ -40,6 +40,8 @@ DELETE FROM interaction WHERE id > 4;
 DELETE FROM dialog_session;
 DELETE FROM gm_request WHERE campaign_id = 1;
 DELETE FROM interaction_log;
+-- What the game master did while testing (gm_action_log exists from V060 on)
+DELETE FROM gm_action_log WHERE campaign_id = 1;
 DELETE FROM campaign_variable WHERE campaign_id = 1;
 DELETE FROM npc_trust_event WHERE npc_user_id IN (-900, -901);
 DELETE FROM user_relations WHERE (user_id = 90003 AND target_id IN (-900, -901)) OR (user_id IN (-900, -901) AND target_id = 90003);

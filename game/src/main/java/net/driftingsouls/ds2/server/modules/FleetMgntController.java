@@ -20,6 +20,9 @@ package net.driftingsouls.ds2.server.modules;
 
 import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.cargo.Cargo;
@@ -507,6 +510,11 @@ public class FleetMgntController extends Controller
 		{
 			if (fleet.consign(newowner))
 			{
+				if (GameMasterControl.isControlling())
+				{
+					new GmActionLog().record(GmAction.HAND_OVER, GameMasterControl.realUser().getId(), user.getId(), newowner.getId(),
+							"Flotte " + fleet.getName() + " (" + fleet.getId() + ")");
+				}
 				TemplateEngine t = templateViewResultFactory.createFor(this);
 				t.setVar("fleet.id", fleet.getId());
 

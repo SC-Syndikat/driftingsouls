@@ -1,5 +1,7 @@
 package net.driftingsouls.ds2.server.campaign.dialog;
 
+import org.jooq.impl.DSL;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -85,6 +87,19 @@ public class CampaignVariableService
 				.where(CAMPAIGN_VARIABLE.CAMPAIGN_ID.eq(campaignId))
 				.and(CAMPAIGN_VARIABLE.USER_ID.eq(userId))
 				.and(CAMPAIGN_VARIABLE.NAME.eq(name))
+				.execute());
+	}
+
+	/**
+	 * Copies all variables of one campaign into another, e.g. to continue an ended campaign.
+	 */
+	public void copyToCampaign(int sourceCampaignId, int targetCampaignId)
+	{
+		withDb(db -> db.insertInto(CAMPAIGN_VARIABLE, CAMPAIGN_VARIABLE.CAMPAIGN_ID, CAMPAIGN_VARIABLE.USER_ID,
+						CAMPAIGN_VARIABLE.NAME, CAMPAIGN_VARIABLE.VALUE)
+				.select(db.select(DSL.val(targetCampaignId), CAMPAIGN_VARIABLE.USER_ID, CAMPAIGN_VARIABLE.NAME, CAMPAIGN_VARIABLE.VALUE)
+						.from(CAMPAIGN_VARIABLE)
+						.where(CAMPAIGN_VARIABLE.CAMPAIGN_ID.eq(sourceCampaignId)))
 				.execute());
 	}
 

@@ -65,9 +65,12 @@ public class CampaignParticipants implements AdminPlugin
 				Request request = context.getRequest();
 				Campaign source = service.findCampaign(request.getParameterInt("source"))
 						.orElseThrow(() -> new CampaignException("Bitte eine beendete Kampagne wählen."));
-				Campaign copy = service.copy(source, request.getParameterString("name"), actor, "1".equals(request.getParameterString("withparticipants")));
+				boolean withParticipants = "1".equals(request.getParameterString("withparticipants"));
+				boolean withVariables = "1".equals(request.getParameterString("withvariables"));
+				Campaign copy = service.copy(source, request.getParameterString("name"), actor, withParticipants, withVariables);
 				message(echo, "Kampagne „" + copy.getName() + "“ aus „" + source.getName() + "“ angelegt: Systeme, Interaktionen"
-						+ ("1".equals(request.getParameterString("withparticipants")) ? " und Teilnehmer" : "") + " übernommen. Prüfe jetzt die Teilnehmer.");
+						+ (withParticipants ? ", Teilnehmer" : "") + (withVariables ? ", Kampagnenvariablen" : "")
+						+ " übernommen. Prüfe jetzt die Teilnehmer.");
 			}
 			else if ("save".equals(action))
 			{
@@ -152,7 +155,7 @@ public class CampaignParticipants implements AdminPlugin
 		{
 			echo.append("<h3>Kampagne kopieren</h3>");
 			echo.append("<p>Übernimmt die Systeme und die Interaktionen einer beendeten Kampagne in eine neue. ")
-					.append("Die Interaktionen zählen ihre Limits neu; Kampagnenvariablen werden nicht übernommen.</p>");
+					.append("Die Interaktionen zählen ihre Limits neu.</p>");
 			echo.append("<form action='./ds' method='post'>");
 			hiddenFields(echo, getClass(), "copy");
 			echo.append("<table class='noBorderX' cellpadding='3'><tr><td class='noBorderX'>Vorlage:</td><td class='noBorderX'><select name='source'>");
@@ -166,6 +169,8 @@ public class CampaignParticipants implements AdminPlugin
 					.append("<input type='text' name='name' size='40' maxlength='255' /></td></tr>");
 			echo.append("<tr><td class='noBorderX'></td><td class='noBorderX'><label><input type='checkbox' name='withparticipants' value='1' checked='checked' /> ")
 					.append("Teilnehmer übernehmen (außer Spielern im Urlaubsmodus)</label></td></tr>");
+			echo.append("<tr><td class='noBorderX'></td><td class='noBorderX'><label><input type='checkbox' name='withvariables' value='1' /> ")
+					.append("Kampagnenvariablen übernehmen, um die Kampagne fortzusetzen (Fortschritt der Spieler und globale Werte)</label></td></tr>");
 			echo.append("<tr><td class='noBorderX'></td><td class='noBorderX'><input type='submit' value='Kampagne kopieren' /></td></tr></table>");
 			echo.append("</form>");
 		}

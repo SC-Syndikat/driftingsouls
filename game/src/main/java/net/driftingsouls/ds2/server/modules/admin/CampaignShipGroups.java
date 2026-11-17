@@ -5,6 +5,9 @@ import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignText;
+import net.driftingsouls.ds2.server.campaign.GameMasterControl;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
 import net.driftingsouls.ds2.server.campaign.ShipGroupLimits;
 import net.driftingsouls.ds2.server.campaign.ShipGroupModules;
@@ -309,6 +312,9 @@ public class CampaignShipGroups implements AdminPlugin
 		}
 
 		List<Ship> ships = new ShipGroupSpawner(em).spawn(template, owner, location);
+		new GmActionLog().record(GmAction.SPAWN, GameMasterControl.realUser().getId(), owner.isNPC() ? owner.getId() : null,
+				owner.isNPC() ? null : owner.getId(),
+				ships.size() + " Schiff(e) aus „" + template.name + "“ bei " + location.displayCoordinates(false));
 		echo.append("<div class='gfxbox' style='width:590px'>").append(ships.size()).append(" Schiff(e) bei ")
 				.append(location.displayCoordinates(false)).append(" erstellt: ");
 		for (Ship ship : ships)

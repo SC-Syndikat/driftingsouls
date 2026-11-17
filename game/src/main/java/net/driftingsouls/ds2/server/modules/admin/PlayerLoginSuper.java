@@ -21,6 +21,8 @@ package net.driftingsouls.ds2.server.modules.admin;
 import net.driftingsouls.ds2.server.WellKnownAdminPermission;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
@@ -127,6 +129,7 @@ public class PlayerLoginSuper implements AdminPlugin {
 				}
 				Common.writeLog("login.log", Common.date("j.m.Y H:i:s") + ": GameMaster " + context.getActiveUser().getId()
 						+ " Masterlogin in NPC " + user + "\n");
+				new GmActionLog().record(GmAction.MASTER_LOGIN, context.getActiveUser().getId(), user, null, userObj.getPlainname());
 			}
 
 			this.authManager.adminLogin(userObj, usesessid != 0);

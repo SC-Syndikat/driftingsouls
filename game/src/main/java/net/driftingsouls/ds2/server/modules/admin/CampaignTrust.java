@@ -5,6 +5,8 @@ import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.GameMasterRestriction;
+import net.driftingsouls.ds2.server.campaign.GmAction;
+import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.dialog.TrustService;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
@@ -79,6 +81,7 @@ public class CampaignTrust implements AdminPlugin
 					checkNpc(restriction, npcs, npcId);
 					int delta = request.getParameterInt("delta");
 					trust.record(npcId, userId, delta, reason(request), TrustService.Kind.GM_CORRECTION, campaign.get().getId(), null, gamemaster.getId());
+					new GmActionLog().record(GmAction.TRUST_CORRECTION, gamemaster.getId(), npcId, userId, "um " + delta + ": " + reason(request));
 					message(echo, "Vertrauen um " + delta + " angepasst.");
 					break;
 				}
@@ -87,6 +90,8 @@ public class CampaignTrust implements AdminPlugin
 					checkNpc(restriction, npcs, npcId);
 					Double target = optionalDouble(request, "target");
 					int delta = trust.correctTo(npcId, userId, target == null ? 0 : target, reason(request), campaign.get().getId(), gamemaster.getId());
+					new GmActionLog().record(GmAction.TRUST_CORRECTION, gamemaster.getId(), npcId, userId,
+							"auf " + (target == null ? 0 : target) + " (Korrektur " + delta + "): " + reason(request));
 					message(echo, "Vertrauen auf " + (target == null ? 0 : target) + " gesetzt (Korrektur " + delta + ").");
 					break;
 				}
