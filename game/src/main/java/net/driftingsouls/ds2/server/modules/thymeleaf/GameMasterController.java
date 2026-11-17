@@ -485,12 +485,15 @@ public class GameMasterController implements DSController {
         public final String updated;
         public final boolean unread;
         public final String url;
-        /** Who looks after the request: "du", a game master's name, or "frei". */
+        /** Who looks after the request: "du" or a game master's name; empty while nobody does. */
         public final String gamemaster;
+        /** The link to take the request while nobody looks after it, otherwise {@code null}. */
+        public final String takeUrl;
 
         RequestView(int id, String player, String dialog, String excerpt, String updated, boolean unread, String url, String gamemaster)
         {
             this.gamemaster = gamemaster;
+            this.takeUrl = gamemaster.isEmpty() ? url + "&cpaction=respond&gm_take=1" : null;
             this.id = id;
             this.player = player;
             this.dialog = dialog;
@@ -504,7 +507,7 @@ public class GameMasterController implements DSController {
         {
             if (request.assignedGamemasterId == null)
             {
-                return "frei";
+                return "";
             }
             if (request.assignedGamemasterId == GameMasterControl.realUser().getId())
             {

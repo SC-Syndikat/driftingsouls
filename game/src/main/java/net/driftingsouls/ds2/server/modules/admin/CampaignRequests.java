@@ -147,13 +147,13 @@ public class CampaignRequests implements AdminPlugin
 	}
 
 	/**
-	 * @return Who looks after the request: "du", the game master's name, or "frei"
+	 * @return Who looks after the request: "du", the game master's name, or a link to take it while nobody does
 	 */
 	private static String assignee(EntityManager em, GmRequest request)
 	{
 		if (request.assignedGamemasterId == null)
 		{
-			return request.isOpen() ? "<span style='color:#ffcc00'>frei</span>" : "";
+			return request.isOpen() ? "<a class='forschinfo' href='" + takeUrl(request) + "'>übernehmen</a>" : "";
 		}
 		if (request.assignedGamemasterId == GameMasterControl.realUser().getId())
 		{
@@ -176,5 +176,13 @@ public class CampaignRequests implements AdminPlugin
 	static String url(GmRequest request)
 	{
 		return pluginUrl(CampaignRequests.class) + "&amp;request=" + request.id;
+	}
+
+	/**
+	 * @return The link that makes the request the current game master's and opens it
+	 */
+	static String takeUrl(GmRequest request)
+	{
+		return url(request) + "&amp;cpaction=respond&amp;gm_take=1";
 	}
 }

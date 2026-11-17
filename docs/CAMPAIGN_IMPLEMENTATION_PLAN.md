@@ -1037,7 +1037,8 @@ Entschieden am 2026-11-17:
     - Kümmert sich ein anderer GM darum, sieht er das und kann nicht antworten, keine Aktion ausführen
       und nicht abschließen. Erst muss er bestätigen, dass er sie übernimmt
       (`GmRequestService.take`); der bisherige GM bekommt eine PM, das GM-Protokoll einen Eintrag.
-    - Liste der Anfragen und GM-Startseite zeigen, wer sich kümmert („du“, Name oder „frei“). Das
+    - Liste der Anfragen und GM-Startseite zeigen, wer sich kümmert („du“ oder Name); bei einer
+      freien Anfrage steht dort der Link „übernehmen“, der sie dem GM gibt und öffnet. Das
       blinkende GM-Symbol meldet nur ungelesene Anfragen, die frei oder die eigenen sind; als gelesen
       gilt eine Anfrage erst, wenn der zuständige GM sie ansieht.
     - Die Dialog-PM „an den GM“ geht ebenso an den einen GM online, sonst an alle.

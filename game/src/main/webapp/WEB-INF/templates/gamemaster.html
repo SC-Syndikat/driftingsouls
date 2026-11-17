@@ -63,7 +63,7 @@
             <td class="noBorderX" th:text="${r.dialog}"></td>
             <td class="noBorderX" th:text="${r.excerpt}"></td>
             <td class="noBorderX"><span th:text="${r.updated}"></span> <span th:if="${r.unread}" class="error">neu</span></td>
-            <td class="noBorderX" th:text="${r.gamemaster}"></td>
+            <td class="noBorderX"><a th:if="${r.takeUrl}" class="forschinfo" th:href="${r.takeUrl}">übernehmen</a><span th:unless="${r.takeUrl}" th:text="${r.gamemaster}"></span></td>
             <td class="noBorderX"><a class="forschinfo" th:href="${r.url}">öffnen &raquo;</a></td>
           </tr>
         </table>
