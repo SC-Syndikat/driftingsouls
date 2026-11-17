@@ -921,15 +921,23 @@ Beantwortet am 2026-09-25:
 
 1. **Manuelle Abnahme** der Use Cases 7.1, 7.2, 8.1 und 8.2 aus den Anforderungen. Ein lokales
    Testsystem aus dem Backup vom 2026-10-12 mit der Testkampagne steht dafür bereit.
-2. **Fehlende Tests** (Abschnitt 8, Frage 6, zurückgestellt):
-   - Rollback einer Dialogauswahl, bei der eine Aktion scheitert. Er zeigt, ob die Minimalvariante
-     von P0.1 für atomare Dialogaktionen reicht.
-   - Je ein Test für die 17 Faktoren in `StandardFactors` und die 19 Aktionen in `StandardActions`.
-     Bisher laufen nur `CHANGE_TRUST`, `GIVE_SHIP`, `SET_VARIABLE` und `VARIABLE` in den Engine- und
-     Service-Tests mit.
-   - DB-Szenarien: Schlachtsperrzeiten mit echten Schlachten (bisher nur die Berechnung in
-     `BattleTickLockTest`), Sprungsperren in `ShipJumpService`, Differenz beim Speichern der
-     Teilnehmerliste, Steuermodus (`controlDenial`) und Masterlogin-Einschränkung.
+2. **Fehlende Tests.** ✅ Nachgeholt am 2026-11-17:
+   - `DialogChoiceRollbackTest` (mit echten Commits): Scheitert die letzte Aktion einer Auswahl,
+     sind Variable und Vertrauen (jOOQ) wie Beziehung (Hibernate) zurückgenommen, das Gespräch steht
+     noch am selben Knoten, das Protokoll vermerkt den Abbruch. Ohne den Rollback in
+     `DialogService.rollBackAndLog` schlägt der Test fehl. Die Minimalvariante von P0.1 reicht damit
+     für atomare Dialogaktionen.
+   - `StandardFactorsTest` und `StandardActionsTest`: je ein Test für alle 17 Faktoren und alle 19
+     Aktionen.
+   - DB-Szenarien: `BattleTickCampaignLockTest` (Schlachtsperren mit echten Schlachten, regulärer und
+     Kampagnentick), `ShipJumpServiceCampaignTest` (Sprungsperren: Teilnehmer, Zustand des
+     Sprungpunkts, fertige Runde), `GameMasterSteeringTest` (Steuermodus nur in Kampagnensystemen,
+     Masterlogin nur in teilnehmende NPCs, nach dem Ende in keinen). Die Differenz beim Speichern der
+     Teilnehmerliste prüfte `CampaignServiceTest` schon.
+   - Dabei behoben: Ein in derselben Sitzung angelegter User scheiterte an `getRank`/`setRank`, ein
+     so angelegtes Schiff an `destroy` – die Konstruktoren ließen Ränge bzw. Flags `null`.
+   - Alle Testklassen eines Builds teilen eine Datenbank. Tests mit echten Commits nutzen eigene
+     NPC-IDs und beenden danach ihre Kampagne (`CommittedCampaignTests`).
 3. **P0.1 vollständig** (Roadmap 3.1–3.3) bleibt zurückgestellt.
 
 Reihenfolge, entschieden am 2026-11-17: erst die Entscheidungen unten (Punkte 4, 7, 10, 11) umsetzen
