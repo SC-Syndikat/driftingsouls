@@ -62,7 +62,10 @@ public class GmActionLogTest extends DBSingleTransactionTest
 	{
 		log.record(GmAction.MASTER_LOGIN, gamemaster.getId(), npc.getId(), null, "");
 
-		assertEquals(1, log.find(null, 10).size());
-		assertNull(log.find(null, 10).get(0).campaignId);
+		// Committing tests may have left entries of their own
+		List<GmActionLog.Entry> mine = log.find(null, 10).stream().filter(e -> e.gamemasterId == gamemaster.getId())
+				.collect(java.util.stream.Collectors.toList());
+		assertEquals(1, mine.size());
+		assertNull(mine.get(0).campaignId);
 	}
 }

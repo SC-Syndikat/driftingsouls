@@ -5,6 +5,7 @@ import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.CommittedCampaignTests;
 import net.driftingsouls.ds2.server.campaign.NpcTestUsers;
 import net.driftingsouls.ds2.server.campaign.dialog.CampaignVariableService;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogEngine;
@@ -20,6 +21,7 @@ import net.driftingsouls.ds2.server.entities.UserFlag;
 import net.driftingsouls.ds2.server.ships.Ship;
 import net.driftingsouls.ds2.server.ships.ShipClasses;
 import net.driftingsouls.ds2.server.ships.ShipType;
+import org.junit.After;
 import org.junit.Test;
 
 import java.util.List;
@@ -82,10 +84,17 @@ public class DialogChoiceRollbackTest extends DBTest
 		});
 	}
 
+	@After
+	public void endTheCampaign()
+	{
+		// Committed: later test classes share the database
+		mitTransaktion(() -> CommittedCampaignTests.endOpenCampaigns(getEM()));
+	}
+
 	private void setUpCampaignAndDialog()
 	{
 		// NPC first: creating it clears the persistence context
-		User npc = NpcTestUsers.create(getEM(), "admiral", -77);
+		User npc = NpcTestUsers.create(getEM(), "admiral", -9301);
 		npcId = npc.getId();
 		User gamemaster = persist(new User("gm", "***", 0, "", new Cargo(), "gm@localhost"));
 		gamemaster.setFlag(UserFlag.GAMEMASTER);
