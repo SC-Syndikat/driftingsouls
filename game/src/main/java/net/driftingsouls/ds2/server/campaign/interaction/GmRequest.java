@@ -66,10 +66,13 @@ public class GmRequest
 	public final long updatedAt;
 	public final boolean unreadByGm;
 	public final boolean unreadByUser;
+	/** The game master who looks after the request; {@code null} while nobody has taken it. */
+	public final Integer assignedGamemasterId;
 
 	public GmRequest(int id, int campaignId, int userId, int shipId, Integer interactionId, Integer nodeId, Integer battleId, Status status,
-					 long createdAt, long updatedAt, boolean unreadByGm, boolean unreadByUser)
+					 long createdAt, long updatedAt, boolean unreadByGm, boolean unreadByUser, Integer assignedGamemasterId)
 	{
+		this.assignedGamemasterId = assignedGamemasterId;
 		this.battleId = battleId;
 		this.id = id;
 		this.campaignId = campaignId;
@@ -87,5 +90,13 @@ public class GmRequest
 	public boolean isOpen()
 	{
 		return status == Status.OPEN;
+	}
+
+	/**
+	 * @return Whether another game master than this one looks after the request
+	 */
+	public boolean isAssignedToOtherThan(int gamemasterId)
+	{
+		return assignedGamemasterId != null && assignedGamemasterId != gamemasterId;
 	}
 }

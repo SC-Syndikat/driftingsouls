@@ -32,7 +32,7 @@ Sprungpunkte), V049 (Fremdschlüssel der Schiffshistorie entfernt), V050 (Antwor
 (Schlachtnotiz), V052 (Teilerfolg), V053 (Standardwerte der Waren-Aktionen), V054 (Pflichtantwort),
 V055 (GM-Anfragen), V056 (Anfragen aus Schlachten), V057 (einzelne Offiziersfähigkeiten in Vorlagen),
 V058 (Module in Vorlagen), V059 (Interaktionen gehören zu einer Kampagne), V060 (Protokoll der
-GM-Handlungen). V042 gehört zum Discord-Chat.
+GM-Handlungen), V061 (zuständiger GM einer Anfrage). V042 gehört zum Discord-Chat.
 
 Vokabular gemäß `CONTEXT.md`. Neuer Code verwendet englische Bezeichner. Bestehende Klassen, in die wir
 nur Hooks einbauen, werden **nicht** umbenannt (das macht Track Zero).
@@ -1028,3 +1028,16 @@ Entschieden am 2026-11-17:
     - Sprungpunkte gehen beim Ende auf PREPARED zurück, statt entfernt zu werden (Anforderung 6.1).
     - Die bestehende Kampagnenverwaltung wurde zu den GM-Werkzeugen und der GM-Seite umgebaut
       (Anforderung 1.1).
+14. **Anfragen haben einen zuständigen GM.** ✅ Gewünscht am 2026-11-17, V061 (`gm_request.assigned_gm_id`).
+    - Ist beim Eingang einer neuen Anfrage genau ein GM online, gehört sie ihm, und nur er bekommt die
+      PM. Sonst bekommen alle GMs die PM, und die Anfrage ist frei (`GameMasterPresence`, online wie
+      im Teilnehmerstatus; wer einen NPC steuert, zählt jetzt ebenfalls als online).
+    - Eine freie Anfrage nimmt sich ein GM mit „Anfrage übernehmen“ oder mit seiner ersten Antwort
+      oder Aktion.
+    - Kümmert sich ein anderer GM darum, sieht er das und kann nicht antworten, keine Aktion ausführen
+      und nicht abschließen. Erst muss er bestätigen, dass er sie übernimmt
+      (`GmRequestService.take`); der bisherige GM bekommt eine PM, das GM-Protokoll einen Eintrag.
+    - Liste der Anfragen und GM-Startseite zeigen, wer sich kümmert („du“, Name oder „frei“). Das
+      blinkende GM-Symbol meldet nur ungelesene Anfragen, die frei oder die eigenen sind; als gelesen
+      gilt eine Anfrage erst, wenn der zuständige GM sie ansieht.
+    - Die Dialog-PM „an den GM“ geht ebenso an den einen GM online, sonst an alle.

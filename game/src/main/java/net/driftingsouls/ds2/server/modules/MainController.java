@@ -125,7 +125,7 @@ public class MainController extends Controller {
 		if (campaign.isEmpty() || !(gameMaster || Integer.valueOf(real.getId()).equals(campaign.get().getGamemasterId()))) {
 			return false;
 		}
-		return new GmRequestRepository().countOpenUnread(campaign.get().getId()) > 0;
+		return new GmRequestRepository().countOpenUnread(campaign.get().getId(), real.getId()) > 0;
 	}
 
 	/**

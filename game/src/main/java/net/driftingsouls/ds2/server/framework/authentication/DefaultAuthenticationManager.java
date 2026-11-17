@@ -259,8 +259,12 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 			listener.onAuthenticate(user);
 		}
 
-		// Under a master login this is the account taken over, not the admin behind it
+		// Under a master login this is the account taken over; the admin or game master behind it is online, too
 		UserActivityTracker.getInstance().recordActivity(user.getId());
+		if( jsession.getAttach() != null )
+		{
+			UserActivityTracker.getInstance().recordActivity(jsession.getAttach().getId());
+		}
 
 		if( jsession.getAttach() != null )
 		{

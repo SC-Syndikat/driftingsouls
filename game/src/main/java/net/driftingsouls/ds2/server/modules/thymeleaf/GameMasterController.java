@@ -485,9 +485,12 @@ public class GameMasterController implements DSController {
         public final String updated;
         public final boolean unread;
         public final String url;
+        /** Who looks after the request: "du", a game master's name, or "frei". */
+        public final String gamemaster;
 
-        RequestView(int id, String player, String dialog, String excerpt, String updated, boolean unread, String url)
+        RequestView(int id, String player, String dialog, String excerpt, String updated, boolean unread, String url, String gamemaster)
         {
+            this.gamemaster = gamemaster;
             this.id = id;
             this.player = player;
             this.dialog = dialog;
@@ -495,6 +498,20 @@ public class GameMasterController implements DSController {
             this.updated = updated;
             this.unread = unread;
             this.url = url;
+        }
+
+        private static String assignee(EntityManager db, GmRequest request)
+        {
+            if (request.assignedGamemasterId == null)
+            {
+                return "frei";
+            }
+            if (request.assignedGamemasterId == GameMasterControl.realUser().getId())
+            {
+                return "du";
+            }
+            User gamemaster = db.find(User.class, request.assignedGamemasterId);
+            return gamemaster == null ? "?" : gamemaster.getPlainname();
         }
 
         static List<RequestView> of(EntityManager db, Campaign campaign)
@@ -514,7 +531,8 @@ public class GameMasterController implements DSController {
                     text.length() > 120 ? text.substring(0, 120) + "…" : text,
                     Common.date("d.m. H:i", request.updatedAt),
                     request.unreadByGm,
-                    "./ds?module=admin&namedplugin=" + CampaignRequests.class.getName() + "&request=" + request.id + "&" + GameMasterMenu.PARAMETER + "=1"));
+                    "./ds?module=admin&namedplugin=" + CampaignRequests.class.getName() + "&request=" + request.id + "&" + GameMasterMenu.PARAMETER + "=1",
+                    assignee(db, request)));
             }
             return views;
         }

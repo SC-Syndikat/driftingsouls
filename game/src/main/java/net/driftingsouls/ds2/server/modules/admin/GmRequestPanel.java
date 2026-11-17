@@ -57,10 +57,41 @@ public final class GmRequestPanel
 		Optional<Interaction> interaction = Optional.ofNullable(request.interactionId).flatMap(id -> new InteractionRepository().find(id));
 		playerInfo(echo, em, request, interaction);
 		conversation(echo, em, request);
-		if (request.isOpen())
+		if (!request.isOpen())
 		{
-			form(echo, request, interaction, formAction, hiddenFields);
+			return;
 		}
+		// While steering an NPC, the game master is the one behind the session
+		int viewer = GameMasterControl.realUser().getId();
+		if (request.isAssignedToOtherThan(viewer))
+		{
+			takeOverForm(echo, em, request, formAction, hiddenFields);
+			return;
+		}
+		echo.append("<p class='campaign-hint'>").append(request.assignedGamemasterId == null
+				? "Noch kümmert sich kein GameMaster um diese Anfrage. Mit deiner ersten Antwort oder Aktion übernimmst du sie."
+				: "Du kümmerst dich um diese Anfrage.").append("</p>");
+		if (request.assignedGamemasterId == null)
+		{
+			echo.append("<form action='").append(esc(formAction)).append("' method='post'>").append(hiddenFields)
+					.append("<input type='hidden' name='gm_take' value='1' /><input type='submit' value='Anfrage übernehmen' /></form><br />");
+		}
+		form(echo, request, interaction, formAction, hiddenFields);
+	}
+
+	/**
+	 * Another game master looks after the request: answering needs taking it over first, which he confirms.
+	 */
+	private static void takeOverForm(StringBuilder echo, EntityManager em, GmRequest request, String formAction, String hiddenFields)
+	{
+		User assigned = em.find(User.class, request.assignedGamemasterId);
+		String name = assigned == null ? "Ein anderer GameMaster" : esc(assigned.getPlainname());
+		echo.append("<p><b>").append(name).append(" kümmert sich um diese Anfrage.</b> Antworten und Aktionen sind erst möglich, ")
+				.append("wenn du sie übernimmst; ").append(name).append(" erfährt das per PM.</p>");
+		echo.append("<form action='").append(esc(formAction)).append("' method='post'>").append(hiddenFields)
+				.append("<input type='hidden' name='gm_take' value='1' />")
+				.append("<label><input type='checkbox' name='gm_confirm' value='1' /> Ich übernehme diese Anfrage von ").append(name).append("</label> ")
+				.append("<input type='submit' value='Anfrage übernehmen' /></form>");
 	}
 
 	/**
@@ -72,6 +103,11 @@ public final class GmRequestPanel
 	{
 		GmRequestService service = new GmRequestService(em);
 		List<String> done = new ArrayList<>();
+		if ("1".equals(request.getParameterString("gm_take")))
+		{
+			service.take(gamemaster, requestId, "1".equals(request.getParameterString("gm_confirm")));
+			return List.of("Anfrage übernommen");
+		}
 		String type = request.getParameterString("gm_action");
 		if (!NO_ACTION.equals(type))
 		{

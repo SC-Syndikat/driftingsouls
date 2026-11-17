@@ -12,6 +12,7 @@ public enum GmAction
 	ADD_SHIPS("Schiffe hinzugefügt"),
 	HAND_OVER("Schiff übergeben"),
 	REQUEST_ACTION("Aktion aus Anfrage"),
+	REQUEST_TAKEOVER("Anfrage übernommen"),
 	BATTLE_END("Schlacht beendet"),
 	CAPITULATION("Kapitulation"),
 	CONTROL("Steuermodus"),

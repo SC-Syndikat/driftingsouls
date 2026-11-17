@@ -6,7 +6,7 @@ import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeLimitService;
 import net.driftingsouls.ds2.server.campaign.CampaignJumpNodeState;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
-import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.GameMasterPresence;
 import net.driftingsouls.ds2.server.campaign.JumpNodeLimits;
 import net.driftingsouls.ds2.server.campaign.ShipGroupRepository;
 import net.driftingsouls.ds2.server.campaign.ShipGroupSpawner;
@@ -1117,9 +1117,9 @@ public final class StandardActions
 		@Override
 		public void execute(DialogContext context, Params params)
 		{
-			// To the game master means to all of them
+			// To the game master means to the one online, or to all of them
 			Set<Integer> to = "GAMEMASTER".equals(params.get("to"))
-					? new CampaignService(context.em).gamemasterIds(context.requireCampaign())
+					? new GameMasterPresence(context.em).recipients(context.requireCampaign())
 					: Set.of(context.user.getId());
 			String text = params.get("text").replace("{spieler}", context.user.getPlainname());
 			for (int recipient : to)

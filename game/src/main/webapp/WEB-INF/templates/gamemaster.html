@@ -54,6 +54,7 @@
             <td class="noBorderX">Gespräch</td>
             <td class="noBorderX">Letzte Nachricht</td>
             <td class="noBorderX">Zeit</td>
+            <td class="noBorderX">GameMaster</td>
             <td class="noBorderX"></td>
           </tr>
           <tr th:each="r: ${gmRequests}">
@@ -62,6 +63,7 @@
             <td class="noBorderX" th:text="${r.dialog}"></td>
             <td class="noBorderX" th:text="${r.excerpt}"></td>
             <td class="noBorderX"><span th:text="${r.updated}"></span> <span th:if="${r.unread}" class="error">neu</span></td>
+            <td class="noBorderX" th:text="${r.gamemaster}"></td>
             <td class="noBorderX"><a class="forschinfo" th:href="${r.url}">öffnen &raquo;</a></td>
           </tr>
         </table>

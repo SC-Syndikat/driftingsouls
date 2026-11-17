@@ -8,6 +8,7 @@ import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.GameMasterPresence;
 import net.driftingsouls.ds2.server.campaign.GmAction;
 import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.NpcTestUsers;
@@ -128,6 +129,75 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 
 		assertEquals(1, pmsTo(gamemaster, "Hilfe angeboten"));
 		assertEquals(1, pmsTo(second, "Hilfe angeboten"));
+	}
+
+	@Test
+	public void givenOneGameMasterOnline_submit_shouldAssignTheRequestToHimAndTellOnlyHim()
+	{
+		User second = secondGamemaster();
+		requests = new GmRequestService(getEM(), new GameMasterPresence(getEM(), id -> id == second.getId()));
+		dialogs.start(player, playerShip, interactionId);
+
+		int id = requests.submit(player, playerShip, "Ich möchte dem Admiral ein Geschenk machen.");
+		getEM().flush();
+
+		assertEquals(Integer.valueOf(second.getId()), requests.forGamemaster(id).assignedGamemasterId);
+		assertEquals(1, pmsTo(second, "Kampagne: neue Anfrage%"));
+		assertEquals(0, pmsTo(gamemaster, "Kampagne: neue Anfrage%"));
+	}
+
+	@Test
+	public void givenTwoGameMastersOnline_submit_shouldLeaveTheRequestFreeAndTellBoth()
+	{
+		User second = secondGamemaster();
+		requests = new GmRequestService(getEM(), new GameMasterPresence(getEM(), id -> true));
+		dialogs.start(player, playerShip, interactionId);
+
+		int id = requests.submit(player, playerShip, "Ich möchte dem Admiral ein Geschenk machen.");
+		getEM().flush();
+
+		assertNull(requests.forGamemaster(id).assignedGamemasterId);
+		assertEquals(1, pmsTo(second, "Kampagne: neue Anfrage%"));
+		assertEquals(1, pmsTo(gamemaster, "Kampagne: neue Anfrage%"));
+	}
+
+	@Test
+	public void givenAFreeRequest_theFirstAnswer_shouldTakeIt()
+	{
+		dialogs.start(player, playerShip, interactionId);
+		int id = requests.submit(player, playerShip, "Ich möchte dem Admiral ein Geschenk machen.");
+
+		requests.gamemasterReply(gamemaster, id, "Was möchtest du ihm schenken?");
+
+		assertEquals(Integer.valueOf(gamemaster.getId()), requests.forGamemaster(id).assignedGamemasterId);
+	}
+
+	@Test
+	public void givenARequestOfAnotherGameMaster_heShouldAnswerOnlyAfterTakingItOver()
+	{
+		User second = secondGamemaster();
+		dialogs.start(player, playerShip, interactionId);
+		int id = requests.submit(player, playerShip, "Ich möchte dem Admiral ein Geschenk machen.");
+		requests.take(gamemaster, id, false);
+
+		assertThrows(CampaignException.class, () -> requests.gamemasterReply(second, id, "Ich mach das."));
+		assertThrows(CampaignException.class, () -> requests.runAction(second, id, "CHANGE_TRUST", Params.of("delta", "5", "reason", "x")));
+		assertThrows("Ohne Bestätigung übernimmt er sie nicht", CampaignException.class, () -> requests.take(second, id, false));
+
+		requests.take(second, id, true);
+		requests.gamemasterReply(second, id, "Ich mach das.");
+		getEM().flush();
+
+		assertEquals(Integer.valueOf(second.getId()), requests.forGamemaster(id).assignedGamemasterId);
+		assertEquals("Der bisherige GM erfährt es", 1, pmsTo(gamemaster, "Kampagne: Anfrage #" + id + " übernommen"));
+		assertThrows(CampaignException.class, () -> requests.gamemasterReply(gamemaster, id, "Doch ich."));
+	}
+
+	private User secondGamemaster()
+	{
+		User second = persist(new User("gm2", "***", 0, "", new Cargo(), "gm2@localhost"));
+		second.setFlag(UserFlag.GAMEMASTER);
+		return second;
 	}
 
 	private long pmsTo(User user, String title)

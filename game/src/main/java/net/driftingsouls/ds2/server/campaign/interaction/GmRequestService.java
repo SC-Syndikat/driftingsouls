@@ -6,7 +6,7 @@ import net.driftingsouls.ds2.server.campaign.CampaignBattles;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapRepository;
 import net.driftingsouls.ds2.server.campaign.CampaignRepository;
-import net.driftingsouls.ds2.server.campaign.CampaignService;
+import net.driftingsouls.ds2.server.campaign.GameMasterPresence;
 import net.driftingsouls.ds2.server.campaign.GmAction;
 import net.driftingsouls.ds2.server.campaign.GmActionLog;
 import net.driftingsouls.ds2.server.campaign.dialog.DialogAction;
@@ -40,10 +40,20 @@ public class GmRequestService
 	private final GmRequestRepository requests = new GmRequestRepository();
 	private final InteractionRepository interactions = new InteractionRepository();
 	private final CampaignRepository campaigns = new CampaignRepository();
+	private final GameMasterPresence presence;
 
 	public GmRequestService(EntityManager em)
 	{
+		this(em, new GameMasterPresence(em));
+	}
+
+	/**
+	 * @param presence Which game masters are online, to whom a new request goes
+	 */
+	public GmRequestService(EntityManager em, GameMasterPresence presence)
+	{
 		this.em = em;
+		this.presence = presence;
 	}
 
 	// ---------------------------------------------------------------- player
@@ -72,7 +82,7 @@ public class GmRequestService
 		if (open.isEmpty())
 		{
 			String label = interactions.find(session.interactionId).map(i -> i.label).orElse("?");
-			tellGamemasters(campaign, user, "Kampagne: neue Anfrage von " + user.getPlainname(),
+			tellGamemasters(campaign, id, user, "Kampagne: neue Anfrage von " + user.getPlainname(),
 					"Anfrage #" + id + " zu „" + label + "“ (Schiff " + ship.getId() + "):\n\n" + message
 							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.");
 		}
@@ -100,16 +110,25 @@ public class GmRequestService
 
 		if (open.isEmpty())
 		{
-			tellGamemasters(campaign, user, "Kampagne: Anfrage aus einer Schlacht von " + user.getPlainname(),
+			tellGamemasters(campaign, id, user, "Kampagne: Anfrage aus einer Schlacht von " + user.getPlainname(),
 					"Anfrage #" + id + " aus der Schlacht bei " + battle.getLocation().displayCoordinates(false) + ":\n\n" + message
 							+ "\n\nDu findest sie auf der GameMaster-Seite unter „Spieler-Anfragen“.");
 		}
 		return id;
 	}
 
-	private void tellGamemasters(Campaign campaign, User from, String title, String text)
+	/**
+	 * A new request goes to the one game master online, who looks after it from now on. With none or
+	 * several online all of them hear of it, and the first to take it looks after it.
+	 */
+	private void tellGamemasters(Campaign campaign, int requestId, User from, String title, String text)
 	{
-		for (int gamemaster : new CampaignService(em).gamemasterIds(campaign))
+		Set<Integer> online = presence.online(campaign);
+		if (online.size() == 1)
+		{
+			requests.assign(requestId, online.iterator().next());
+		}
+		for (int gamemaster : presence.recipients(campaign))
 		{
 			PM.send(from, gamemaster, title, text, em);
 		}
@@ -145,7 +164,7 @@ public class GmRequestService
 	 */
 	public void endBattle(User gamemaster, int requestId)
 	{
-		GmRequest request = forGamemaster(requestId);
+		GmRequest request = responsible(gamemaster, requestId);
 		Battle battle = request.battleId == null ? null : em.find(Battle.class, request.battleId);
 		if (battle == null)
 		{
@@ -167,7 +186,7 @@ public class GmRequestService
 	 */
 	public int capitulate(User gamemaster, int requestId)
 	{
-		GmRequest request = forGamemaster(requestId);
+		GmRequest request = responsible(gamemaster, requestId);
 		Campaign campaign = runningCampaign();
 		Battle battle = request.battleId == null ? null : em.find(Battle.class, request.battleId);
 		User player = em.find(User.class, request.userId);
@@ -277,6 +296,62 @@ public class GmRequestService
 	// ---------------------------------------------------------------- game master
 
 	/**
+	 * The game master looks after the request from now on. One that another game master looks after he takes
+	 * over only when he confirms it; the other one is told.
+	 *
+	 * @param confirmed Whether he confirmed taking over another game master's request
+	 */
+	public void take(User gamemaster, int requestId, boolean confirmed)
+	{
+		GmRequest request = forGamemaster(requestId);
+		if (!request.isOpen())
+		{
+			throw new CampaignException("Diese Anfrage ist bereits erledigt.");
+		}
+		if (!request.isAssignedToOtherThan(gamemaster.getId()))
+		{
+			requests.assign(request.id, gamemaster.getId());
+			return;
+		}
+		User previous = em.find(User.class, request.assignedGamemasterId);
+		if (!confirmed)
+		{
+			throw new CampaignException(name(previous) + " kümmert sich bereits um diese Anfrage. Bestätige, dass du sie übernehmen möchtest.");
+		}
+		requests.assign(request.id, gamemaster.getId());
+		User player = em.find(User.class, request.userId);
+		PM.send(gamemaster, request.assignedGamemasterId, "Kampagne: Anfrage #" + request.id + " übernommen",
+				gamemaster.getPlainname() + " hat die Anfrage #" + request.id + " von " + name(player)
+						+ " übernommen. Du musst dich nicht mehr darum kümmern.", em);
+		new GmActionLog().record(GmAction.REQUEST_TAKEOVER, gamemaster.getId(), null, request.userId,
+				"Anfrage #" + request.id + " von " + name(previous) + " übernommen");
+	}
+
+	/**
+	 * @return The request, which the game master looks after; a request nobody looks after becomes his
+	 * @throws CampaignException if another game master looks after it
+	 */
+	private GmRequest responsible(User gamemaster, int requestId)
+	{
+		GmRequest request = forGamemaster(requestId);
+		if (request.isAssignedToOtherThan(gamemaster.getId()))
+		{
+			throw new CampaignException(name(em.find(User.class, request.assignedGamemasterId))
+					+ " kümmert sich um diese Anfrage. Übernimm sie zuerst, wenn du antworten möchtest.");
+		}
+		if (request.assignedGamemasterId == null && request.isOpen())
+		{
+			requests.assign(request.id, gamemaster.getId());
+		}
+		return request;
+	}
+
+	private static String name(User user)
+	{
+		return user == null ? "Ein anderer GameMaster" : user.getPlainname();
+	}
+
+	/**
 	 * @return The request, if it belongs to the open campaign
 	 */
 	public GmRequest forGamemaster(int requestId)
@@ -290,7 +365,7 @@ public class GmRequestService
 	public void gamemasterReply(User gamemaster, int requestId, String text)
 	{
 		String message = checkText(text);
-		GmRequest request = forGamemaster(requestId);
+		GmRequest request = responsible(gamemaster, requestId);
 		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.GAMEMASTER, message);
 		PM.send(gamemaster, request.userId, "Kampagne: Antwort des GameMasters",
 				message + "\n\nDie ganze Unterhaltung findest du in der Ansicht deines Schiffs " + request.shipId + ".", em);
@@ -303,7 +378,7 @@ public class GmRequestService
 	 */
 	public String runAction(User gamemaster, int requestId, String type, Params params)
 	{
-		GmRequest request = forGamemaster(requestId);
+		GmRequest request = responsible(gamemaster, requestId);
 		DialogContext context = context(request, gamemaster);
 		DialogAction action = DialogTypes.get().action(type);
 		action.execute(context, params);
@@ -324,7 +399,7 @@ public class GmRequestService
 	 */
 	public void continueDialog(User gamemaster, int requestId, int nodeId)
 	{
-		GmRequest request = forGamemaster(requestId);
+		GmRequest request = responsible(gamemaster, requestId);
 		if (request.interactionId == null)
 		{
 			throw new CampaignException("Die Interaktion dieser Anfrage gibt es nicht mehr.");
@@ -348,7 +423,12 @@ public class GmRequestService
 
 	public void setStatus(User gamemaster, int requestId, GmRequest.Status status)
 	{
-		GmRequest request = forGamemaster(requestId);
+		// Reopening a closed request makes it his; closing one needs it to be his
+		GmRequest request = status == GmRequest.Status.OPEN ? forGamemaster(requestId) : responsible(gamemaster, requestId);
+		if (status == GmRequest.Status.OPEN)
+		{
+			requests.assign(request.id, gamemaster.getId());
+		}
 		requests.setStatus(request.id, status);
 		requests.addMessage(request.id, gamemaster.getId(), GmRequest.Kind.ACTION,
 				status == GmRequest.Status.CLOSED ? "Der GameMaster hat die Anfrage abgeschlossen." : "Der GameMaster hat die Anfrage wieder geöffnet.");

@@ -106,11 +106,15 @@ public class GmRequestRepository
 				.stream().map(GmRequestRepository::toRequest).collect(Collectors.toList()));
 	}
 
-	public int countOpenUnread(int campaignId)
+	/**
+	 * @return The open requests with unread messages that are the game master's or nobody's
+	 */
+	public int countOpenUnread(int campaignId, int gamemasterId)
 	{
 		return withDb(db -> db.fetchCount(GM_REQUEST, GM_REQUEST.CAMPAIGN_ID.eq(campaignId)
 				.and(GM_REQUEST.STATUS.eq(GmRequest.Status.OPEN.name()))
-				.and(GM_REQUEST.UNREAD_BY_GM.eq((byte) 1))));
+				.and(GM_REQUEST.UNREAD_BY_GM.eq((byte) 1))
+				.and(GM_REQUEST.ASSIGNED_GM_ID.isNull().or(GM_REQUEST.ASSIGNED_GM_ID.eq(gamemasterId)))));
 	}
 
 	/**
@@ -154,6 +158,14 @@ public class GmRequestRepository
 		withDb(db -> db.update(GM_REQUEST).set(GM_REQUEST.UNREAD_BY_USER, (byte) 0).where(GM_REQUEST.ID.eq(requestId)).execute());
 	}
 
+	/**
+	 * @param gamemasterId The game master who looks after the request from now on, {@code null} for nobody
+	 */
+	public void assign(int requestId, Integer gamemasterId)
+	{
+		withDb(db -> db.update(GM_REQUEST).set(GM_REQUEST.ASSIGNED_GM_ID, gamemasterId).where(GM_REQUEST.ID.eq(requestId)).execute());
+	}
+
 	public void setStatus(int requestId, GmRequest.Status status)
 	{
 		withDb(db -> db.update(GM_REQUEST)
@@ -166,6 +178,7 @@ public class GmRequestRepository
 	private static GmRequest toRequest(GmRequestRecord r)
 	{
 		return new GmRequest(r.getId(), r.getCampaignId(), r.getUserId(), r.getShipId(), r.getInteractionId(), r.getNodeId(), r.getBattleId(),
-				GmRequest.Status.valueOf(r.getStatus()), r.getCreatedAt(), r.getUpdatedAt(), r.getUnreadByGm() != 0, r.getUnreadByUser() != 0);
+				GmRequest.Status.valueOf(r.getStatus()), r.getCreatedAt(), r.getUpdatedAt(), r.getUnreadByGm() != 0, r.getUnreadByUser() != 0,
+				r.getAssignedGmId());
 	}
 }

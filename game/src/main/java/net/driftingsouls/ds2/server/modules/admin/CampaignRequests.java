@@ -106,7 +106,8 @@ public class CampaignRequests implements AdminPlugin
 			return;
 		}
 		echo.append("<table class='noBorderX'><tr><td class='noBorderX'>#</td><td class='noBorderX'>Spieler</td><td class='noBorderX'>Gespräch</td>")
-				.append("<td class='noBorderX'>Anliegen</td><td class='noBorderX'>Letzte Aktivität</td><td class='noBorderX'>Zustand</td></tr>");
+				.append("<td class='noBorderX'>Anliegen</td><td class='noBorderX'>Letzte Aktivität</td><td class='noBorderX'>GameMaster</td>")
+				.append("<td class='noBorderX'>Zustand</td></tr>");
 		for (GmRequest request : requests)
 		{
 			User player = em.find(User.class, request.userId);
@@ -117,6 +118,7 @@ public class CampaignRequests implements AdminPlugin
 					.append("</td><td class='noBorderX'>").append(esc(interactionLabel(request)))
 					.append("</td><td class='noBorderX'>").append(esc(first.length() > 80 ? first.substring(0, 80) + "…" : first))
 					.append("</td><td class='noBorderX'>").append(esc(Common.date("d.m. H:i", request.updatedAt)))
+					.append("</td><td class='noBorderX'>").append(assignee(em, request))
 					.append("</td><td class='noBorderX'>").append(request.unreadByGm ? "<span class='error'>neu</span> " : "")
 					.append(esc(request.status.getLabel())).append("</td></tr>");
 		}
@@ -125,7 +127,11 @@ public class CampaignRequests implements AdminPlugin
 
 	private void detail(StringBuilder echo, EntityManager em, GmRequest gmRequest)
 	{
-		new GmRequestRepository().markReadByGm(gmRequest.id);
+		// Read for the game master who looks after it, not when another one looks in
+		if (!gmRequest.isAssignedToOtherThan(GameMasterControl.realUser().getId()))
+		{
+			new GmRequestRepository().markReadByGm(gmRequest.id);
+		}
 		echo.append("<div class='gfxbox' style='width:950px'><h3>Anfrage ").append(gmRequest.id).append(" – ").append(esc(gmRequest.status.getLabel()))
 				.append(" – ").append(esc(interactionLabel(gmRequest))).append("</h3>");
 		StringBuilder hidden = new StringBuilder();
@@ -138,6 +144,23 @@ public class CampaignRequests implements AdminPlugin
 		}
 		echo.append("<p><a class='forschinfo' href='").append(pluginUrl(CampaignLog.class)).append("&amp;user=").append(gmRequest.userId)
 				.append("'>Protokoll des Spielers</a></p></div><br />");
+	}
+
+	/**
+	 * @return Who looks after the request: "du", the game master's name, or "frei"
+	 */
+	private static String assignee(EntityManager em, GmRequest request)
+	{
+		if (request.assignedGamemasterId == null)
+		{
+			return request.isOpen() ? "<span style='color:#ffcc00'>frei</span>" : "";
+		}
+		if (request.assignedGamemasterId == GameMasterControl.realUser().getId())
+		{
+			return "du";
+		}
+		User gamemaster = em.find(User.class, request.assignedGamemasterId);
+		return gamemaster == null ? "?" : esc(gamemaster.getPlainname());
 	}
 
 	private static String interactionLabel(GmRequest request)
