@@ -225,7 +225,7 @@ public class User extends BasicUser {
 	private ShipNameGenerator schiffsNamenGenerator;
 
 	@OneToMany(mappedBy="userRankKey.owner")
-    private Set<UserRank> userRanks;
+    private Set<UserRank> userRanks = new HashSet<>();
     @OneToMany(mappedBy="user", cascade=CascadeType.ALL)
     private Set<Loyalitaetspunkte> loyalitaetspunkte;
 
