@@ -68,14 +68,10 @@ public final class GmRequestPanel
 			takeOverForm(echo, em, request, formAction, hiddenFields);
 			return;
 		}
+		// A free request becomes the game master's with his first answer or action
 		echo.append("<p class='campaign-hint'>").append(request.assignedGamemasterId == null
 				? "Noch kümmert sich kein GameMaster um diese Anfrage. Mit deiner ersten Antwort oder Aktion übernimmst du sie."
 				: "Du kümmerst dich um diese Anfrage.").append("</p>");
-		if (request.assignedGamemasterId == null)
-		{
-			echo.append("<form action='").append(esc(formAction)).append("' method='post'>").append(hiddenFields)
-					.append("<input type='hidden' name='gm_take' value='1' /><input type='submit' value='Anfrage übernehmen' /></form><br />");
-		}
 		form(echo, request, interaction, formAction, hiddenFields);
 	}
 

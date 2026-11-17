@@ -1032,8 +1032,8 @@ Entschieden am 2026-11-17:
     - Ist beim Eingang einer neuen Anfrage genau ein GM online, gehört sie ihm, und nur er bekommt die
       PM. Sonst bekommen alle GMs die PM, und die Anfrage ist frei (`GameMasterPresence`, online wie
       im Teilnehmerstatus; wer einen NPC steuert, zählt jetzt ebenfalls als online).
-    - Eine freie Anfrage nimmt sich ein GM mit „Anfrage übernehmen“ oder mit seiner ersten Antwort
-      oder Aktion.
+    - Eine freie Anfrage nimmt sich ein GM mit seiner ersten Antwort oder Aktion, ohne eigenen Knopf;
+      tippen zwei GMs gleichzeitig, wird die spätere Antwort abgelehnt (bewusst so hingenommen).
     - Kümmert sich ein anderer GM darum, sieht er das und kann nicht antworten, keine Aktion ausführen
       und nicht abschließen. Erst muss er bestätigen, dass er sie übernimmt
       (`GmRequestService.take`); der bisherige GM bekommt eine PM, das GM-Protokoll einen Eintrag.
