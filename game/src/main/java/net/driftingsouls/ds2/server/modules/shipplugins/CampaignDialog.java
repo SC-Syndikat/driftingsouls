@@ -3,6 +3,7 @@ package net.driftingsouls.ds2.server.modules.shipplugins;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
+import net.driftingsouls.ds2.server.campaign.CampaignRepository;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.GameMasterPermissionResolver;
 import net.driftingsouls.ds2.server.campaign.dialog.ObjectType;
@@ -257,7 +258,11 @@ public class CampaignDialog implements ShipPlugin
 			return "";
 		}
 		StringBuilder html = new StringBuilder("<span class=\"smallfont\">GameMaster – Interaktionen dieses Schiffs: ");
-		List<Interaction> interactions = new InteractionRepository().findFor(ObjectType.SHIP, ship.getId());
+		// Only the open campaign's: those of earlier campaigns are not offered any more
+		Optional<Integer> campaignId = new CampaignRepository().findOpen().map(Campaign::getId);
+		List<Interaction> interactions = new InteractionRepository().findFor(ObjectType.SHIP, ship.getId()).stream()
+				.filter(i -> campaignId.isPresent() && campaignId.get().equals(i.campaignId))
+				.collect(Collectors.toList());
 		if (interactions.isEmpty())
 		{
 			html.append("keine");

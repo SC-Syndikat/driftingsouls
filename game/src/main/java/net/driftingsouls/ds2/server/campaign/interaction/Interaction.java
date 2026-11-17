@@ -28,6 +28,8 @@ public class Interaction
 	}
 
 	public final int id;
+	/** The campaign it belongs to; it is offered only while that campaign runs. {@code null}: none. */
+	public final Integer campaignId;
 	/** What the player clicks, e.g. "Mit dem Admiral sprechen". */
 	public final String label;
 	public final ObjectType objectType;
@@ -44,10 +46,11 @@ public class Interaction
 	public final Set<Integer> audienceUserIds;
 	public final Set<Integer> audienceAllianceIds;
 
-	public Interaction(int id, String label, ObjectType objectType, int objectId, int startNodeId, int npcUserId, boolean active,
+	public Interaction(int id, Integer campaignId, String label, ObjectType objectType, int objectId, int startNodeId, int npcUserId, boolean active,
 					   Integer maxUsesPerUser, Integer cooldownTicks, Audience audience, Set<Integer> audienceUserIds, Set<Integer> audienceAllianceIds)
 	{
 		this.id = id;
+		this.campaignId = campaignId;
 		this.label = label;
 		this.objectType = objectType;
 		this.objectId = objectId;

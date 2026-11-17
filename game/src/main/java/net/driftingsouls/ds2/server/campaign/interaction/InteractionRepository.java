@@ -37,6 +37,21 @@ public class InteractionRepository
 		});
 	}
 
+	/**
+	 * @return The interactions of the campaign, active or not
+	 */
+	public List<Interaction> findForCampaign(int campaignId)
+	{
+		return withDb(db -> {
+			List<Interaction> result = new ArrayList<>();
+			for (InteractionRecord r : db.selectFrom(INTERACTION).where(INTERACTION.CAMPAIGN_ID.eq(campaignId)).orderBy(INTERACTION.ID).fetch())
+			{
+				result.add(toInteraction(db, r));
+			}
+			return result;
+		});
+	}
+
 	public Optional<Interaction> find(int id)
 	{
 		return withDb(db -> db.selectFrom(INTERACTION).where(INTERACTION.ID.eq(id)).fetchOptional().map(r -> toInteraction(db, r)));
@@ -94,6 +109,7 @@ public class InteractionRepository
 	{
 		return withDb(db -> {
 			InteractionRecord record = interaction.id == 0 ? db.newRecord(INTERACTION) : db.fetchOne(INTERACTION, INTERACTION.ID.eq(interaction.id));
+			record.setCampaignId(interaction.campaignId);
 			record.setLabel(interaction.label);
 			record.setObjectType(interaction.objectType.name());
 			record.setObjectId(interaction.objectId);
@@ -141,7 +157,64 @@ public class InteractionRepository
 				.execute());
 	}
 
+	/**
+	 * Copies the interactions of one campaign into another, with their audience. The copies start with
+	 * their own limits: uses are counted per interaction.
+	 */
+	public void copyToCampaign(int sourceCampaignId, int targetCampaignId)
+	{
+		for (Interaction i : findForCampaign(sourceCampaignId))
+		{
+			int copyId = save(new Interaction(0, targetCampaignId, i.label, i.objectType, i.objectId, i.startNodeId, i.npcUserId, i.active,
+					i.maxUsesPerUser, i.cooldownTicks, i.audience, i.audienceUserIds, i.audienceAllianceIds));
+			withDb(db -> {
+				Integer origin = db.select(INTERACTION.ORIGIN_ID).from(INTERACTION).where(INTERACTION.ID.eq(i.id)).fetchOne(INTERACTION.ORIGIN_ID);
+				return db.update(INTERACTION).set(INTERACTION.ORIGIN_ID, origin != null ? origin : i.id).where(INTERACTION.ID.eq(copyId)).execute();
+			});
+		}
+	}
+
+	/**
+	 * Dialogs are shared by all campaigns and refer to interactions by id. A reference to an interaction of
+	 * another campaign means its copy in the given campaign: the one with the same origin.
+	 *
+	 * @return The interaction in the campaign; the given one if it belongs there or has no copy there
+	 */
+	public int resolveForCampaign(int interactionId, int campaignId)
+	{
+		return withDb(db -> {
+			InteractionRecord referenced = db.fetchOne(INTERACTION, INTERACTION.ID.eq(interactionId));
+			if (referenced == null || Integer.valueOf(campaignId).equals(referenced.getCampaignId()))
+			{
+				return interactionId;
+			}
+			int origin = referenced.getOriginId() != null ? referenced.getOriginId() : referenced.getId();
+			return db.select(INTERACTION.ID).from(INTERACTION)
+					.where(INTERACTION.CAMPAIGN_ID.eq(campaignId))
+					.and(INTERACTION.ID.eq(origin).or(INTERACTION.ORIGIN_ID.eq(origin)))
+					.orderBy(INTERACTION.ID)
+					.limit(1)
+					.fetchOptional(INTERACTION.ID)
+					.orElse(interactionId);
+		});
+	}
+
 	// ---------------------------------------------------------------- sessions
+
+	public int countSessions()
+	{
+		return withDb(db -> db.fetchCount(DIALOG_SESSION));
+	}
+
+	/**
+	 * Ends every dialog in progress.
+	 *
+	 * @return How many there were
+	 */
+	public int endAllSessions()
+	{
+		return withDb(db -> db.deleteFrom(DIALOG_SESSION).execute());
+	}
 
 	public int startSession(int userId, int shipId, int interactionId, int nodeId)
 	{
@@ -275,7 +348,7 @@ public class InteractionRepository
 				alliances.add(a.getAllianceId());
 			}
 		}
-		return new Interaction(r.getId(), r.getLabel(), ObjectType.valueOf(r.getObjectType()), r.getObjectId(), r.getStartNodeId(),
+		return new Interaction(r.getId(), r.getCampaignId(), r.getLabel(), ObjectType.valueOf(r.getObjectType()), r.getObjectId(), r.getStartNodeId(),
 				r.getNpcUserId(), r.getActive() != 0, r.getMaxUsesPerUser(), r.getCooldownTicks(),
 				Interaction.Audience.valueOf(r.getAudience()), users, alliances);
 	}

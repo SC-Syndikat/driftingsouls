@@ -31,7 +31,7 @@ V046 (Dialoge, Variablen, Vertrauen), V047 (Interaktionen, Sessions, Protokoll),
 Sprungpunkte), V049 (Fremdschlüssel der Schiffshistorie entfernt), V050 (Antwort nur einmal), V051
 (Schlachtnotiz), V052 (Teilerfolg), V053 (Standardwerte der Waren-Aktionen), V054 (Pflichtantwort),
 V055 (GM-Anfragen), V056 (Anfragen aus Schlachten), V057 (einzelne Offiziersfähigkeiten in Vorlagen),
-V058 (Module in Vorlagen). V042 gehört zum Discord-Chat.
+V058 (Module in Vorlagen), V059 (Interaktionen gehören zu einer Kampagne). V042 gehört zum Discord-Chat.
 
 Vokabular gemäß `CONTEXT.md`. Neuer Code verwendet englische Bezeichner. Bestehende Klassen, in die wir
 nur Hooks einbauen, werden **nicht** umbenannt (das macht Track Zero).
@@ -938,36 +938,59 @@ Beantwortet am 2026-09-25:
 
 **Lücken im Konzept** (aufgefallen beim Abgleich am 2026-11-11)
 
-Entschieden am 2026-11-11, noch nicht umgesetzt:
+Entschieden am 2026-11-11, umgesetzt am 2026-11-17:
 
-6. **Kampagnenende schließt Offenes automatisch ab.** `CampaignService.end()` setzt bisher nur die
-   Sprungpunkte und die Teilnehmer-Flags zurück. Künftig zusätzlich:
-   - offene Gespräche (`dialog_session`) enden;
-   - offene GM-Anfragen werden geschlossen;
-   - laufende Schlachten in Kampagnensystemen enden unentschieden, wie mit „Schlacht beenden“
-     (`CampaignBattles.end`);
-   - ein laufender Steuermodus des GM endet.
+6. **Kampagnenende schließt Offenes automatisch ab.** ✅ `CampaignService.end(campaign, actor)`
+   beendet zusätzlich zu Sprungpunkten und Teilnehmer-Flags:
+   - laufende Gespräche (`dialog_session`);
+   - offene GM-Anfragen, mit dem Vermerk „Die Kampagne ist beendet.“;
+   - Schlachten in Kampagnensystemen, unentschieden über `CampaignBattles.end` (die Kommandanten
+     bekommen dessen PM).
 
-   Die Ende-Ansicht kündigt das vorher an und nennt die Anzahl je Art.
-7. **Interaktionen gehören zu einer Kampagne.** Bisher hängen sie nur am Objekt und sind in der
-   nächsten Kampagne wieder aktiv. Künftig:
-   - `interaction` bekommt eine `campaign_id`; angeboten werden nur die Interaktionen der laufenden
-     Kampagne, der Editor zeigt die der offenen Kampagne;
-   - die Migration ordnet bestehende Interaktionen der zuletzt angelegten Kampagne zu;
-   - „Kampagne kopieren“ legt eine neue vorbereitete Kampagne an und übernimmt Systeme,
-     Sprungpunkte, Teilnehmer nach Wahl und die Interaktionen; die Dialoge sind ohnehin
-     wiederverwendbar.
+   Die Ende-Ansicht nennt vorher die Anzahl je Art (`findEndConsequences`), die Meldung danach, was
+   abgeschlossen wurde. Wer die Kampagne im Steuermodus beendet, kehrt in den eigenen Account zurück;
+   andere Sitzungen im Steuermodus behalten im Umschalter den Weg zurück, auch ohne steuerbare NPCs.
+7. **Interaktionen gehören zu einer Kampagne.** ✅ V059 (`interaction.campaign_id`, bestehende gehen an
+   die zuletzt angelegte Kampagne; `interaction.origin_id` für Kopien).
+   - Angeboten werden nur die Interaktionen der laufenden Kampagne (`DialogService.stillPossible`).
+   - Editor, Auswahlliste der Dialog-Aktionen und GM-Kasten im Schiff zeigen die der offenen
+     Kampagne; neue Interaktionen gehören zu ihr. Ohne offene Kampagne lässt sich keine anlegen.
+   - Vorlage-Interaktionen, die eine Schiffsgruppe beim Erscheinen mitbekommt, gehören zur Kampagne
+     des Gesprächs.
+   - „Kampagne kopieren“ (Plugin Teilnehmer, solange keine Kampagne offen ist) legt eine vorbereitete
+     Kampagne aus einer beendeten an: Systeme, Interaktionen samt Zielgruppe und wahlweise die
+     Teilnehmer (ohne Urlaubsmodus). Kampagnen-Sprungpunkte gelten ohnehin für alle Kampagnen. Die
+     kopierten Interaktionen zählen ihre Limits neu.
+   - Dialoge gelten für alle Kampagnen und verweisen über Aktionen auf Interaktionen
+     („Interaktion (de)aktivieren“, Vorlage-Interaktion bei „Schiffsgruppe erscheinen lassen“). Jede
+     Kopie merkt sich ihren Ursprung (`origin_id`); beim Ausführen löst
+     `InteractionRepository.resolveForCampaign` einen Verweis auf die Kopie der laufenden Kampagne auf,
+     auch über mehrere Kopien hinweg.
+   - Die Testskripte in `docs/testdata/` legen ihre Interaktionen für Kampagne 1 an.
 
-   Offen dabei: ob Variablen der alten Kampagne in die Kopie übernommen werden können (für
-   Fortsetzungen) und ob gespawnte NPC-Schiffe beim Ende stehen bleiben (bisher: ja).
-8. **PM an alle Teilnehmer** bei Kampagnenstart (Name, Hinweis auf die Sprungpunkte), bei
-   Kampagnenende (wer noch Schiffe in Kampagnensystemen hat, erfährt, wo sie stehen) und nach jedem
-   Kampagnentick (Ticknummer, „du bist wieder dran“). Absender wie bei den übrigen Systemnachrichten.
-9. **Der Kampagnentick bleibt ein voller Tick.** Er rechnet für die Kampagnensysteme alles, was der
-   reguläre Tick rechnet, auch Produktion und Verbrauch. Kampagnensysteme laufen damit bewusst
-   schneller als der Rest des Universums.
+   Weiter offen: ob Variablen der alten Kampagne in die Kopie übernommen werden können (für
+   Fortsetzungen; bisher nicht) und ob gespawnte NPC-Schiffe beim Ende stehen bleiben (bisher: ja).
+8. **PM an alle teilnehmenden Spieler** ✅ bei Kampagnenstart (Name und Kampagnensysteme), bei
+   Kampagnenende (mit den Schiffen, die noch in Kampagnensystemen stehen) und nach jedem Kampagnentick
+   (`CampaignService.recordCampaignTick`, aus `CampaignTick` in eigener Transaktion). NPC-Accounts
+   bekommen keine. Absender ist der Systemaccount -1, ohne ihn der GM der Kampagne.
+9. **Der Kampagnentick bleibt ein voller Tick.** ✅ Er rechnet für die Kampagnensysteme alles, was
+   der reguläre Tick rechnet, auch Produktion, Verbrauch und Sold. Kampagnensysteme laufen damit
+   bewusst schneller als der Rest des Universums. Beim Prüfen auf dem Testsystem fielen zwei Fehler
+   auf, beide behoben:
+   - Ein GM ohne Admin-Level konnte keinen Kampagnentick auslösen: Die GM-Seite ging über die
+     Admin-Konsole, die das Recht `CONSOLE` verlangt, und meldete trotzdem „gestartet“. Sie startet
+     den Tick jetzt direkt über `TickAdminCommand`.
+   - `RestTick.doBoulders` verglich im Kampagnentick das Sternensystem-Entity mit Systemnummern und
+     brach ab; Felsbrocken wurden in Kampagnensystemen nie nachgefüllt (`RestTickCampaignBoulderTest`).
 
 Noch nicht entschieden:
+
+13. **Sold im Kampagnentick:** Weil der Kampagnentick ein voller Tick ist, zahlen auch die NPC-Accounts
+    des GM Sold. Ist ihr Konto leer, desertieren ihre Schiffe zu NPC -15, auf dem Testsystem traf das
+    Admiral Vex und das Trümmerteil. Ebenso verlieren Spieler ohne Geld ihre Schiffe schneller, weil
+    Kampagnenticks zusätzlich zu den regulären kommen. Möglich: Kampagnen-NPCs vom Sold befreien,
+    Sold nur im regulären Tick, oder nur ein Hinweis an den GM, wenn ein NPC-Konto nicht reicht.
 
 10. **Protokoll der GM-Handlungen:** Masterlogin und Vertrauenskorrekturen werden festgehalten;
     Spawnen, Übergeben, Credits, Schlachtende, Aktionen aus Anfragen und der Steuermodus nicht.

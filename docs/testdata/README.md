@@ -20,6 +20,10 @@ bevor es etwas ändert.
 
 Den NPC -901 „Piraten vom Roten Nebel“ legt `campaign_piraten.sql` als Kopie von -900 an.
 
+**Geld:** Der Kampagnentick ist ein voller Tick, die Besatzungen wollen Sold. Ohne Geld desertieren die
+Schiffe zu NPC -15, auch die des NPC. `reset_test_campaign.sql` gibt den NPCs 10.000.000 RE und dem
+Spieler 100.000 RE.
+
 **Über die GM-Werkzeuge anlegen**, als 90002:
 
 1. Kampagne vorbereiten: Kampagne 1 „Testkampagne Maelstrom“, Teilnehmer 90003 und -900.
@@ -50,8 +54,10 @@ Sprungpunkt in 612:150/150.
 
 `reset_test_campaign.sql` setzt den Fortschritt des Spielers zurück: gespawnte NPC-Schiffe,
 Leih-Raider, Schlachten aus Dialogen, Gespräche, Anfragen, Protokoll, Variablen, Vertrauen,
-Beziehungen, Position und Ladung der Spielerschiffe und das Konto. Die Kampagne selbst und ihre
+Beziehungen, Position und Ladung der Spielerschiffe und die Konten. Die Kampagne selbst und ihre
 Dialoge bleiben.
+
+Die Interaktionen legen die Skripte für Kampagne 1 an (`interaction.campaign_id`, ab V059).
 
 Die drei Aufbauskripte legen Datensätze mit festen IDs an (Dialogknoten, Optionen, Interaktionen 1–4,
 Vorlagen 2 und 3) und lassen sich deshalb nur einmal auf eine leere Kampagne anwenden.

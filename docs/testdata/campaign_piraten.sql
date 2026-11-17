@@ -56,8 +56,8 @@ INSERT INTO dialog_option_modifier (option_id, type, params, factor, min_value, 
 (22, 'OFFICER_SKILL', '{"ability":"SEC"}', 0.1, NULL, 200);
 
 -- Template interaction, copied onto the pirate ship when it appears; inactive itself
-INSERT INTO interaction (id, label, object_type, object_id, start_node_id, npc_user_id, active, max_uses_per_user, cooldown_ticks, audience) VALUES
-(4, 'Kapitän Skarn anfunken', 'SHIP', 0, 18, -901, 0, NULL, NULL, 'ALL');
+INSERT INTO interaction (id, campaign_id, label, object_type, object_id, start_node_id, npc_user_id, active, max_uses_per_user, cooldown_ticks, audience) VALUES
+(4, 1, 'Kapitän Skarn anfunken', 'SHIP', 0, 18, -901, 0, NULL, NULL, 'ALL');
 
 INSERT INTO dialog_option_action (option_id, sort, outcome, type, params) VALUES
 (22, 3, 'FAILURE', 'SPAWN_SHIP_GROUP', '{"template":"2","interaction":"4"}');

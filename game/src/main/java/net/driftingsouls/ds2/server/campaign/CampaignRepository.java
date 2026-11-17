@@ -3,6 +3,7 @@ package net.driftingsouls.ds2.server.campaign;
 import net.driftingsouls.ds2.server.entities.jooq.tables.records.CampaignRecord;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -27,6 +28,22 @@ public class CampaignRepository
 				.limit(1)
 				.fetchOptional()
 				.map(CampaignRepository::toCampaign));
+	}
+
+	public Optional<Campaign> find(int campaignId)
+	{
+		return withDb(db -> db.selectFrom(CAMPAIGN).where(CAMPAIGN.ID.eq(campaignId)).fetchOptional().map(CampaignRepository::toCampaign));
+	}
+
+	/**
+	 * @return The ended campaigns, newest first
+	 */
+	public List<Campaign> findEnded()
+	{
+		return withDb(db -> db.selectFrom(CAMPAIGN)
+				.where(CAMPAIGN.STATUS.eq(CampaignStatus.ENDED.name()))
+				.orderBy(CAMPAIGN.ID.desc())
+				.fetch(CampaignRepository::toCampaign));
 	}
 
 	public Campaign create(String name, int gamemasterId, long now)

@@ -391,7 +391,7 @@ public class DialogService
 	 */
 	private Optional<String> stillPossible(Interaction interaction, User user, Ship ship, Campaign campaign)
 	{
-		if (!interaction.active)
+		if (!interaction.active || !Integer.valueOf(campaign.getId()).equals(interaction.campaignId))
 		{
 			return Optional.of("Dieses Gespräch ist gerade nicht möglich.");
 		}

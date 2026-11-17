@@ -98,8 +98,8 @@ INSERT INTO dialog_option_action (option_id, sort, outcome, type, params) VALUES
 (12, 3, 'FAILURE', 'START_BATTLE', '{"source":"TEMPLATE","template":"1"}'),
 (17, 1, 'ALWAYS', 'SET_VARIABLE', '{"name":"auftrag_angenommen","scope":"USER","value":"1"}');
 
-INSERT INTO interaction (id, label, object_type, object_id, start_node_id, npc_user_id, active, max_uses_per_user, cooldown_ticks, audience) VALUES
-(1, 'Mit Admiral Vex sprechen', 'SHIP', @vex, 1, -900, 1, NULL, NULL, 'ALL'),
-(2, 'Notsignal untersuchen', 'STAR_SYSTEM', 621, 6, -900, 1, 1, NULL, 'ALL');
+INSERT INTO interaction (id, campaign_id, label, object_type, object_id, start_node_id, npc_user_id, active, max_uses_per_user, cooldown_ticks, audience) VALUES
+(1, 1, 'Mit Admiral Vex sprechen', 'SHIP', @vex, 1, -900, 1, NULL, NULL, 'ALL'),
+(2, 1, 'Notsignal untersuchen', 'STAR_SYSTEM', 621, 6, -900, 1, 1, NULL, 'ALL');
 
 COMMIT;

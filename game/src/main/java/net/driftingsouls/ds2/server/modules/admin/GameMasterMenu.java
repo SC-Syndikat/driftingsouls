@@ -146,7 +146,8 @@ public final class GameMasterMenu
 			return "";
 		}
 		List<User> npcs = GameMasterControl.controllableNpcs();
-		if (npcs.isEmpty())
+		// Without NPCs to steer, e.g. after the campaign ended, the way back to the own account stays
+		if (npcs.isEmpty() && !GameMasterControl.isControlling())
 		{
 			return "";
 		}

@@ -117,7 +117,7 @@ public class CampaignMapServiceTest extends DBSingleTransactionTest
 		assertEquals(CampaignJumpNodeState.ACTIVE, map.getJumpNodeState(node.getId()));
 		assertFalse(node.isHidden());
 
-		campaigns.end(campaigns.findOpenCampaign().orElseThrow());
+		campaigns.end(campaigns.findOpenCampaign().orElseThrow(), gamemaster);
 		assertEquals(CampaignJumpNodeState.PREPARED, map.getJumpNodeState(node.getId()));
 		assertTrue(node.isHidden());
 	}

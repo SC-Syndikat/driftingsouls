@@ -7,7 +7,6 @@ import net.driftingsouls.ds2.server.campaign.interaction.GmRequest;
 import net.driftingsouls.ds2.server.campaign.interaction.GmRequestRepository;
 import net.driftingsouls.ds2.server.campaign.interaction.InteractionRepository;
 import net.driftingsouls.ds2.server.modules.admin.CampaignRequests;
-import net.driftingsouls.ds2.server.AdminCommands;
 import net.driftingsouls.ds2.server.Location;
 import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignException;
@@ -22,6 +21,7 @@ import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.entities.UserFlag;
 import net.driftingsouls.ds2.server.framework.Common;
 import net.driftingsouls.ds2.server.framework.Context;
+import net.driftingsouls.ds2.server.TickAdminCommand;
 import net.driftingsouls.ds2.server.framework.ContextMap;
 import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.repositories.StarsystemRepository;
@@ -164,7 +164,8 @@ public class GameMasterController implements DSController {
         return;
       }
 
-      new AdminCommands().executeCommand("tick campaign run "+String.join(";", systems));
+      // Directly, not through the admin console: that needs the console permission, which a game master does not have
+      context.getBean(TickAdminCommand.class, null).runRegularTick(null, String.join(";", systems));
       ctx.setVariable("out", "Kampagnentick für Systeme "+String.join(", ",systems)+" gestartet");
       defaultAction(ctx, request, user, Show.TICK);
     }
@@ -215,8 +216,14 @@ public class GameMasterController implements DSController {
         return;
       }
       try {
-        service.end(campaign.orElseThrow(() -> new CampaignException("Es läuft keine Kampagne.")));
-        ctx.setVariable("out", "Kampagne beendet. Teilnehmerstatus zurückgesetzt, Kampagnen-Sprungpunkte wieder vorbereitet.");
+        CampaignService.EndConsequences closed = service.end(campaign.orElseThrow(() -> new CampaignException("Es läuft keine Kampagne.")), user);
+        // A game master steering a campaign NPC goes back to his own account: there is nothing left to steer
+        if(GameMasterControl.isControlling()){
+          GameMasterControl.switchTo(user.getId());
+        }
+        ctx.setVariable("out", "Kampagne beendet. Teilnehmerstatus zurückgesetzt, Kampagnen-Sprungpunkte wieder vorbereitet, Teilnehmer per PM informiert."
+            + (closed.isEmpty() ? "" : " Abgeschlossen: " + closed.conversations + " Gespräch(e), " + closed.requests + " Anfrage(n), "
+            + closed.battles + " Schlacht(en)."));
       } catch(CampaignException e) {
         ctx.setVariable("error", new Error(HtmlUtils.htmlEscape(e.getMessage()), "./gamemaster"));
       }
@@ -396,6 +403,7 @@ public class GameMasterController implements DSController {
             ctx.setVariable("allReady", userlist.stream().allMatch(u -> Boolean.TRUE.equals(u.isTickReady())));
           }
           else if(running){
+            ctx.setVariable("endConsequences", new CampaignService(db).findEndConsequences(campaign.get()));
             ctx.setVariable("leftBehind", mapService.findPlayerObjects(campaign.get()));
             List<ExitView> exits = new ArrayList<>();
             for(JumpNode node : mapService.findExits(campaign.get())){

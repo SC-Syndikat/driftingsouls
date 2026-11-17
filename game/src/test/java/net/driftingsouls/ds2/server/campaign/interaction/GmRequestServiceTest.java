@@ -66,12 +66,13 @@ public class GmRequestServiceTest extends DBSingleTransactionTest
 		campaigns.updateParticipants(prepared, Set.of(player.getId(), npc.getId()), gamemaster);
 		new CampaignMapService(getEM()).addSystem(prepared, system.getID());
 		campaigns.start(prepared);
+		Campaign campaign = campaigns.findOpenCampaign().orElseThrow();
 
 		DialogRepository repository = new DialogRepository();
 		int greeting = repository.createNode("Begrüßung", "Admiral", "", "Willkommen an Bord.");
 		farewell = repository.createNode("Abschied", "Admiral", "", "Viel Glück.");
 		repository.createOption(greeting, 1, "Hallo.", null, null, null, true, false);
-		interactionId = new InteractionRepository().save(new Interaction(0, "Mit dem Admiral sprechen", ObjectType.SHIP, npcShip.getId(), greeting,
+		interactionId = new InteractionRepository().save(new Interaction(0, campaign.getId(), "Mit dem Admiral sprechen", ObjectType.SHIP, npcShip.getId(), greeting,
 				npc.getId(), true, null, null, Interaction.Audience.ALL, Set.of(), Set.of()));
 
 		dialogs = new DialogService(getEM(), new DialogEngine(), () -> 0);

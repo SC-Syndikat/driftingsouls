@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import static net.driftingsouls.ds2.server.modules.admin.CampaignAdminHtml.*;
 
@@ -149,8 +150,11 @@ public class CampaignInteractions implements AdminPlugin
 		}
 		checkAllowed(em, restriction, type, objectId, npcId);
 
+		// A new interaction belongs to the open campaign; an existing one keeps its campaign
+		Integer campaignId = id != 0 ? find(id).campaignId : new CampaignService(em).findOpenCampaign().map(Campaign::getId)
+				.orElseThrow(() -> new CampaignException("Lege zuerst eine Kampagne an: Interaktionen gehören zu einer Kampagne."));
 		Interaction.Audience audience = Interaction.Audience.valueOf(request.getParameterString("audience"));
-		return repository.save(new Interaction(id, label, type, objectId, startNode, npcId, "1".equals(request.getParameterString("active")),
+		return repository.save(new Interaction(id, campaignId, label, type, objectId, startNode, npcId, "1".equals(request.getParameterString("active")),
 				optionalInt(request, "maxuses"), optionalInt(request, "cooldown"), audience,
 				multiSelectIds(request, "audienceusers"), multiSelectIds(request, "audiencealliances")));
 	}
@@ -384,7 +388,15 @@ public class CampaignInteractions implements AdminPlugin
 		echo.append("<table class='noBorderX' cellpadding='3'><tr><td class='noBorderX'>ID</td><td class='noBorderX'>Beschriftung</td>")
 				.append("<td class='noBorderX'>Objekt</td><td class='noBorderX'>Start</td><td class='noBorderX'>NPC</td><td class='noBorderX'>Limits</td>")
 				.append("<td class='noBorderX'>Zustand</td><td class='noBorderX'></td></tr>");
-		for (Interaction interaction : filterType == null ? repository.findAll() : repository.findFor(filterType, filterId))
+		Optional<Campaign> campaign = new CampaignService(em).findOpenCampaign();
+		if (campaign.isEmpty())
+		{
+			echo.append("<tr><td class='noBorderX' colspan='8'>Es gibt keine offene Kampagne. Interaktionen gehören zu einer Kampagne;")
+					.append(" die einer beendeten Kampagne übernimmt „Kampagne kopieren“.</td></tr>");
+		}
+		List<Interaction> shown = campaign.isEmpty() ? List.of() : (filterType == null ? repository.findAll() : repository.findFor(filterType, filterId))
+				.stream().filter(i -> Integer.valueOf(campaign.get().getId()).equals(i.campaignId)).collect(Collectors.toList());
+		for (Interaction interaction : shown)
 		{
 			User npc = em.find(User.class, interaction.npcUserId);
 			String startTitle = nodes.stream().filter(n -> n.id == interaction.startNodeId).map(n -> n.title).findFirst().orElse("?");

@@ -11,6 +11,7 @@ import net.driftingsouls.ds2.server.campaign.CampaignUserView;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Context;
 import net.driftingsouls.ds2.server.framework.ContextMap;
+import net.driftingsouls.ds2.server.framework.pipeline.Request;
 
 import javax.persistence.EntityManager;
 import java.util.ArrayList;
@@ -59,6 +60,15 @@ public class CampaignParticipants implements AdminPlugin
 				service.prepare(context.getRequest().getParameterString("name"), actor);
 				message(echo, "Kampagne angelegt. Wähle jetzt die Teilnehmer aus.");
 			}
+			else if ("copy".equals(action))
+			{
+				Request request = context.getRequest();
+				Campaign source = service.findCampaign(request.getParameterInt("source"))
+						.orElseThrow(() -> new CampaignException("Bitte eine beendete Kampagne wählen."));
+				Campaign copy = service.copy(source, request.getParameterString("name"), actor, "1".equals(request.getParameterString("withparticipants")));
+				message(echo, "Kampagne „" + copy.getName() + "“ aus „" + source.getName() + "“ angelegt: Systeme, Interaktionen"
+						+ ("1".equals(request.getParameterString("withparticipants")) ? " und Teilnehmer" : "") + " übernommen. Prüfe jetzt die Teilnehmer.");
+			}
 			else if ("save".equals(action))
 			{
 				save(echo, context, em, actor, service);
@@ -72,7 +82,7 @@ public class CampaignParticipants implements AdminPlugin
 		Optional<Campaign> campaign = service.findOpenCampaign();
 		if (campaign.isEmpty())
 		{
-			prepareForm(echo);
+			prepareForm(echo, service.findEndedCampaigns());
 			return;
 		}
 		participantForm(echo, context, em, service, campaign.get());
@@ -128,7 +138,7 @@ public class CampaignParticipants implements AdminPlugin
 		}
 	}
 
-	private void prepareForm(StringBuilder echo)
+	private void prepareForm(StringBuilder echo, List<Campaign> ended)
 	{
 		echo.append("<div class='gfxbox' style='width:590px'>");
 		echo.append("<p>Es wird keine Kampagne vorbereitet und keine läuft.</p>");
@@ -136,7 +146,30 @@ public class CampaignParticipants implements AdminPlugin
 		hiddenFields(echo, getClass(), "prepare");
 		echo.append("Name der Kampagne: <input type='text' name='name' size='40' maxlength='255' /> ");
 		echo.append("<input type='submit' value='Kampagne vorbereiten' />");
-		echo.append("</form></div>");
+		echo.append("</form>");
+
+		if (!ended.isEmpty())
+		{
+			echo.append("<h3>Kampagne kopieren</h3>");
+			echo.append("<p>Übernimmt die Systeme und die Interaktionen einer beendeten Kampagne in eine neue. ")
+					.append("Die Interaktionen zählen ihre Limits neu; Kampagnenvariablen werden nicht übernommen.</p>");
+			echo.append("<form action='./ds' method='post'>");
+			hiddenFields(echo, getClass(), "copy");
+			echo.append("<table class='noBorderX' cellpadding='3'><tr><td class='noBorderX'>Vorlage:</td><td class='noBorderX'><select name='source'>");
+			for (Campaign campaign : ended)
+			{
+				echo.append("<option value='").append(campaign.getId()).append("'>").append(esc(campaign.getName()))
+						.append(" (").append(campaign.getId()).append(", ").append(campaign.getTickCount()).append(" Kampagnenticks)</option>");
+			}
+			echo.append("</select></td></tr>");
+			echo.append("<tr><td class='noBorderX'>Name der neuen Kampagne:</td><td class='noBorderX'>")
+					.append("<input type='text' name='name' size='40' maxlength='255' /></td></tr>");
+			echo.append("<tr><td class='noBorderX'></td><td class='noBorderX'><label><input type='checkbox' name='withparticipants' value='1' checked='checked' /> ")
+					.append("Teilnehmer übernehmen (außer Spielern im Urlaubsmodus)</label></td></tr>");
+			echo.append("<tr><td class='noBorderX'></td><td class='noBorderX'><input type='submit' value='Kampagne kopieren' /></td></tr></table>");
+			echo.append("</form>");
+		}
+		echo.append("</div>");
 	}
 
 	private void participantForm(StringBuilder echo, Context context, EntityManager em, CampaignService service, Campaign campaign)

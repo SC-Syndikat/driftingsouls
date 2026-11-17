@@ -702,10 +702,12 @@ public final class StandardActions
 		private static void attachInteraction(DialogContext context, int templateId, Ship ship)
 		{
 			InteractionRepository repository = new InteractionRepository();
-			Interaction template = repository.find(templateId)
+			int resolvedId = context.campaign != null ? repository.resolveForCampaign(templateId, context.campaign.getId()) : templateId;
+			Interaction template = repository.find(resolvedId)
 					.orElseThrow(() -> new CampaignException("Unbekannte Interaktion " + templateId + "."));
 			context.em.flush();
-			repository.save(new Interaction(0, template.label, ObjectType.SHIP, ship.getId(), template.startNodeId, template.npcUserId, true,
+			Integer campaignId = context.campaign != null ? Integer.valueOf(context.campaign.getId()) : template.campaignId;
+			repository.save(new Interaction(0, campaignId, template.label, ObjectType.SHIP, ship.getId(), template.startNodeId, template.npcUserId, true,
 					template.maxUsesPerUser, template.cooldownTicks, Interaction.Audience.RESTRICTED, Set.of(context.user.getId()), Set.of()));
 		}
 
@@ -913,7 +915,11 @@ public final class StandardActions
 			{
 				throw new CampaignException("Unbekannte Interaktion " + params.get("interaction") + ".");
 			}
-			repository.setActive(params.getInt("interaction"), "1".equals(params.get("active")));
+			// The dialog may have been written for an earlier campaign: switch this campaign's copy
+			int interactionId = context.campaign != null
+					? repository.resolveForCampaign(params.getInt("interaction"), context.campaign.getId())
+					: params.getInt("interaction");
+			repository.setActive(interactionId, "1".equals(params.get("active")));
 		}
 
 		@Override

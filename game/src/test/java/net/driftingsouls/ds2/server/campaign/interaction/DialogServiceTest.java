@@ -83,8 +83,8 @@ public class DialogServiceTest extends DBSingleTransactionTest
 		dialogs.addCondition(secret, "VARIABLE", Params.of("name", "hilft", "scope", "USER"), Comparison.GE, 1);
 		goodbye = dialogs.createOption(farewell, 1, "Auf Wiedersehen.", null, null, null, true, false);
 
-		new InteractionRepository().save(new Interaction(0, "Mit dem Admiral sprechen", ObjectType.SHIP, npcShip.getId(), greeting, npc.getId(),
-				true, 1, null, Interaction.Audience.ALL, Set.of(), Set.of()));
+		new InteractionRepository().save(new Interaction(0, campaign.getId(), "Mit dem Admiral sprechen", ObjectType.SHIP, npcShip.getId(), greeting,
+				npc.getId(), true, 1, null, Interaction.Audience.ALL, Set.of(), Set.of()));
 
 		service = new DialogService(getEM(), new DialogEngine(), () -> 0);
 	}
@@ -97,6 +97,14 @@ public class DialogServiceTest extends DBSingleTransactionTest
 		assertEquals(1, offers.size());
 		assertEquals(ObjectType.SHIP, offers.get(0).type);
 		assertEquals("Mit dem Admiral sprechen", offers.get(0).interactions.get(0).label);
+	}
+
+	@Test
+	public void givenAnInteractionOfAnotherCampaign_findOffers_shouldNotOfferIt()
+	{
+		getEM().createNativeQuery("UPDATE interaction SET campaign_id = NULL").executeUpdate();
+
+		assertTrue(service.findOffers(player, playerShip).isEmpty());
 	}
 
 	@Test

@@ -1,5 +1,6 @@
 package net.driftingsouls.ds2.server.campaign.dialog;
 
+import net.driftingsouls.ds2.server.campaign.Campaign;
 import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.campaign.CampaignService;
 import net.driftingsouls.ds2.server.campaign.CampaignText;
@@ -23,7 +24,9 @@ import net.driftingsouls.ds2.server.units.UnitType;
 import javax.persistence.EntityManager;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.TreeSet;
@@ -156,7 +159,9 @@ public class ParamChoices
 				break;
 			}
 			case INTERACTION:
-				for (Interaction interaction : new InteractionRepository().findAll())
+				// The open campaign's interactions; a stored one of another campaign stays choosable through the editor
+				Optional<Campaign> open = new CampaignService(em).findOpenCampaign();
+				for (Interaction interaction : open.isEmpty() ? List.<Interaction>of() : new InteractionRepository().findForCampaign(open.get().getId()))
 				{
 					choices.put(Integer.toString(interaction.id), interaction.label + " (" + interaction.id + ")");
 				}
