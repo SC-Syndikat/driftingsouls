@@ -5,6 +5,7 @@ import net.driftingsouls.ds2.server.framework.pipeline.Request;
 import java.io.IOException;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -25,6 +26,11 @@ public class EditorForm8<E> implements FormElementCreator<E>
 	private final List<Job<E,?>> postAddTasks = new ArrayList<>();
 	private final List<Job<E,?>> updateTasks = new ArrayList<>();
 	private final List<Job<E,?>> deleteTasks = new ArrayList<>();
+	private final List<BiConsumer<E,E>> updateValidators = new ArrayList<>();
+	private BiFunction<E,E,Confirmation> updateConfirmation = (before, after) -> null;
+	private Function<E,Confirmation> deleteConfirmation = (entity) -> null;
+	private Function<E,Boolean> visible = (entity) -> true;
+	private VisibilityQuery<E> visibilityQuery = null;
 	private Class<? extends E> defaultEntityClass = null;
 
 	public EditorForm8(EditorMode modus, Class<?> plugin)
@@ -67,6 +73,93 @@ public class EditorForm8<E> implements FormElementCreator<E>
 	public void allowUpdate(Function<E,Boolean> allowUpdateCondition)
 	{
 		this.allowUpdate = allowUpdateCondition;
+	}
+
+	/**
+	 * A restriction of the entities the plugin lists and shows, as query condition.
+	 */
+	public interface VisibilityQuery<E>
+	{
+		javax.persistence.criteria.Predicate apply(javax.persistence.criteria.CriteriaBuilder builder, javax.persistence.criteria.Root<E> root);
+	}
+
+	/**
+	 * Restricts which entities the plugin lists, shows and updates. Both forms must describe the same
+	 * set: {@code visible} checks a loaded entity, {@code query} restricts database queries.
+	 */
+	public void restrictVisible(Function<E, Boolean> visible, VisibilityQuery<E> query)
+	{
+		this.visible = visible;
+		this.visibilityQuery = query;
+	}
+
+	public boolean isVisible(E entity)
+	{
+		return this.visible.apply(entity);
+	}
+
+	/**
+	 * @return The query restriction, or {@code null} if every entity is visible
+	 */
+	public VisibilityQuery<E> getVisibilityQuery()
+	{
+		return this.visibilityQuery;
+	}
+
+	/**
+	 * Adds a check on the updated entity, run before anything is saved. The validator throws a
+	 * {@link RuntimeException} to reject the update; the changes are then discarded. It also checks
+	 * entities being added, getting the new entity as both arguments.
+	 * @param validator Receives the entity before and after the update
+	 */
+	public void validateUpdate(BiConsumer<E, E> validator)
+	{
+		this.updateValidators.add(validator);
+	}
+
+	/**
+	 * Runs the checks added by {@link #validateUpdate(BiConsumer)}.
+	 */
+	public void validateUpdate(E before, E after)
+	{
+		for (BiConsumer<E, E> validator : updateValidators)
+		{
+			validator.accept(before, after);
+		}
+	}
+
+	/**
+	 * Asks for confirmation before an update is saved. The check gets the entity before and after the
+	 * update and returns what the update affects, or {@code null} if nothing needs confirming.
+	 */
+	public void confirmUpdate(BiFunction<E, E, Confirmation> check)
+	{
+		this.updateConfirmation = check;
+	}
+
+	/**
+	 * @return What the update affects, or {@code null} if it needs no confirmation
+	 */
+	public Confirmation getUpdateConfirmation(E before, E after)
+	{
+		return this.updateConfirmation.apply(before, after);
+	}
+
+	/**
+	 * Asks for confirmation before an entity is deleted. The check returns what deleting it affects, or
+	 * {@code null} if nothing needs confirming.
+	 */
+	public void confirmDelete(Function<E, Confirmation> check)
+	{
+		this.deleteConfirmation = check;
+	}
+
+	/**
+	 * @return What deleting the entity affects, or {@code null} if it needs no confirmation
+	 */
+	public Confirmation getDeleteConfirmation(E entity)
+	{
+		return this.deleteConfirmation.apply(entity);
 	}
 
 	/**

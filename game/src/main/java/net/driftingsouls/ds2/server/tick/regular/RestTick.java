@@ -321,7 +321,7 @@ public class RestTick extends TickController {
 			List<ConfigFelsbrockenSystem> systemList;
 			if(isCampaignTick()) {
 				systemList = db
-						.createQuery("from ConfigFelsbrockenSystem cfs where cfs.system in (:systeme)", ConfigFelsbrockenSystem.class)
+						.createQuery("from ConfigFelsbrockenSystem cfs where cfs.system.id in (:systeme)", ConfigFelsbrockenSystem.class)
 						.setParameter("systeme", affectedSystems)
 						.getResultList();
 			}
@@ -499,8 +499,9 @@ public class RestTick extends TickController {
 		}
 
 		this.doJumps();
-		this.doStatistics();
 		if( ! isCampaignTick()){
+			// The statistics are keyed by the regular tick number, which a campaign tick does not advance
+			this.doStatistics();
 			this.doVacation();
 			this.doNoobProtection();
 		}

@@ -30,7 +30,7 @@ import net.driftingsouls.ds2.server.framework.ContextMap;
  *
  */
 @ContextInstance(ContextInstance.Scope.SESSION)
-class JavaSession implements Serializable {
+public class JavaSession implements Serializable {
 	private static final long serialVersionUID = 1513402479401819226L;
 	
 	private Integer id;

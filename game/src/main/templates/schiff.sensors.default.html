@@ -90,6 +90,12 @@
 					</span>
 				</a>
 			{/endif}
+			{if base.campaigncontact}
+				<a class="greenborder tooltip" href="{base.campaigncontact}">
+					<img src="data/interface/schiffe/schiff_com.gif" alt="Kontaktaufnahme" />
+					<span class="ttcontent">Mit {base.name} Kontakt aufnehmen.</span>
+				</a>
+			{/endif}
 			{if base.colonize}
 				<a class="greenborder tooltip" href="./ds?module=colonize&amp;col={base.id}&amp;ship={global.ship}">
 					<img src="data/interface/schiffe/schiff_kolonisieren.gif" alt="kolonisieren" />
@@ -389,6 +395,11 @@
 						<a class="greenborder tooltip" href="./ds?module=schiff&amp;communicate={sships.id}&amp;ship={global.ship}">
 							<img src="data/interface/schiffe/schiff_com.gif" alt="Kontaktaufnahme" />
 							<span class="ttcontent">Mit {sships.type.name} Kontakt aufnehmen.</span>
+						</a>
+					{/endif}{if sships.action.campaigncontact}
+						<a class="greenborder tooltip" href="{sships.action.campaigncontact}">
+							<img src="data/interface/schiffe/schiff_com.gif" alt="Kontaktaufnahme" />
+							<span class="ttcontent">Mit {sships.name} Kontakt aufnehmen.</span>
 						</a>
 					{/endif}{if sships.action.jump}
 						<a class="greenborder tooltip" href="./ds?module=schiff&amp;action=kjump&amp;knode={sships.id}&amp;ship={global.ship}">

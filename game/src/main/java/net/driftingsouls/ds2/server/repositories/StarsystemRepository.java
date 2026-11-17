@@ -44,6 +44,16 @@ public class StarsystemRepository {
         return starsystemData.get(system);
     }
 
+    /**
+     * Forgets the cached star system data, e.g. after a system's visibility has changed.
+     */
+    public void clearStarsystemData()
+    {
+        synchronized (starsystemData) {
+            starsystemData.clear();
+        }
+    }
+
     public Collection<StarSystemData> getStarsystemsData()
     {
         if(starsystemData.size() == 0) {

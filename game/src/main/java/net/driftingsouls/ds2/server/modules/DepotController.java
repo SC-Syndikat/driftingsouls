@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.cargo.Cargo;
 import net.driftingsouls.ds2.server.cargo.ItemCargoEntry;
 import net.driftingsouls.ds2.server.cargo.ResourceList;
@@ -99,6 +101,7 @@ public class DepotController extends Controller
 		validateShip(ship);
 
 		validateDepot(tradeentry, ship, handelsposten);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.TRADE);
 
 		//  Der Handelspartner
 		// Die (zukuenftig) eigenen Waren

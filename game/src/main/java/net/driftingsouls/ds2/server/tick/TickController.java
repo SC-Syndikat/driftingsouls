@@ -56,6 +56,15 @@ public abstract class TickController implements ApplicationContextAware
 
 	protected Set<Integer> affectedSystems = new HashSet<>();
 
+	/**
+	 * Restricts the tick to the star systems of a campaign tick. Ticks are thread-scoped Spring proxies: set it
+	 * through this method, a field written on the proxy never reaches the instance doing the work.
+	 */
+	public void setAffectedSystems(Set<Integer> affectedSystems)
+	{
+		this.affectedSystems = affectedSystems;
+	}
+
 	public Boolean isCampaignTick(){
 		return affectedSystems != null && !affectedSystems.isEmpty();
 	}

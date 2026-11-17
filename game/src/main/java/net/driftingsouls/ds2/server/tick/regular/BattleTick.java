@@ -18,9 +18,12 @@
  */
 package net.driftingsouls.ds2.server.tick.regular;
 
+import net.driftingsouls.ds2.server.WellKnownConfigValue;
 import net.driftingsouls.ds2.server.battles.Battle;
 import net.driftingsouls.ds2.server.battles.SchlachtLogRundeBeendet;
+import net.driftingsouls.ds2.server.campaign.CampaignMapService;
 import net.driftingsouls.ds2.server.framework.Common;
+import net.driftingsouls.ds2.server.framework.ConfigService;
 import net.driftingsouls.ds2.server.framework.db.batch.UnitOfWork;
 import net.driftingsouls.ds2.server.tick.TickController;
 import org.springframework.context.annotation.Scope;
@@ -28,6 +31,7 @@ import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Fuehrt den Tick fuer Schlachten aus.
@@ -51,7 +55,11 @@ public class BattleTick extends TickController {
 				Schlachten
 		 */
 
-		final long lastacttime = Common.time()-1800;
+		final long now = Common.time();
+		ConfigService config = new ConfigService(db);
+		final long regularLock = config.getValue(WellKnownConfigValue.BATTLE_TICK_LOCK_SECONDS);
+		final long campaignLock = config.getValue(WellKnownConfigValue.CAMPAIGN_BATTLE_TICK_LOCK_SECONDS);
+		final Set<Integer> campaignSystems = isCampaignTick() ? Set.of() : new CampaignMapService(db).getRunningCampaignSystemIds();
 
 		// Only the ids are collected up front: the unit of work below clears the persistence context
 		// on every flush, which would detach anything loaded here. The battle is re-loaded inside
@@ -77,6 +85,7 @@ public class BattleTick extends TickController {
 				{
 					return;
 				}
+				final long lastacttime = now - lockSeconds(isCampaignTick(), campaignSystems.contains(battle.getSystem()), regularLock, campaignLock);
 				if( battle.getBlockCount() > 0 && battle.getLetzteRunde() <= lastacttime )
 				{
 					battle.decrementBlockCount();
@@ -99,5 +108,19 @@ public class BattleTick extends TickController {
 		.setFlushSize(1)
 		.setClearOnFlush(true)
 		.executeFor(battleIds);
+	}
+
+	/**
+	 * How long before the tick a battle must have started to be advanced by it. The campaign tick
+	 * advances every battle at once; regular ticks give battles in a running campaign's star systems a
+	 * much shorter lock.
+	 */
+	static long lockSeconds(boolean campaignTick, boolean inCampaignSystem, long regularLock, long campaignLock)
+	{
+		if( campaignTick )
+		{
+			return 0;
+		}
+		return inCampaignSystem ? campaignLock : regularLock;
 	}
 }

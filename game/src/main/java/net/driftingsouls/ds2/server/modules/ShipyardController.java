@@ -18,6 +18,8 @@
  */
 package net.driftingsouls.ds2.server.modules;
 
+import net.driftingsouls.ds2.server.campaign.CampaignActionGuard;
+import net.driftingsouls.ds2.server.campaign.CampaignAction;
 import net.driftingsouls.ds2.server.bases.Base;
 import net.driftingsouls.ds2.server.entities.User;
 import net.driftingsouls.ds2.server.framework.Common;
@@ -85,6 +87,7 @@ public class ShipyardController extends Controller
 	public void defaultAction(Ship ship, int linkedbase) throws IOException
 	{
 		validateShip(ship);
+		new CampaignActionGuard().check((User) getUser(), ship, CampaignAction.SHIP_ACTION);
 
 		org.hibernate.Session db = getDB();
 

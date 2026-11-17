@@ -19,6 +19,7 @@
 package net.driftingsouls.ds2.server;
 
 import net.driftingsouls.ds2.server.framework.ContextMap;
+import net.driftingsouls.ds2.server.tick.CampaignTickStatus;
 import net.driftingsouls.ds2.server.tick.TickController;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -104,6 +105,7 @@ public class TickAdminCommand
 	 * @param affectedSystems die Systeme, fuer die der Tick ausgefuehrt werden soll (optional, "")
 	 */
 	public void runRegularTick(Class<? extends TickController> tickPart, String affectedSystems) {
+		boolean campaignTick = tickPart == null && affectedSystems != null && !affectedSystems.isBlank();
 		try
 		{
 			JobDataMap map = new JobDataMap();
@@ -111,12 +113,20 @@ public class TickAdminCommand
 				map.put("onlyTick", tickPart);
 			}
 			map.put("affectedSystems", affectedSystems);
-			
+
 			log.info("RegularTick '"+tickPart+"' wird manuell gestartet");
+			if( campaignTick )
+			{
+				CampaignTickStatus.started();
+			}
 			scheduler.triggerJob(this.regularTick.getJobKey(), map);
 		}
 		catch( SchedulerException e )
 		{
+			if( campaignTick )
+			{
+				CampaignTickStatus.reset();
+			}
 			log.error("Konnte regulartick nicht ausfuehren", e);
 		}
 	}

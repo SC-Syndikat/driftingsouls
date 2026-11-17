@@ -47,4 +47,14 @@ public class JumpNodeRepository {
         }
         return jumpNodeMap.get(system);
     }
+
+    /**
+     * Forgets the cached jump nodes of a star system, e.g. after one has been hidden or revealed.
+     */
+    public void clearSystem(int system)
+    {
+        synchronized (jumpNodeMap) {
+            jumpNodeMap.remove(system);
+        }
+    }
 }

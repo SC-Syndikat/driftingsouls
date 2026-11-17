@@ -81,6 +81,9 @@ public class RegularTick extends AbstractTickExecuter
                 publishStatus("berechne automatisches Feuern");
                 execTick(AutofireTick.class, false);
 		
+				publishStatus("zaehle Kampagnentick");
+				execTick(CampaignTick.class, false);
+
 				publishStatus("berechne Schlachten");
 				execTick(BattleTick.class, false);
 

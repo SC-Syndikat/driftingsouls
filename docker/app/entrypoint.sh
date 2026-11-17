@@ -26,6 +26,6 @@ set_setting "db_password" "$DB_PASSWORD"
 set_setting "ABSOLUTE_PATH" "$ABSOLUTE_PATH"
 set_setting "LOXPATH" "$LOXPATH"
 
-mkdir -p "$LOXPATH"
+mkdir -p "$LOXPATH" "$LOXPATH/tick"
 
 exec "$@"

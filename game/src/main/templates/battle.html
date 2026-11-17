@@ -1,3 +1,8 @@
+{if campaign.battlenote}
+<div class="gfxbox" style="width:95%;margin-bottom:8px">
+	{campaign.battlenote}
+</div>
+{/endif}
 <table class="show" style="table-layout:fixed" cellpadding="2" cellspacing="2" width="100%">
 
 <tr>
@@ -111,10 +116,10 @@
 			<table border="0" cellspacing="1" cellpadding="1" width="100%">
 				<!-- BEGIN menu.entry -->
 				<tr>
-					<td style="background-color:#CC3333" align="center"
+					<td style="background-color:{menu.entry.color}" align="center"
 						onmouseover="this.style.cursor='pointer';this.style.backgroundColor='#33CC33'"
 						onclick="window.location.href=DS.getUrl()+'?module=angriff&amp;battle={battle.id}&amp;scan='+getShowUrlPart()+'{menu.entry.params}&amp;ownshipgroup={global.ownshipgroup}&amp;enemyshipgroup={global.enemyshipgroup}'"
-						onmouseout="this.style.backgroundColor='#CC3333'">
+						onmouseout="this.style.backgroundColor='{menu.entry.color}'">
 						<span class="smallfont" style="font-weight:bold">{menu.entry.title}</span>
 					</td>
 				</tr>
