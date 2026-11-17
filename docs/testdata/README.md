@@ -16,13 +16,14 @@ bevor es etwas ändert.
 |---|---|
 | 90002 | GameMaster (Flag `gamemaster`) |
 | 90003 | Spieler |
-| -900 | NPC „Maelstrom-Flotte“ |
+| -900 | NPC „Maelstrom-Flotte“, mit Flag `nodeserteur` |
 
 Den NPC -901 „Piraten vom Roten Nebel“ legt `campaign_piraten.sql` als Kopie von -900 an.
 
-**Geld:** Der Kampagnentick ist ein voller Tick, die Besatzungen wollen Sold. Ohne Geld desertieren die
-Schiffe zu NPC -15, auch die des NPC. `reset_test_campaign.sql` gibt den NPCs 10.000.000 RE und dem
-Spieler 100.000 RE.
+**Sold:** Der Kampagnentick ist ein voller Tick, die Besatzungen wollen Sold. Ohne Geld desertieren die
+Schiffe zu NPC -15. NPCs zahlen keinen Sold, wenn sie wie die NPCs im laufenden Spiel das Flag
+`nodeserteur` tragen. `reset_test_campaign.sql` setzt es für -900 und -901 und gibt dem Spieler
+100.000 RE.
 
 **Über die GM-Werkzeuge anlegen**, als 90002:
 

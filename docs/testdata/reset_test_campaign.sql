@@ -47,8 +47,9 @@ DELETE FROM user_relations WHERE (user_id = 90003 AND target_id IN (-900, -901))
 -- Player ships back to the jump node in 612, freighter with 50 Nahrung
 UPDATE ships SET star_system = 612, x = 150, y = 150 WHERE id IN (@cruiser, @freighter);
 UPDATE ships SET cargo = '16|50|0|0;17|80|0|0;20|40|0|0' WHERE id = @freighter;
--- The campaign tick is a full tick: crews that are not paid desert with their ships
+-- The campaign tick is a full tick: crews that are not paid desert with their ships.
+-- The player pays, the NPCs do not (flag nodeserteur, as for the NPCs of the live game).
 UPDATE users SET konto = 100000 WHERE id = 90003;
-UPDATE users SET konto = 10000000 WHERE id IN (-900, -901);
+UPDATE users SET flags = TRIM(CONCAT(flags, ' nodeserteur')) WHERE id IN (-900, -901) AND CONCAT(' ', flags, ' ') NOT LIKE '% nodeserteur %';
 
 COMMIT;

@@ -983,14 +983,15 @@ Entschieden am 2026-11-11, umgesetzt am 2026-11-17:
      den Tick jetzt direkt über `TickAdminCommand`.
    - `RestTick.doBoulders` verglich im Kampagnentick das Sternensystem-Entity mit Systemnummern und
      brach ab; Felsbrocken wurden in Kampagnensystemen nie nachgefüllt (`RestTickCampaignBoulderTest`).
+13. **Sold im Kampagnentick: wie bisher, keine Sonderregel.** ✅ Entschieden am 2026-11-17. Ob ein
+    Account Sold zahlt, regelt das bestehende Flag `nodeserteur` („keine Deserteure“): Mit ihm zahlen
+    seine Schiffe weder Sold noch Wartung und desertieren nie (`ShipTick.calculatePayAndUpkeep`).
+    Alle NPCs der Produktionsdaten, die Schiffe haben, tragen es, bis auf -1, -40, -90 und -99. Die
+    NPC-Accounts einer Kampagne bekommen es ebenso; einen Hinweis an den GM braucht es nicht.
+    Spieler zahlen auch im Kampagnentick Sold. Auf dem Testsystem desertierten Admiral Vex und das
+    Trümmerteil, weil den Test-NPCs -900 und -901 das Flag fehlte; das Reset-Skript setzt es jetzt.
 
 Noch nicht entschieden:
-
-13. **Sold im Kampagnentick:** Weil der Kampagnentick ein voller Tick ist, zahlen auch die NPC-Accounts
-    des GM Sold. Ist ihr Konto leer, desertieren ihre Schiffe zu NPC -15, auf dem Testsystem traf das
-    Admiral Vex und das Trümmerteil. Ebenso verlieren Spieler ohne Geld ihre Schiffe schneller, weil
-    Kampagnenticks zusätzlich zu den regulären kommen. Möglich: Kampagnen-NPCs vom Sold befreien,
-    Sold nur im regulären Tick, oder nur ein Hinweis an den GM, wenn ein NPC-Konto nicht reicht.
 
 10. **Protokoll der GM-Handlungen:** Masterlogin und Vertrauenskorrekturen werden festgehalten;
     Spawnen, Übergeben, Credits, Schlachtende, Aktionen aus Anfragen und der Steuermodus nicht.
