@@ -242,6 +242,7 @@ public class Ship implements Locatable,Transfering,Feeding {
 		this.comm = 100;
 		this.sensors = 100;
 		this.offiziere = new HashSet<>();
+		this.flags = new HashSet<>();
 		this.alarm = AlertLevel.GREEN;
 	}
 
